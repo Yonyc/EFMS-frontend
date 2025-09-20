@@ -10,7 +10,7 @@ import { EditControl } from "react-leaflet-draw";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "leaflet-draw/dist/leaflet.draw.css";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import PolygonList from "./PolygonList";
 
 interface PolygonData {
@@ -25,87 +25,79 @@ export default function MapWithPolygons() {
     const [polygons, setPolygons] = useState<PolygonData[]>([]);
     const featureGroupRef = useRef<L.FeatureGroup>(null);
 
-    // Fix default icons
-    const DefaultIcon = L.icon({
-        iconUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png",
-        shadowUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png",
-    });
-    L.Marker.prototype.options.icon = DefaultIcon;
-
-    // Fetch initial polygons from API
     useEffect(() => {
-        async function fetchPolygons() {
+        const fetchPolygons = async () => {
             try {
                 const res = await fetch("https://example.com/api/polygons");
                 const data = await res.json();
-                const formatted: PolygonData[] = data.map((p: any) => ({
-                    ...p,
-                    visible: true,
-                }));
-                setPolygons(formatted);
+                setPolygons(data.map((p: any) => ({ ...p, visible: true })));
             } catch (err) {
                 console.error("Failed to fetch polygons:", err);
             }
-        }
+        };
         fetchPolygons();
     }, []);
 
-    const togglePolygon = (id: string) => {
+
+    const togglePolygon = useCallback((id: string) => {
         setPolygons((prev) =>
             prev.map((p) => (p.id === id ? { ...p, visible: !p.visible } : p))
         );
-    };
+    }, []);
 
-    const renamePolygon = (id: string, newName: string) => {
+    const renamePolygon = useCallback((id: string, newName: string) => {
         setPolygons((prev) =>
             prev.map((p) => (p.id === id ? { ...p, name: newName } : p))
         );
-    };
+    }, []);
 
-    // Handle creation from draw tool
-    const handleCreated = (e: any) => {
+    // Handler for polygon creation
+    const handleCreated = useCallback((e: any) => {
         const layer = e.layer;
-        const latlngs = layer.getLatLngs()[0].map((ll: L.LatLng) => [
-            ll.lat,
-            ll.lng,
-        ]) as [number, number][];
+        const latlngs = layer.getLatLngs()[0].map((ll: L.LatLng) => [ll.lat, ll.lng]) as [number, number][];
+        setPolygons((prev) => [
+            ...prev,
+            {
+                id: `poly-${Date.now()}`,
+                name: `Polygon ${prev.length + 1}`,
+                coords: latlngs,
+                visible: true,
+            },
+        ]);
+        featureGroupRef.current?.removeLayer(layer);
+    }, []);
 
-        const newPoly: PolygonData = {
-            id: `poly-${Date.now()}`,
-            name: `Polygon ${polygons.length + 1}`,
-            coords: latlngs,
-            visible: true,
-        };
-        setPolygons((prev) => [...prev, newPoly]);
-    };
-
-    // Handle edit of existing polygons
-    const handleEdited = (e: any) => {
-        const editedLayers = e.layers;
-        editedLayers.eachLayer((layer: any) => {
+    // Handler for polygon edit
+    const handleEdited = useCallback((e: any) => {
+        const updates: Record<string, [number, number][]> = {};
+        e.layers.eachLayer((layer: any) => {
             const id = layer.options?.customId;
             if (!id) return;
-            const latlngs = layer.getLatLngs()[0].map((ll: L.LatLng) => [
-                ll.lat,
-                ll.lng,
-            ]) as [number, number][];
-            setPolygons((prev) =>
-                prev.map((p) => (p.id === id ? { ...p, coords: latlngs } : p))
-            );
+            const latlngs = layer.getLatLngs()[0].map((ll: L.LatLng) => [ll.lat, ll.lng]) as [number, number][];
+            updates[id] = latlngs;
         });
-    };
+        setPolygons((prev) =>
+            prev.map((p) => (updates[p.id] ? { ...p, coords: updates[p.id] } : p))
+        );
+    }, []);
 
-    // Handle delete
-    const handleDeleted = (e: any) => {
-        const deletedLayers = e.layers;
+    // Handler for polygon deletion
+    const handleDeleted = useCallback((e: any) => {
         const idsToDelete: string[] = [];
-        deletedLayers.eachLayer((layer: any) => {
+        e.layers.eachLayer((layer: any) => {
             if (layer.options?.customId) {
                 idsToDelete.push(layer.options.customId);
             }
         });
-        setPolygons((prev) => prev.filter((p) => !idsToDelete.includes(p.id)));
-    };
+        const newPolys = polygons.filter((p) => !idsToDelete.includes(p.id));
+        setPolygons(newPolys);
+        featureGroupRef.current?.clearLayers();
+        newPolys.forEach((poly) => {
+            const layer = L.polygon(poly.coords, { color: 'blue' });
+            (layer as any).options.customId = poly.id;
+            featureGroupRef.current?.addLayer(layer);
+        });
+    }, [polygons]);
 
     return (
         <>
@@ -116,19 +108,15 @@ export default function MapWithPolygons() {
                     onRename={renamePolygon}
                 />
             </div>
-
             <div style={{ flex: 1 }}>
                 <MapContainer
-                    center={center}
-                    zoom={15}
-                    scrollWheelZoom={true}
                     style={{ height: "100%", width: "100%" }}
+                    {...{ center, zoom: 15 }}
                 >
                     <TileLayer
-                        attribution='&copy; <a href="https://osm.org/copyright">OpenStreetMap</a>'
                         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                        {...{ attribution: '&copy; <a href="https://osm.org/copyright">OpenStreetMap</a>' }}
                     />
-
                     <FeatureGroup ref={featureGroupRef}>
                         <EditControl
                             position="topright"
@@ -140,90 +128,40 @@ export default function MapWithPolygons() {
                                 circlemarker: false,
                                 polygon: true,
                             }}
-                            onCreated={(e: any) => {
-                                const layer = e.layer;
-                                const latlngs = layer.getLatLngs()[0].map((ll: L.LatLng) => [ll.lat, ll.lng]) as [number, number][];
-
-                                setPolygons((prev) => [
-                                    ...prev,
-                                    {
-                                        id: `poly-${Date.now()}`,
-                                        name: `Polygon ${prev.length + 1}`,
-                                        coords: latlngs,
-                                        visible: true,
-                                    },
-                                ]);
-
-                                // Remove the live Leaflet.Draw layer so only React renders it
-                                featureGroupRef.current?.removeLayer(layer);
-                            }}
-                            onEdited={(e: any) => {
-                                // Create a map of updated polygons
-                                const updates: Record<string, [number, number][]> = {};
-
-                                e.layers.eachLayer((layer: any) => {
-                                    const id = layer.options?.customId;
-                                    if (!id) return;
-
-                                    const latlngs = layer
-                                        .getLatLngs()[0]
-                                        .map((ll: L.LatLng) => [ll.lat, ll.lng]) as [number, number][];
-
-                                    updates[id] = latlngs;
-                                });
-
-                                // Merge updates into existing state
-                                setPolygons((prev) =>
-                                    prev.map((p) =>
-                                        updates[p.id] ? { ...p, coords: updates[p.id] } : p
-                                    )
-                                );
-
-                                // Clear Draw's temp layers
-                                //featureGroupRef.current?.clearLayers();
-                            }}
-
-                            onDeleted={(e: any) => {
-                                const idsToDelete: string[] = [];
-
-                                e.layers.eachLayer((layer: any) => {
-                                    if (layer.options?.customId) {
-                                        idsToDelete.push(layer.options.customId);
-                                    }
-                                });
-
-                                // Filter out deleted IDs, keep others
-                                let newPolys = polygons.filter((p) => !idsToDelete.includes(p.id));
-                                setPolygons(newPolys);
-
-                                // reload the polygons drawn on the map
-                                featureGroupRef.current?.clearLayers();
-                                newPolys.forEach((poly) => {
-                                    const layer = L.polygon(poly.coords, { color: 'blue', customId: poly.id });
-                                    featureGroupRef.current?.addLayer(layer);
-                                });
-                            }}
-
+                            onCreated={handleCreated}
+                            onEdited={handleEdited}
+                            onDeleted={handleDeleted}
                         />
-
-                        {polygons
-                            .filter((p) => p.visible)
-                            .map((poly) => (
-                                <Polygon
-                                    key={poly.id}
-                                    positions={poly.coords}
-                                    color="blue"
-                                    pathOptions={{ customId: poly.id }}
-                                >
-                                    <Popup>{poly.name}</Popup>
-                                </Polygon>
-                            ))}
+                        {polygons.filter((p) => p.visible).map((poly) => (
+                            <Polygon
+                                key={poly.id}
+                                positions={poly.coords}
+                                pathOptions={{ color: "blue", customId: poly.id }}
+                            >
+                                <Popup>{poly.name}</Popup>
+                            </Polygon>
+                        ))}
                     </FeatureGroup>
 
+                    {/* Adjust marker icon anchor to align bottom center */}
+                    {((imgUrl: string) => {
+                        const img = new window.Image();
+                        img.src = imgUrl;
+                        img.onload = () => {
+                            const iconWidth = img.width;
+                            const iconHeight = img.height;
+                            const icon = L.icon({
+                                iconUrl: img.src,
+                                iconAnchor: [Math.floor(iconWidth / 2), iconHeight], // bottom center
+                                popupAnchor: [0, 0],
+                            });
+                            L.Marker.prototype.options.icon = icon;
+                        };
+                        return <Marker position={center}>
+                            <Popup>Center Location</Popup>
+                        </Marker>;
+                    })("https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png")}
 
-                    <Marker position={center}>
-                        <Popup>Center Location</Popup>
-                    </Marker>
                 </MapContainer>
             </div>
         </>

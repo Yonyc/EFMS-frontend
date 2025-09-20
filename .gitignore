@@ -6,3 +6,4 @@ pnpm-lock.yaml
 # React Router
 /.react-router/
 /build/
+pnpm-workspace.yaml
