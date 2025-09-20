@@ -1,0 +1,16 @@
+{
+  "nav": {
+    "home": "Accueil",
+    "map": "Carte",
+    "wiki": "Wiki",
+    "language_switcher": "Sélecteur de langue",
+    "user_menu": "Menu utilisateur",
+    "profile": "Votre profil",
+    "settings": "Paramètres",
+    "sign_out": "Se déconnecter"
+  },
+  "home": {
+    "title": "Bienvenue sur EFMS",
+    "description": "Ceci est une plateforme de gestion de parcelles."
+  }
+}

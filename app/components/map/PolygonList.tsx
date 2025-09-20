@@ -6,7 +6,7 @@ interface PolygonListProps {
 
 export default function PolygonList({ polygons, onToggle, onRename }: PolygonListProps) {
   return (
-    <div style={{ width: "250px", padding: "1rem", background: "#f8f8f8", overflowY: "auto" }}>
+    <div style={{ width: "100%", padding: "1rem", background: "#f8f8f8", overflowY: "auto" }}>
       <h3>Polygons</h3>
       {polygons.map((poly) => (
         <div key={poly.id} style={{ marginBottom: "0.5rem" }}>
@@ -19,7 +19,7 @@ export default function PolygonList({ polygons, onToggle, onRename }: PolygonLis
             type="text"
             value={poly.name}
             onChange={(e) => onRename(poly.id, e.target.value)}
-            style={{ marginLeft: "0.5rem" }}
+            style={{ marginLeft: "0.5rem", width: "100%" }}
           />
         </div>
       ))}

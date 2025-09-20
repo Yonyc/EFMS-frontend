@@ -1,25 +1,20 @@
 import type { Route } from "./+types/home";
-import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 export function meta({}: Route.MetaArgs) {
   return [
-    { title: "Dynamic Polygon Map" },
-    { name: "description", content: "Map with toggleable polygons from API" },
+    { title: "EMFS - Experimental Farms Managment System" },
+    { name: "description", content: "A website designed for managing experimental farms" },
   ];
 }
 
 export default function Home() {
-  const [MapComponent, setMapComponent] = useState<React.ComponentType<any> | null>(null);
-
-  useEffect(() => {
-    import("../map/MapWithPolygons.client").then((mod) => {
-      setMapComponent(() => mod.default);
-    });
-  }, []);
+  const { t } = useTranslation();
 
   return (
-    <div style={{ display: "flex", height: "100vh", width: "100%" }}>
-      {MapComponent ? <MapComponent /> : <p>Loading map...</p>}
+    <div className="">
+      <h1>{t("home.title")}</h1>
+      <p>{t("home.description")}</p>
     </div>
   );
 }

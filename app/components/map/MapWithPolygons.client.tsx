@@ -28,7 +28,7 @@ export default function MapWithPolygons() {
     useEffect(() => {
         const fetchPolygons = async () => {
             try {
-                const res = await fetch("https://example.com/api/polygons");
+                const res = await fetch("/api/polygons");
                 const data = await res.json();
                 setPolygons(data.map((p: any) => ({ ...p, visible: true })));
             } catch (err) {
@@ -101,7 +101,7 @@ export default function MapWithPolygons() {
 
     return (
         <>
-            <div className="text-black" style={{ display: "flex", flexDirection: "column", width: "250px" }}>
+            <div className="text-black" style={{ display: "flex", flexDirection: "column", width: "clamp(50px, 30%, 200px)" }}>
                 <PolygonList
                     polygons={polygons}
                     onToggle={togglePolygon}
@@ -136,7 +136,12 @@ export default function MapWithPolygons() {
                             <Polygon
                                 key={poly.id}
                                 positions={poly.coords}
-                                pathOptions={{ color: "blue", customId: poly.id }}
+                                pathOptions={{ color: "blue" }}
+                                eventHandlers={{
+                                    add: (e) => {
+                                        ((e.target as L.Polygon).options as L.PolylineOptions & { customId?: string }).customId = poly.id;
+                                    }
+                                }}
                             >
                                 <Popup>{poly.name}</Popup>
                             </Polygon>

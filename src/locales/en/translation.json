@@ -1,0 +1,16 @@
+{
+  "nav": {
+    "home": "Home",
+    "map": "Map",
+    "wiki": "Wiki",
+    "language_switcher": "Language Switcher",
+    "user_menu": "User Menu",
+    "profile": "Your profile",
+    "settings": "Settings",
+    "sign_out": "Sign out"
+  },
+  "home": {
+    "title": "Welcome to EFMS",
+    "description": "This is a platform for managing plots."
+  }
+}
