@@ -20,6 +20,7 @@ interface PolygonData {
     name: string;
     coords: [number, number][];
     visible: boolean;
+    color?: string;
     version?: number;
 }
 
@@ -36,6 +37,7 @@ export default function MapWithPolygons() {
     // State
     const [polygons, setPolygons] = useState<PolygonData[]>([]);
     const [editingId, setEditingId] = useState<string | null>(null);
+    const [selectedId, setSelectedId] = useState<string | null>(null);
     const [renamingId, setRenamingId] = useState<string | null>(null);
     const [renameValue, setRenameValue] = useState("");
     const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
@@ -44,6 +46,9 @@ export default function MapWithPolygons() {
     const [modal, setModal] = useState<{ open: boolean; coords: [number, number][] | null }>({ open: false, coords: null });
     const [areaName, setAreaName] = useState("");
     const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+    const [polygonContextMenu, setPolygonContextMenu] = useState<{ x: number; y: number; polygonId: string } | null>(null);
+    const [showColorPicker, setShowColorPicker] = useState(false);
+    const originalColorRef = useRef<string | null>(null);
     
     // Refs
     const featureGroupRef = useRef<L.FeatureGroup>(null);
@@ -63,8 +68,8 @@ export default function MapWithPolygons() {
         return ring.map((ll: any) => [ll.lat, ll.lng]);
     };
 
-    const updatePolygon = useCallback((id: string, coords: [number, number][]) => {
-        setPolygons(prev => prev.map(p => p.id === id ? { ...p, coords, version: (p.version || 0) + 1 } : p));
+    const updatePolygon = useCallback((id: string, coords: [number, number][], incrementVersion: boolean = true) => {
+        setPolygons(prev => prev.map(p => p.id === id ? { ...p, coords, version: incrementVersion ? (p.version || 0) + 1 : p.version } : p));
     }, []);
 
     const cleanupEdit = useCallback(() => {
@@ -80,27 +85,25 @@ export default function MapWithPolygons() {
     }, []);
 
     const setupEditListeners = useCallback((layer: any, id: string) => {
-        const editListener = () => updatePolygon(id, extractCoords(layer));
-        layer.on('edit', editListener);
+        const handleUpdate = () => updatePolygon(id, extractCoords(layer), false);
+        layer.on('edit', handleUpdate);
 
         const map = getMap();
         let moveListener: any = null;
         if (map) {
-            let rafPending = false;
+            let lastUpdate = 0;
             moveListener = () => {
-                if (rafPending) return;
-                rafPending = true;
-                requestAnimationFrame(() => {
-                    rafPending = false;
-                    updatePolygon(id, extractCoords(layer));
-                });
+                const now = Date.now();
+                if (now - lastUpdate < 16) return; // ~60fps
+                lastUpdate = now;
+                handleUpdate();
             };
             map.on('mousemove', moveListener);
         }
 
         if (editStateRef.current) {
             editStateRef.current.listeners = {
-                edit: editListener,
+                edit: handleUpdate,
                 mousemove: moveListener ? { map, listener: moveListener } : undefined
             };
         }
@@ -144,7 +147,7 @@ export default function MapWithPolygons() {
         const state = editStateRef.current;
         if (!state || !editingId) return;
 
-        updatePolygon(editingId, extractCoords(state.layer));
+        updatePolygon(editingId, extractCoords(state.layer), true);
         delete originalCoordsRef.current[editingId];
         cleanupEdit();
         setEditingId(null);
@@ -158,7 +161,7 @@ export default function MapWithPolygons() {
         const original = originalCoordsRef.current[editingId];
         if (original) {
             state.layer.setLatLngs?.(original);
-            updatePolygon(editingId, original);
+            updatePolygon(editingId, original, true);
             delete originalCoordsRef.current[editingId];
         }
 
@@ -174,6 +177,13 @@ export default function MapWithPolygons() {
             setEditingId(null);
         }
     }, [editingId, cleanupEdit]);
+
+    const closePolygonContextMenu = useCallback(() => {
+        setPolygonContextMenu(null);
+        setPendingDeleteId(null);
+        setShowColorPicker(false);
+        originalColorRef.current = null;
+    }, []);
 
     // Creation
     const getPointCount = (handler: any) => {
@@ -226,6 +236,7 @@ export default function MapWithPolygons() {
             coords,
             version: 0,
             visible: true,
+            color: '#3388ff',
         }]);
         setModal({ open: false, coords: null });
         setAreaName("");
@@ -269,14 +280,28 @@ export default function MapWithPolygons() {
                 else if (renamingId) { setRenamingId(null); setRenameValue(''); }
                 else if (pendingDeleteId) setPendingDeleteId(null);
                 else if (contextMenu) setContextMenu(null);
-            } else if (e.key === 'Delete' && editingId) {
-                e.preventDefault();
-                deletePolygon(editingId);
+                else if (polygonContextMenu) closePolygonContextMenu();
+            } else if (e.key === 'Enter') {
+                if (isCreating && createPointCount >= 3) {
+                    e.preventDefault();
+                    finishCreate();
+                } else if (editingId) {
+                    e.preventDefault();
+                    finishEdit();
+                }
+            } else if (e.key === 'Delete' || e.key === 'Backspace') {
+                if (editingId) {
+                    e.preventDefault();
+                    deletePolygon(editingId);
+                } else if (selectedId && !renamingId && !pendingDeleteId) {
+                    e.preventDefault();
+                    setPendingDeleteId(selectedId);
+                }
             }
         };
         window.addEventListener('keydown', handleKey, { capture: true });
         return () => window.removeEventListener('keydown', handleKey, { capture: true });
-    }, [isCreating, editingId, renamingId, pendingDeleteId, contextMenu, cancelCreate, cancelEdit, deletePolygon]);
+    }, [isCreating, editingId, selectedId, renamingId, pendingDeleteId, contextMenu, polygonContextMenu, createPointCount, cancelCreate, cancelEdit, finishCreate, finishEdit, deletePolygon, closePolygonContextMenu]);
 
     // Components
     function MapEvents() {
@@ -288,16 +313,90 @@ export default function MapWithPolygons() {
                 }
             },
             click: () => {
-                renamingId && setRenamingId(null) && setRenameValue('');
-                pendingDeleteId && setPendingDeleteId(null);
-                contextMenu && setContextMenu(null);
+                if (editingId) return;
+                setRenamingId(null);
+                setRenameValue('');
+                setPendingDeleteId(null);
+                setContextMenu(null);
+                closePolygonContextMenu();
+                setSelectedId(null);
+            },
+            mousedown: () => {
+                closePolygonContextMenu();
+                setContextMenu(null);
             },
             popupopen: e => editingId && e.popup?.remove?.()
         });
         return null;
     }
 
-    const btnStyle = { padding: '0.25rem 0.5rem', border: '1px solid #ccc', borderRadius: 4, background: '#fff', cursor: 'pointer' };
+    // Animate selected polygon
+    useEffect(() => {
+        if (!selectedId) return;
+        
+        const map = getMap();
+        if (!map) return;
+        
+        let animationFrame: number;
+        let startTime = Date.now();
+        
+        const animate = () => {
+            const elapsed = Date.now() - startTime;
+            
+            // Continuous animation without rollback
+            const dashOffset = (elapsed / 100) % 15; // Smooth continuous movement
+            const glowProgress = (elapsed % 2500) / 2500;
+            const wave = Math.sin(glowProgress * Math.PI * 2);
+            const glowSize = 3 + wave * 1.5; // Gentle glow 1.5 to 4.5
+            
+            // Find the selected polygon layer
+            map.eachLayer((layer: any) => {
+                if (layer instanceof L.Polygon) {
+                    const customId = (layer.options as any).customId;
+                    if (customId === selectedId) {
+                        // Subtle animated dashed border for wave effect
+                        layer.setStyle({
+                            dashArray: '10, 5',
+                            dashOffset: `-${dashOffset}`
+                        });
+                        
+                        // Apply gentle glow effect
+                        const element = layer.getElement();
+                        if (element) {
+                            (element as HTMLElement).style.filter = `drop-shadow(0 0 ${glowSize}px currentColor)`;
+                        }
+                    }
+                }
+            });
+            
+            animationFrame = requestAnimationFrame(animate);
+        };
+        
+        animate();
+        
+        return () => {
+            if (animationFrame) {
+                cancelAnimationFrame(animationFrame);
+            }
+            // Reset style when unselecting - smoothly with CSS transition
+            map.eachLayer((layer: any) => {
+                if (layer instanceof L.Polygon) {
+                    const customId = (layer.options as any).customId;
+                    if (customId === selectedId) {
+                        layer.setStyle({
+                            dashArray: undefined,
+                            dashOffset: '0'
+                        });
+                        const element = layer.getElement();
+                        if (element) {
+                            // The CSS transition will smoothly fade out the filter
+                            (element as HTMLElement).style.filter = '';
+                        }
+                    }
+                }
+            });
+        };
+    }, [selectedId]);
 
     return (
         <>
@@ -306,6 +405,134 @@ export default function MapWithPolygons() {
                     <button onClick={() => { setContextMenu(null); startCreate(); }} style={{ width: '100%', padding: '0.5rem 1rem', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', fontSize: '0.9rem', color: '#333' }} onMouseEnter={e => e.currentTarget.style.background = '#f0f0f0'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                         ➕ Add New Polygon
                     </button>
+                </div>
+            )}
+
+            {polygonContextMenu && (
+                <div style={{ position: 'fixed', left: polygonContextMenu.x, top: polygonContextMenu.y, background: 'white', border: '1px solid #ccc', borderRadius: 4, boxShadow: '0 2px 8px rgba(0,0,0,0.15)', zIndex: 10000, minWidth: 150, overflow: 'hidden' }}>
+                    <style>{`
+                        @keyframes slideIn {
+                            from { transform: translateX(100%); opacity: 0; }
+                            to { transform: translateX(0); opacity: 1; }
+                        }
+                    `}</style>
+                    <button onClick={() => { 
+                        const poly = polygons.find(p => p.id === polygonContextMenu.polygonId);
+                        closePolygonContextMenu(); 
+                        setRenamingId(polygonContextMenu.polygonId); 
+                        setRenameValue(poly?.name || ''); 
+                    }} style={{ width: '100%', padding: '0.5rem 1rem', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', fontSize: '0.9rem', color: '#333', display: 'flex', alignItems: 'center', gap: '0.5rem', transition: 'background 0.2s' }} onMouseEnter={e => e.currentTarget.style.background = '#f0f0f0'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                        <span>✏️</span> Rename
+                    </button>
+                    <button onClick={() => { closePolygonContextMenu(); startEdit(polygonContextMenu.polygonId); }} style={{ width: '100%', padding: '0.5rem 1rem', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', fontSize: '0.9rem', color: '#333', display: 'flex', alignItems: 'center', gap: '0.5rem', transition: 'background 0.2s' }} onMouseEnter={e => e.currentTarget.style.background = '#f0f0f0'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                        <span>🔧</span> Edit
+                    </button>
+                    {!showColorPicker ? (
+                        <button onClick={() => setShowColorPicker(true)} style={{ width: '100%', padding: '0.5rem 1rem', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', fontSize: '0.9rem', color: '#333', display: 'flex', alignItems: 'center', gap: '0.5rem', transition: 'background 0.2s' }} onMouseEnter={e => e.currentTarget.style.background = '#f0f0f0'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                            <span>🎨</span> Color
+                        </button>
+                    ) : (
+                        <div style={{ padding: '0.5rem 1rem', animation: 'slideIn 0.3s ease-out' }}>
+                            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                {['#3388ff', '#ff6b6b', '#4ecdc4', '#ffe66d', '#a8e6cf', '#ff8b94', '#b4a7d6', '#ffa07a'].map(color => {
+                                    return (
+                                        <button
+                                            key={color}
+                                            onClick={() => {
+                                                setPolygons(prev => prev.map(p => p.id === polygonContextMenu.polygonId ? { ...p, color } : p));
+                                                originalColorRef.current = null;
+                                                closePolygonContextMenu();
+                                            }}
+                                            onMouseEnter={(e) => {
+                                                e.currentTarget.style.transform = 'scale(1.2)';
+                                                if (!originalColorRef.current) {
+                                                    const currentPoly = polygons.find(p => p.id === polygonContextMenu.polygonId);
+                                                    originalColorRef.current = currentPoly?.color || '#3388ff';
+                                                }
+                                                setPolygons(prev => prev.map(p => p.id === polygonContextMenu.polygonId ? { ...p, color } : p));
+                                            }}
+                                            onMouseLeave={(e) => {
+                                                e.currentTarget.style.transform = 'scale(1)';
+                                                if (originalColorRef.current) {
+                                                    setPolygons(prev => prev.map(p => p.id === polygonContextMenu.polygonId ? { ...p, color: originalColorRef.current! } : p));
+                                                }
+                                            }}
+                                            style={{
+                                                width: '24px',
+                                                height: '24px',
+                                                border: '2px solid #fff',
+                                                borderRadius: '50%',
+                                                background: color,
+                                                cursor: 'pointer',
+                                                boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                                                transition: 'transform 0.2s'
+                                            }}
+                                        />
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+                    <button 
+                        onClick={() => { 
+                            if (pendingDeleteId) {
+                                deletePolygon(pendingDeleteId);
+                                closePolygonContextMenu();
+                            } else {
+                                setPendingDeleteId(polygonContextMenu.polygonId);
+                            }
+                        }} 
+                        style={{ 
+                            width: '100%', 
+                            padding: '0.5rem 1rem', 
+                            border: 'none', 
+                            background: pendingDeleteId ? '#ef5350' : 'transparent', 
+                            textAlign: 'left', 
+                            cursor: 'pointer', 
+                            fontSize: '0.9rem', 
+                            color: pendingDeleteId ? 'white' : '#d32f2f', 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: '0.5rem', 
+                            transition: 'all 0.3s ease-out',
+                            fontWeight: pendingDeleteId ? 500 : 'normal',
+                            animation: pendingDeleteId ? 'slideIn 0.3s ease-out' : 'none'
+                        }} 
+                        onMouseEnter={e => e.currentTarget.style.background = pendingDeleteId ? '#e53935' : '#ffebee'} 
+                        onMouseLeave={e => e.currentTarget.style.background = pendingDeleteId ? '#ef5350' : 'transparent'}
+                    >
+                        <span>🗑️</span> {pendingDeleteId ? 'Confirm' : 'Delete'}
+                    </button>
+                </div>
+            )}
+
+            {pendingDeleteId && !polygonContextMenu && (
+                <div style={{ position: "fixed", top: "20px", left: "50%", transform: "translateX(-50%)", background: "#ef5350", color: "white", padding: "1rem 2rem", borderRadius: 8, boxShadow: "0 4px 12px rgba(0,0,0,0.3)", zIndex: 10000, display: "flex", alignItems: "center", gap: "1rem", animation: "slideIn 0.3s ease-out" }}>
+                    <span style={{ fontSize: "1.1rem", fontWeight: 500 }}>Delete "{polygons.find(p => p.id === pendingDeleteId)?.name}"?</span>
+                    <div style={{ display: "flex", gap: "0.5rem" }}>
+                        <button onClick={() => { deletePolygon(pendingDeleteId); setPendingDeleteId(null); }} style={{ padding: "0.5rem 1rem", borderRadius: 4, border: "none", background: "white", color: "#ef5350", cursor: "pointer", fontWeight: 600 }}>Confirm</button>
+                        <button onClick={() => setPendingDeleteId(null)} style={{ padding: "0.5rem 1rem", borderRadius: 4, border: "1px solid white", background: "transparent", color: "white", cursor: "pointer" }}>Cancel</button>
+                    </div>
+                </div>
+            )}
+
+            {renamingId && (
+                <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.3)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
+                    <div style={{ background: "#fff", padding: "2rem", borderRadius: 8, boxShadow: "0 2px 16px rgba(0,0,0,0.2)", minWidth: 300, display: "flex", flexDirection: "column", gap: "1rem" }}>
+                        <h2 style={{ margin: 0, color: '#222' }}>Rename Polygon</h2>
+                        <input type="text" value={renameValue} onChange={e => setRenameValue(e.target.value)} onKeyDown={e => { 
+                            if (e.key === "Enter") { 
+                                setPolygons(prev => prev.map(p => p.id === renamingId ? { ...p, name: renameValue } : p)); 
+                                setRenamingId(null); 
+                            } else if (e.key === "Escape") {
+                                setRenamingId(null);
+                            }
+                        }} placeholder="Polygon name" style={{ padding: "0.5rem", fontSize: "1rem", borderRadius: 4, border: "1px solid #ccc", color: "#222" }} autoFocus />
+                        <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem" }}>
+                            <button onClick={() => setRenamingId(null)} style={{ padding: "0.5rem 1rem", borderRadius: 4, border: "none", background: "#eee", cursor: "pointer" }}>Cancel</button>
+                            <button onClick={() => { setPolygons(prev => prev.map(p => p.id === renamingId ? { ...p, name: renameValue } : p)); setRenamingId(null); }} style={{ padding: "0.5rem 1rem", borderRadius: 4, border: "none", background: "#007bff", color: "#fff", cursor: "pointer" }}>Confirm</button>
+                        </div>
+                    </div>
                 </div>
             )}
             
@@ -330,59 +557,98 @@ export default function MapWithPolygons() {
                 <MapContainer style={{ height: "100%", width: "100%" }} center={center} zoom={15}>
                     <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; <a href="https://osm.org/copyright">OpenStreetMap</a>' />
                     <MapEvents />
-                    <style>{`.leaflet-control-container .leaflet-draw, .leaflet-draw-toolbar { display: none !important; }`}</style>
+                    <style>{`
+                        .leaflet-control-container .leaflet-draw, .leaflet-draw-toolbar { display: none !important; }
+                        
+                        /* Smooth transitions for polygon animations */
+                        .leaflet-interactive {
+                            transition: filter 0.5s ease-out !important;
+                        }
+                        
+                        .polygon-tooltip {
+                            background: transparent !important;
+                            border: none !important;
+                            box-shadow: none !important;
+                            padding: 0 !important;
+                        }
+                        .polygon-tooltip::before {
+                            display: none !important;
+                        }
+                        .leaflet-tooltip-pane .leaflet-tooltip {
+                            background: transparent !important;
+                            border: none !important;
+                            box-shadow: none !important;
+                        }
+                    `}</style>
                     
                     <FeatureGroup ref={featureGroupRef}>
                         <EditControl ref={editControlRef} position="topright" draw={{ rectangle: false, polyline: false, circle: false, marker: false, circlemarker: false, polygon: true }} onCreated={handleCreated} />
                         
                         {polygons.filter(p => p.visible).map(poly => {
                             const isThisEditing = editingId === poly.id;
-                            const isRenaming = renamingId === poly.id;
-                            const isDeleting = pendingDeleteId === poly.id;
+                            const isSelected = selectedId === poly.id;
+                            const polyColor = poly.color || '#3388ff';
+                            const showPermanentTooltip = isSelected;
+                            const polygonKey = isThisEditing 
+                                ? `${poly.id}-editing-${poly.version}` 
+                                : `${poly.id}-${isSelected ? 'selected' : 'normal'}`;
                             
                             return (
                                 <Polygon
-                                    key={`${poly.id}-${poly.version ?? 0}`}
+                                    key={polygonKey}
                                     positions={poly.coords}
                                     interactive={!isThisEditing && !editingId}
-                                    pathOptions={{ color: "blue", opacity: isThisEditing ? 0.9 : 1, fillOpacity: 0.2, dashArray: isThisEditing ? '8 6' : undefined, weight: isThisEditing ? 4 : 2 }}
+                                    pathOptions={{ 
+                                        color: polyColor, 
+                                        opacity: isThisEditing ? 0.9 : (isSelected ? 1 : 0.8), 
+                                        fillOpacity: isSelected ? 0.35 : 0.2, 
+                                        dashArray: isThisEditing ? '8 6' : undefined, 
+                                        weight: isThisEditing ? 4 : (isSelected ? 3 : 2)
+                                    }}
                                     eventHandlers={{
                                         add: e => ((e.target as L.Polygon).options as any).customId = poly.id,
-                                        click: e => { L.DomEvent.stopPropagation(e as any); !editingId && e.originalEvent.shiftKey && startEdit(poly.id); },
-                                        contextmenu: e => { L.DomEvent.stopPropagation(e as any); (e.target as L.Polygon).openPopup(); }
+                                        click: e => {
+                                            L.DomEvent.stopPropagation(e as any);
+                                            if (!editingId && !isCreating && selectedId !== poly.id) {
+                                                setSelectedId(poly.id);
+                                            }
+                                        },
+                                        contextmenu: e => { 
+                                            L.DomEvent.stopPropagation(e as any); 
+                                            if (!editingId) {
+                                                e.originalEvent.preventDefault();
+                                                setPolygonContextMenu({ 
+                                                    x: e.originalEvent.clientX, 
+                                                    y: e.originalEvent.clientY, 
+                                                    polygonId: poly.id 
+                                                });
+                                                setSelectedId(poly.id);
+                                            }
+                                        }
                                     }}
                                 >
-                                    <Tooltip direction="top" offset={[0, -10]} opacity={0.9}>{poly.name}</Tooltip>
-                                    <Popup>
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', minWidth: 160 }}>
-                                            {!isRenaming ? (
-                                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                                    {isDeleting ? (
-                                                        <div style={{ flex: 1, textAlign: 'center', fontWeight: 700, paddingRight: 12 }}>Confirm deletion</div>
-                                                    ) : (
-                                                        <button onClick={e => { e.stopPropagation(); setRenamingId(poly.id); setRenameValue(poly.name); }} style={{ background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', fontWeight: 700 }}>{poly.name}</button>
-                                                    )}
-                                                    <div style={{ display: 'flex', gap: 8 }}>
-                                                        {!isDeleting && <button onClick={e => { e.stopPropagation(); startEdit(poly.id); }} title="Edit shape" style={btnStyle}>🔧</button>}
-                                                        {isDeleting ? (
-                                                            <>
-                                                                <button onClick={e => { e.stopPropagation(); deletePolygon(poly.id); setPendingDeleteId(null); }} style={{ ...btnStyle, background: '#f8d7da' }}>Confirm</button>
-                                                                <button onClick={e => { e.stopPropagation(); setPendingDeleteId(null); }} style={btnStyle}>Cancel</button>
-                                                            </>
-                                                        ) : (
-                                                            <button onClick={e => { e.stopPropagation(); setPendingDeleteId(poly.id); }} title="Delete" style={btnStyle}>🗑️</button>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            ) : (
-                                                <div style={{ display: 'flex', gap: 8 }} onClick={e => e.stopPropagation()}>
-                                                    <input autoFocus value={renameValue} onChange={e => setRenameValue(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { setPolygons(prev => prev.map(p => p.id === poly.id ? { ...p, name: renameValue } : p)); setRenamingId(null); } if (e.key === 'Escape') setRenamingId(null); }} />
-                                                    <button onClick={e => { e.stopPropagation(); setPolygons(prev => prev.map(p => p.id === poly.id ? { ...p, name: renameValue } : p)); setRenamingId(null); }} style={btnStyle}>OK</button>
-                                                    <button onClick={e => { e.stopPropagation(); setRenamingId(null); }} style={btnStyle}>Cancel</button>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </Popup>
+                                    <Tooltip 
+                                        direction="center" 
+                                        offset={[0, 0]} 
+                                        opacity={1}
+                                        permanent={showPermanentTooltip}
+                                        className="polygon-tooltip"
+                                    >
+                                        <span style={{ 
+                                            display: 'inline-block',
+                                            padding: '3px 8px',
+                                            fontSize: '0.8rem',
+                                            fontWeight: '600',
+                                            color: '#fff',
+                                            background: polyColor,
+                                            borderRadius: '4px',
+                                            boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+                                            textTransform: 'uppercase',
+                                            letterSpacing: '0.5px'
+                                        }}>
+                                            {poly.name}
+                                        </span>
+                                    </Tooltip>
                                 </Polygon>
                             );
                         })}
