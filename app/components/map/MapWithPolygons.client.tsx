@@ -14,22 +14,9 @@ import "leaflet/dist/leaflet.css";
 import "leaflet-draw/dist/leaflet.draw.css";
 import { useEffect, useRef, useState, useCallback } from "react";
 import PolygonList from "./PolygonList";
-
-interface PolygonData {
-    id: string;
-    name: string;
-    coords: [number, number][];
-    visible: boolean;
-    color?: string;
-    version?: number;
-}
-
-interface EditState {
-    layer: any;
-    handler: any;
-    tempGroup: any;
-    listeners: { edit?: any; mousemove?: { map: any; listener: any } };
-}
+import OverlapModal from "./components/OverlapModal";
+import { checkOverlap, fixOverlap } from "./utils/geometry";
+import type { EditState, ManualEditContext, OverlapWarning, PolygonData } from "./types";
 
 export default function MapWithPolygons() {
     const center: [number, number] = [50.668333, 4.621278];
@@ -48,6 +35,11 @@ export default function MapWithPolygons() {
     const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
     const [polygonContextMenu, setPolygonContextMenu] = useState<{ x: number; y: number; polygonId: string } | null>(null);
     const [showColorPicker, setShowColorPicker] = useState(false);
+    const [overlapWarning, setOverlapWarning] = useState<OverlapWarning | null>(null);
+    const [showPreview, setShowPreview] = useState(false);
+    const [pendingManualEditId, setPendingManualEditId] = useState<string | null>(null);
+    const [manualEditContext, setManualEditContext] = useState<ManualEditContext | null>(null);
+    const [previewVisibility, setPreviewVisibility] = useState<{ original: boolean; fixed: boolean }>({ original: false, fixed: true });
     const originalColorRef = useRef<string | null>(null);
     
     // Refs
@@ -66,6 +58,21 @@ export default function MapWithPolygons() {
         if (!raw) return [];
         const ring = Array.isArray(raw) ? (Array.isArray(raw[0]) ? raw[0] : raw) : [raw];
         return ring.map((ll: any) => [ll.lat, ll.lng]);
+    };
+
+    const detectOverlaps = (id: string, coords: [number, number][]): { id: string; name: string }[] => {
+        const overlapping: { id: string; name: string }[] = [];
+        
+        for (const poly of polygons) {
+            if (poly.id === id) continue;
+            if (!poly.visible) continue;
+            
+            if (checkOverlap(coords, poly.coords)) {
+                overlapping.push({ id: poly.id, name: poly.name });
+            }
+        }
+        
+        return overlapping;
     };
 
     const updatePolygon = useCallback((id: string, coords: [number, number][], incrementVersion: boolean = true) => {
@@ -147,16 +154,59 @@ export default function MapWithPolygons() {
         const state = editStateRef.current;
         if (!state || !editingId) return;
 
-        updatePolygon(editingId, extractCoords(state.layer), true);
+        const newCoords = extractCoords(state.layer);
+        const overlapping = detectOverlaps(editingId, newCoords);
+        const manualContextActive = manualEditContext?.warning.polygonId === editingId;
+        
+        if (overlapping.length > 0) {
+            const otherPolygons = polygons.filter(p => overlapping.some(o => o.id === p.id));
+            const fixedCoords = fixOverlap(newCoords, otherPolygons);
+            cleanupEdit();
+            setEditingId(null);
+            delete originalCoordsRef.current[editingId];
+            if (manualContextActive) {
+                setManualEditContext(null);
+            }
+            getMap()?.closePopup?.();
+
+            setOverlapWarning({
+                polygonId: editingId,
+                overlappingPolygons: overlapping,
+                originalCoords: newCoords,
+                fixedCoords
+            });
+            setShowPreview(false);
+            return;
+        }
+
+        updatePolygon(editingId, newCoords, true);
         delete originalCoordsRef.current[editingId];
         cleanupEdit();
         setEditingId(null);
         getMap()?.closePopup?.();
-    }, [editingId, updatePolygon, cleanupEdit]);
+
+        if (manualContextActive) {
+            setManualEditContext(null);
+        }
+    }, [editingId, polygons, updatePolygon, cleanupEdit, manualEditContext]);
 
     const cancelEdit = useCallback(() => {
         const state = editStateRef.current;
         if (!state || !editingId) return;
+
+        if (manualEditContext && manualEditContext.warning.polygonId === editingId) {
+            cleanupEdit();
+            setEditingId(null);
+            delete originalCoordsRef.current[editingId];
+            setPolygons(prev => prev.filter(p => p.id !== editingId));
+            setOverlapWarning(manualEditContext.warning);
+            setAreaName(manualEditContext.areaNameSnapshot);
+            setShowPreview(false);
+            setManualEditContext(null);
+            setPendingManualEditId(null);
+            getMap()?.closePopup?.();
+            return;
+        }
 
         const original = originalCoordsRef.current[editingId];
         if (original) {
@@ -168,7 +218,7 @@ export default function MapWithPolygons() {
         cleanupEdit();
         setEditingId(null);
         getMap()?.closePopup?.();
-    }, [editingId, updatePolygon, cleanupEdit]);
+    }, [editingId, manualEditContext, updatePolygon, cleanupEdit]);
 
     const deletePolygon = useCallback((id: string) => {
         setPolygons(prev => prev.filter(p => p.id !== id));
@@ -184,6 +234,136 @@ export default function MapWithPolygons() {
         setShowColorPicker(false);
         originalColorRef.current = null;
     }, []);
+
+    const handleOverlapIgnore = useCallback(() => {
+        if (!overlapWarning) return;
+        
+        if (overlapWarning.isNewPolygon) {
+            // For new polygons, create with the original coords
+            createdLayerRef.current && getMap()?.removeLayer(createdLayerRef.current);
+            createdLayerRef.current = null;
+            setPolygons(prev => [...prev, {
+                id: overlapWarning.polygonId,
+                name: areaName || "Polygon",
+                coords: overlapWarning.originalCoords,
+                version: 0,
+                visible: true,
+                color: '#3388ff',
+            }]);
+            setModal({ open: false, coords: null });
+            setAreaName("");
+        } else {
+            // For edited polygons
+            updatePolygon(overlapWarning.polygonId, overlapWarning.originalCoords, true);
+            delete originalCoordsRef.current[overlapWarning.polygonId];
+            cleanupEdit();
+            setEditingId(null);
+            getMap()?.closePopup?.();
+        }
+        
+        setOverlapWarning(null);
+        setShowPreview(false);
+    }, [overlapWarning, areaName, updatePolygon, cleanupEdit]);
+
+    const handleOverlapAccept = useCallback(() => {
+        if (!overlapWarning || !overlapWarning.fixedCoords) {
+            console.error("No overlap warning or fixed coords!");
+            return;
+        }
+        
+        console.log("Accepting fixed coords:", overlapWarning.fixedCoords);
+        console.log("For polygon:", overlapWarning.polygonId);
+        
+        if (overlapWarning.isNewPolygon) {
+            // For new polygons, create with the fixed coords
+            createdLayerRef.current && getMap()?.removeLayer(createdLayerRef.current);
+            createdLayerRef.current = null;
+            
+            const newPoly: PolygonData = {
+                id: overlapWarning.polygonId,
+                name: areaName || "Polygon",
+                coords: overlapWarning.fixedCoords,
+                version: 0,
+                visible: true,
+                color: '#3388ff',
+            };
+            
+            console.log("Creating new polygon:", newPoly);
+            setPolygons(prev => {
+                const updated = [...prev, newPoly];
+                console.log("Updated polygons:", updated);
+                return updated;
+            });
+        } else {
+            // For edited polygons
+            console.log("Updating existing polygon");
+            updatePolygon(overlapWarning.polygonId, overlapWarning.fixedCoords, true);
+            delete originalCoordsRef.current[overlapWarning.polygonId];
+            cleanupEdit();
+            setEditingId(null);
+            getMap()?.closePopup?.();
+        }
+        
+        setModal({ open: false, coords: null });
+        setAreaName("");
+        setOverlapWarning(null);
+        setShowPreview(false);
+    }, [overlapWarning, areaName, updatePolygon, cleanupEdit]);
+
+    const handleOverlapCancel = useCallback(() => {
+        if (overlapWarning?.isNewPolygon) {
+            createdLayerRef.current && getMap()?.removeLayer(createdLayerRef.current);
+            createdLayerRef.current = null;
+            setModal({ open: false, coords: null });
+            setAreaName("");
+            setPendingManualEditId(null);
+        }
+
+        setOverlapWarning(null);
+        setShowPreview(false);
+    }, [overlapWarning]);
+
+    const handleOverlapEditOriginal = useCallback(() => {
+        if (!overlapWarning) return;
+        
+        const polygonId = overlapWarning.polygonId;
+        setOverlapWarning(null);
+        setShowPreview(false);
+        
+        // For new polygons, this doesn't make sense, so just cancel
+        if (overlapWarning.isNewPolygon) {
+            setModal({ open: true, coords: overlapWarning.originalCoords });
+        } else {
+            startEdit(polygonId);
+        }
+    }, [overlapWarning, startEdit]);
+
+    const handleOverlapManualEdit = useCallback(() => {
+        if (!overlapWarning?.isNewPolygon) return;
+
+        setManualEditContext({
+            warning: overlapWarning,
+            areaNameSnapshot: areaName,
+        });
+
+        const newPoly: PolygonData = {
+            id: overlapWarning.polygonId,
+            name: areaName || "Polygon",
+            coords: overlapWarning.originalCoords,
+            version: 0,
+            visible: true,
+            color: '#3388ff',
+        };
+
+        createdLayerRef.current && getMap()?.removeLayer(createdLayerRef.current);
+        createdLayerRef.current = null;
+
+        setPolygons(prev => [...prev, newPoly]);
+        setPendingManualEditId(newPoly.id);
+        setModal({ open: false, coords: null });
+        setOverlapWarning(null);
+        setShowPreview(false);
+    }, [overlapWarning, areaName]);
 
     // Creation
     const getPointCount = (handler: any) => {
@@ -228,10 +408,30 @@ export default function MapWithPolygons() {
     const confirmCreate = useCallback(() => {
         const coords = modal.coords;
         if (!coords) return;
+        
+        const tempId = `poly-${Date.now()}`;
+        const overlapping = detectOverlaps(tempId, coords);
+        
+        if (overlapping.length > 0) {
+            const otherPolygons = polygons.filter(p => overlapping.some(o => o.id === p.id));
+            const fixedCoords = fixOverlap(coords, otherPolygons);
+            
+            setModal({ open: false, coords: null });
+            setOverlapWarning({
+                polygonId: tempId,
+                overlappingPolygons: overlapping,
+                originalCoords: coords,
+                fixedCoords,
+                isNewPolygon: true
+            });
+            setShowPreview(false);
+            return;
+        }
+        
         createdLayerRef.current && getMap()?.removeLayer(createdLayerRef.current);
         createdLayerRef.current = null;
         setPolygons(prev => [...prev, {
-            id: `poly-${Date.now()}`,
+            id: tempId,
             name: areaName || "Polygon",
             coords,
             version: 0,
@@ -240,7 +440,7 @@ export default function MapWithPolygons() {
         }]);
         setModal({ open: false, coords: null });
         setAreaName("");
-    }, [modal.coords, areaName]);
+    }, [modal.coords, areaName, polygons]);
 
     const cancelModal = useCallback(() => {
         createdLayerRef.current && getMap()?.removeLayer(createdLayerRef.current);
@@ -248,6 +448,31 @@ export default function MapWithPolygons() {
         setModal({ open: false, coords: null });
         setAreaName("");
     }, []);
+
+    const detachCreatedLayer = useCallback(() => {
+        const layer = createdLayerRef.current;
+        const map = getMap();
+        if (layer && map?.hasLayer?.(layer)) {
+            map.removeLayer(layer);
+        }
+    }, []);
+
+    const reattachCreatedLayer = useCallback(() => {
+        const layer = createdLayerRef.current;
+        const map = getMap();
+        if (layer && map && !map.hasLayer?.(layer)) {
+            map.addLayer(layer);
+        }
+    }, []);
+
+    const handleShowPreview = useCallback(() => {
+        if (!overlapWarning) return;
+        if (overlapWarning.isNewPolygon) {
+            detachCreatedLayer();
+        }
+        setPreviewVisibility({ original: false, fixed: true });
+        setShowPreview(true);
+    }, [overlapWarning, detachCreatedLayer]);
 
     // Effects
     useEffect(() => {
@@ -271,11 +496,18 @@ export default function MapWithPolygons() {
     }, [isCreating]);
 
     useEffect(() => {
+        if (!showPreview && overlapWarning?.isNewPolygon) {
+            reattachCreatedLayer();
+        }
+    }, [showPreview, overlapWarning, reattachCreatedLayer]);
+
+    useEffect(() => {
         const handleKey = (e: KeyboardEvent) => {
             if (e.key === 'Escape') {
                 e.preventDefault();
                 e.stopPropagation();
-                if (isCreating) cancelCreate();
+                if (overlapWarning) { setOverlapWarning(null); setShowPreview(false); }
+                else if (isCreating) cancelCreate();
                 else if (editingId) cancelEdit();
                 else if (renamingId) { setRenamingId(null); setRenameValue(''); }
                 else if (pendingDeleteId) setPendingDeleteId(null);
@@ -301,7 +533,15 @@ export default function MapWithPolygons() {
         };
         window.addEventListener('keydown', handleKey, { capture: true });
         return () => window.removeEventListener('keydown', handleKey, { capture: true });
-    }, [isCreating, editingId, selectedId, renamingId, pendingDeleteId, contextMenu, polygonContextMenu, createPointCount, cancelCreate, cancelEdit, finishCreate, finishEdit, deletePolygon, closePolygonContextMenu]);
+    }, [isCreating, editingId, selectedId, renamingId, pendingDeleteId, contextMenu, polygonContextMenu, createPointCount, overlapWarning, cancelCreate, cancelEdit, finishCreate, finishEdit, deletePolygon, closePolygonContextMenu]);
+
+    useEffect(() => {
+        if (!pendingManualEditId) return;
+        const exists = polygons.some(p => p.id === pendingManualEditId);
+        if (!exists) return;
+        startEdit(pendingManualEditId);
+        setPendingManualEditId(null);
+    }, [pendingManualEditId, polygons, startEdit]);
 
     // Components
     function MapEvents() {
@@ -400,6 +640,20 @@ export default function MapWithPolygons() {
 
     return (
         <>
+            {overlapWarning && !showPreview && (
+                <OverlapModal
+                    warning={overlapWarning}
+                    areaName={areaName}
+                    onAreaNameChange={setAreaName}
+                    onCancel={handleOverlapCancel}
+                    onManualEdit={handleOverlapManualEdit}
+                    onEditOriginal={handleOverlapEditOriginal}
+                    onIgnore={handleOverlapIgnore}
+                    onAccept={handleOverlapAccept}
+                    onShowPreview={handleShowPreview}
+                />
+            )}
+
             {contextMenu && (
                 <div style={{ position: 'fixed', left: contextMenu.x, top: contextMenu.y, background: 'white', border: '1px solid #ccc', borderRadius: 4, boxShadow: '0 2px 8px rgba(0,0,0,0.15)', zIndex: 10000, minWidth: 150 }}>
                     <button onClick={() => { setContextMenu(null); startCreate(); }} style={{ width: '100%', padding: '0.5rem 1rem', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', fontSize: '0.9rem', color: '#333' }} onMouseEnter={e => e.currentTarget.style.background = '#f0f0f0'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
@@ -517,9 +771,9 @@ export default function MapWithPolygons() {
             )}
 
             {renamingId && (
-                <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.3)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
-                    <div style={{ background: "#fff", padding: "2rem", borderRadius: 8, boxShadow: "0 2px 16px rgba(0,0,0,0.2)", minWidth: 300, display: "flex", flexDirection: "column", gap: "1rem" }}>
-                        <h2 style={{ margin: 0, color: '#222' }}>Rename Polygon</h2>
+                <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 10001 }}>
+                    <div style={{ background: "#fff", padding: "2rem", borderRadius: 8, boxShadow: "0 4px 24px rgba(0,0,0,0.3)", minWidth: 400, display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+                        <h2 style={{ margin: 0, color: '#222', fontSize: "1.5rem" }}>Rename Polygon</h2>
                         <input type="text" value={renameValue} onChange={e => setRenameValue(e.target.value)} onKeyDown={e => { 
                             if (e.key === "Enter") { 
                                 setPolygons(prev => prev.map(p => p.id === renamingId ? { ...p, name: renameValue } : p)); 
@@ -527,23 +781,23 @@ export default function MapWithPolygons() {
                             } else if (e.key === "Escape") {
                                 setRenamingId(null);
                             }
-                        }} placeholder="Polygon name" style={{ padding: "0.5rem", fontSize: "1rem", borderRadius: 4, border: "1px solid #ccc", color: "#222" }} autoFocus />
-                        <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem" }}>
-                            <button onClick={() => setRenamingId(null)} style={{ padding: "0.5rem 1rem", borderRadius: 4, border: "none", background: "#eee", cursor: "pointer" }}>Cancel</button>
-                            <button onClick={() => { setPolygons(prev => prev.map(p => p.id === renamingId ? { ...p, name: renameValue } : p)); setRenamingId(null); }} style={{ padding: "0.5rem 1rem", borderRadius: 4, border: "none", background: "#007bff", color: "#fff", cursor: "pointer" }}>Confirm</button>
+                        }} placeholder="Polygon name" style={{ padding: "0.75rem", fontSize: "1rem", borderRadius: 4, border: "1px solid #ccc", color: "#222" }} autoFocus />
+                        <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem", paddingTop: "1rem", borderTop: "1px solid #eee" }}>
+                            <button onClick={() => setRenamingId(null)} style={{ padding: "0.75rem 1.5rem", borderRadius: 4, border: "1px solid #ccc", background: "#fff", cursor: "pointer", fontWeight: 500, color: "#333" }}>Cancel</button>
+                            <button onClick={() => { setPolygons(prev => prev.map(p => p.id === renamingId ? { ...p, name: renameValue } : p)); setRenamingId(null); }} style={{ padding: "0.75rem 1.5rem", borderRadius: 4, border: "none", background: "#007bff", color: "#fff", cursor: "pointer", fontWeight: 500 }}>Confirm</button>
                         </div>
                     </div>
                 </div>
             )}
             
             {modal.open && (
-                <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.3)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
-                    <div style={{ background: "#fff", padding: "2rem", borderRadius: 8, boxShadow: "0 2px 16px rgba(0,0,0,0.2)", minWidth: 300, display: "flex", flexDirection: "column", gap: "1rem" }}>
-                        <h2 style={{ margin: 0, color: '#222' }}>Enter Area Name</h2>
-                        <input type="text" value={areaName} onChange={e => setAreaName(e.target.value)} onKeyDown={e => e.key === "Enter" && confirmCreate()} placeholder="Area name" style={{ padding: "0.5rem", fontSize: "1rem", borderRadius: 4, border: "1px solid #ccc", color: "#222" }} autoFocus />
-                        <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem" }}>
-                            <button onClick={cancelModal} style={{ padding: "0.5rem 1rem", borderRadius: 4, border: "none", background: "#eee", cursor: "pointer" }}>Cancel</button>
-                            <button onClick={confirmCreate} style={{ padding: "0.5rem 1rem", borderRadius: 4, border: "none", background: "#007bff", color: "#fff", cursor: "pointer" }}>Confirm</button>
+                <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 10001 }}>
+                    <div style={{ background: "#fff", padding: "2rem", borderRadius: 8, boxShadow: "0 4px 24px rgba(0,0,0,0.3)", minWidth: 400, display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+                        <h2 style={{ margin: 0, color: '#222', fontSize: "1.5rem" }}>Enter Area Name</h2>
+                        <input type="text" value={areaName} onChange={e => setAreaName(e.target.value)} onKeyDown={e => e.key === "Enter" && confirmCreate()} placeholder="Area name" style={{ padding: "0.75rem", fontSize: "1rem", borderRadius: 4, border: "1px solid #ccc", color: "#222" }} autoFocus />
+                        <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem", paddingTop: "1rem", borderTop: "1px solid #eee" }}>
+                            <button onClick={cancelModal} style={{ padding: "0.75rem 1.5rem", borderRadius: 4, border: "1px solid #ccc", background: "#fff", cursor: "pointer", fontWeight: 500, color: "#333" }}>Cancel</button>
+                            <button onClick={confirmCreate} style={{ padding: "0.75rem 1.5rem", borderRadius: 4, border: "none", background: "#007bff", color: "#fff", cursor: "pointer", fontWeight: 500 }}>Confirm</button>
                         </div>
                     </div>
                 </div>
@@ -584,7 +838,10 @@ export default function MapWithPolygons() {
                     <FeatureGroup ref={featureGroupRef}>
                         <EditControl ref={editControlRef} position="topright" draw={{ rectangle: false, polyline: false, circle: false, marker: false, circlemarker: false, polygon: true }} onCreated={handleCreated} />
                         
-                        {polygons.filter(p => p.visible).map(poly => {
+                        {polygons
+                            .filter(p => p.visible)
+                            .filter(poly => !(showPreview && overlapWarning?.polygonId === poly.id))
+                            .map(poly => {
                             const isThisEditing = editingId === poly.id;
                             const isSelected = selectedId === poly.id;
                             const polyColor = poly.color || '#3388ff';
@@ -652,13 +909,101 @@ export default function MapWithPolygons() {
                                 </Polygon>
                             );
                         })}
+
+                        {/* Preview polygons for overlap fix */}
+                        {overlapWarning && showPreview && (
+                            <>
+                                {previewVisibility.original && (
+                                    <Polygon
+                                        positions={overlapWarning.originalCoords}
+                                        pathOptions={{ 
+                                            color: '#ff5252', 
+                                            opacity: 0.7, 
+                                            fillOpacity: 0.15,
+                                            dashArray: '10 5',
+                                            weight: 3
+                                        }}
+                                    />
+                                )}
+                                {previewVisibility.fixed && overlapWarning.fixedCoords && (
+                                    <Polygon
+                                        positions={overlapWarning.fixedCoords}
+                                        pathOptions={{ 
+                                            color: '#4caf50', 
+                                            opacity: 0.9, 
+                                            fillOpacity: 0.3,
+                                            weight: 3
+                                        }}
+                                    />
+                                )}
+                            </>
+                        )}
                     </FeatureGroup>
 
                     <Marker position={center}><Popup>Center Location</Popup></Marker>
                 </MapContainer>
 
                 <div style={{ position: 'absolute', top: 16, right: 16, zIndex: 2000, display: 'flex', gap: 8 }}>
-                    {!editingId && !isCreating && <button onClick={startCreate} title="Add" style={{ background: '#007bff', color: 'white', border: 'none', padding: '0.5rem', borderRadius: 4 }}>+</button>}
+                    {overlapWarning && showPreview ? (
+                        <>
+                            <button
+                                onClick={() => setShowPreview(false)}
+                                title="Back to overlap options"
+                                style={{
+                                    background: '#007bff',
+                                    color: 'white',
+                                    border: 'none',
+                                    padding: '0.5rem 0.75rem',
+                                    borderRadius: 4,
+                                    fontWeight: 600,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.35rem'
+                                }}
+                            >
+                                <span>👁️</span>
+                                Back to options
+                            </button>
+                            <div style={{ display: 'flex', gap: 6, background: 'rgba(0,0,0,0.45)', padding: '0.35rem', borderRadius: 999, boxShadow: '0 2px 6px rgba(0,0,0,0.2)' }}>
+                                <button
+                                    onClick={() => setPreviewVisibility(prev => ({ ...prev, original: !prev.original }))}
+                                    disabled={!overlapWarning.originalCoords?.length}
+                                    style={{
+                                        border: 'none',
+                                        borderRadius: 999,
+                                        padding: '0.35rem 0.85rem',
+                                        fontSize: '0.8rem',
+                                        cursor: overlapWarning.originalCoords?.length ? 'pointer' : 'not-allowed',
+                                        background: previewVisibility.original ? '#ff5252' : 'transparent',
+                                        color: '#fff',
+                                        opacity: overlapWarning.originalCoords?.length ? 1 : 0.4,
+                                        transition: 'background 0.2s, opacity 0.2s'
+                                    }}
+                                >
+                                    Original
+                                </button>
+                                <button
+                                    onClick={() => setPreviewVisibility(prev => ({ ...prev, fixed: !prev.fixed }))}
+                                    disabled={!overlapWarning.fixedCoords?.length}
+                                    style={{
+                                        border: 'none',
+                                        borderRadius: 999,
+                                        padding: '0.35rem 0.85rem',
+                                        fontSize: '0.8rem',
+                                        cursor: overlapWarning.fixedCoords?.length ? 'pointer' : 'not-allowed',
+                                        background: previewVisibility.fixed ? '#4caf50' : 'transparent',
+                                        color: '#fff',
+                                        opacity: overlapWarning.fixedCoords?.length ? 1 : 0.4,
+                                        transition: 'background 0.2s, opacity 0.2s'
+                                    }}
+                                >
+                                    Auto-fixed
+                                </button>
+                            </div>
+                        </>
+                    ) : (!editingId && !isCreating && (
+                        <button onClick={startCreate} title="Add" style={{ background: '#007bff', color: 'white', border: 'none', padding: '0.5rem', borderRadius: 4 }}>+</button>
+                    ))}
                     {isCreating && (
                         <>
                             <button onClick={finishCreate} title="Finish drawing" disabled={createPointCount < 3} style={{ background: createPointCount >= 3 ? 'green' : '#9fc59f', color: 'white', border: 'none', padding: '0.5rem', borderRadius: 4, cursor: createPointCount >= 3 ? 'pointer' : 'not-allowed', opacity: createPointCount >= 3 ? 1 : 0.6 }}>✓</button>
