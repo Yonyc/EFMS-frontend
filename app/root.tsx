@@ -12,6 +12,8 @@ import type { Route } from "./+types/root";
 import "./app.css";
 import Navbar from "./components/Navbar";
 import "./i18n";
+import { AuthProvider } from "./contexts/AuthContext";
+import { FarmProvider } from "./contexts/FarmContext";
 
 export const links: Route.LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -38,8 +40,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Links />
       </head>
       <body>
-        <Navbar currentPage={location.pathname ?? "/"} />
-        {children}
+        <AuthProvider>
+          <FarmProvider>
+            <Navbar currentPage={location.pathname ?? "/"} />
+            {children}
+          </FarmProvider>
+        </AuthProvider>
         <ScrollRestoration />
         <Scripts />
       </body>

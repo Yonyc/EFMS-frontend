@@ -7,7 +7,8 @@
     "user_menu": "User Menu",
     "profile": "Your profile",
     "settings": "Settings",
-    "sign_out": "Sign out"
+    "sign_out": "Sign out",
+    "sign_in": "Sign In"
   },
   "home": {
     "title": "Welcome to EFMS",

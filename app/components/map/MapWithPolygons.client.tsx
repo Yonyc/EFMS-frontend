@@ -17,8 +17,9 @@ import PolygonList from "./PolygonList";
 import OverlapModal from "./components/OverlapModal";
 import { checkOverlap, fixOverlap } from "./utils/geometry";
 import type { EditState, ManualEditContext, OverlapWarning, PolygonData } from "./types";
+import { apiGet, apiPost, apiPut } from "~/utils/api";
 
-export default function MapWithPolygons() {
+export default function MapWithPolygons(props: { farm_id: string }) {
     const center: [number, number] = [50.668333, 4.621278];
     
     // State
@@ -58,6 +59,17 @@ export default function MapWithPolygons() {
         if (!raw) return [];
         const ring = Array.isArray(raw) ? (Array.isArray(raw[0]) ? raw[0] : raw) : [raw];
         return ring.map((ll: any) => [ll.lat, ll.lng]);
+    };
+
+    const coordsToWKT = (coords: [number, number][]): string => {
+        // Convert Leaflet format [lat, lng] to WKT format "POLYGON((lng lat, lng lat, ...))"
+        const wktCoords = coords.map(([lat, lng]) => `${lng} ${lat}`).join(', ');
+        // Close the polygon by adding the first coordinate at the end if not already closed
+        const firstCoord = coords[0];
+        const lastCoord = coords[coords.length - 1];
+        const needsClosing = firstCoord[0] !== lastCoord[0] || firstCoord[1] !== lastCoord[1];
+        const closedWktCoords = needsClosing ? `${wktCoords}, ${firstCoord[1]} ${firstCoord[0]}` : wktCoords;
+        return `POLYGON((${closedWktCoords}))`;
     };
 
     const detectOverlaps = (id: string, coords: [number, number][]): { id: string; name: string }[] => {
@@ -150,7 +162,7 @@ export default function MapWithPolygons() {
         setEditingId(id);
     }, [polygons, editingId, setupEditListeners]);
 
-    const finishEdit = useCallback(() => {
+    const finishEdit = useCallback(async () => {
         const state = editStateRef.current;
         if (!state || !editingId) return;
 
@@ -179,6 +191,22 @@ export default function MapWithPolygons() {
             return;
         }
 
+        // Send PUT request to backend to update the polygon
+        try {
+            const payload = {
+                geodata: coordsToWKT(newCoords),
+            };
+
+            const response = await apiPut(`/farm/${props.farm_id}/parcels/${editingId}`, payload);
+            if (response.ok) {
+                console.log("Polygon updated successfully on backend");
+            } else {
+                console.error("Failed to update parcel:", response.statusText);
+            }
+        } catch (err) {
+            console.error("Failed to update parcel:", err);
+        }
+
         updatePolygon(editingId, newCoords, true);
         delete originalCoordsRef.current[editingId];
         cleanupEdit();
@@ -188,7 +216,7 @@ export default function MapWithPolygons() {
         if (manualContextActive) {
             setManualEditContext(null);
         }
-    }, [editingId, polygons, updatePolygon, cleanupEdit, manualEditContext]);
+    }, [editingId, polygons, updatePolygon, cleanupEdit, manualEditContext, props.farm_id]);
 
     const cancelEdit = useCallback(() => {
         const state = editStateRef.current;
@@ -235,25 +263,74 @@ export default function MapWithPolygons() {
         originalColorRef.current = null;
     }, []);
 
-    const handleOverlapIgnore = useCallback(() => {
+    const handleOverlapIgnore = useCallback(async () => {
         if (!overlapWarning) return;
         
         if (overlapWarning.isNewPolygon) {
             // For new polygons, create with the original coords
             createdLayerRef.current && getMap()?.removeLayer(createdLayerRef.current);
             createdLayerRef.current = null;
-            setPolygons(prev => [...prev, {
+            
+            const newPoly: PolygonData = {
                 id: overlapWarning.polygonId,
                 name: areaName || "Polygon",
                 coords: overlapWarning.originalCoords,
                 version: 0,
                 visible: true,
                 color: '#3388ff',
-            }]);
+            };
+
+            // Send POST request to backend
+            try {
+                const payload = {
+                    name: newPoly.name,
+                    active: true,
+                    startValidity: new Date().toISOString(),
+                    endValidity: null,
+                    geodata: coordsToWKT(newPoly.coords),
+                    color: newPoly.color,
+                };
+
+                const response = await apiPost(`/farm/${props.farm_id}/parcels`, payload);
+                if (response.ok) {
+                    const createdParcel = await response.json();
+                    // Update the polygon with the backend-generated ID
+                    newPoly.id = String(createdParcel.id);
+                    setPolygons(prev => [...prev, newPoly]);
+                } else {
+                    console.error("Failed to create parcel:", response.statusText);
+                    // Still add locally with temp ID for now
+                    // TODO: Consider removing if backend creation fails
+                    setPolygons(prev => [...prev, newPoly]);
+                }
+            } catch (err) {
+                console.error("Failed to create parcel:", err);
+                // Still add locally with temp ID for now
+                // TODO: Consider removing if backend creation fails
+                setPolygons(prev => [...prev, newPoly]);
+            }
+
             setModal({ open: false, coords: null });
             setAreaName("");
         } else {
             // For edited polygons
+            
+            // Send PUT request to backend to update the polygon
+            try {
+                const payload = {
+                    geodata: coordsToWKT(overlapWarning.originalCoords),
+                };
+
+                const response = await apiPut(`/farm/${props.farm_id}/parcels/${overlapWarning.polygonId}`, payload);
+                if (response.ok) {
+                    console.log("Polygon updated successfully on backend");
+                } else {
+                    console.error("Failed to update parcel:", response.statusText);
+                }
+            } catch (err) {
+                console.error("Failed to update parcel:", err);
+            }
+
             updatePolygon(overlapWarning.polygonId, overlapWarning.originalCoords, true);
             delete originalCoordsRef.current[overlapWarning.polygonId];
             cleanupEdit();
@@ -263,9 +340,9 @@ export default function MapWithPolygons() {
         
         setOverlapWarning(null);
         setShowPreview(false);
-    }, [overlapWarning, areaName, updatePolygon, cleanupEdit]);
+    }, [overlapWarning, areaName, updatePolygon, cleanupEdit, props.farm_id]);
 
-    const handleOverlapAccept = useCallback(() => {
+    const handleOverlapAccept = useCallback(async () => {
         if (!overlapWarning || !overlapWarning.fixedCoords) {
             console.error("No overlap warning or fixed coords!");
             return;
@@ -289,14 +366,66 @@ export default function MapWithPolygons() {
             };
             
             console.log("Creating new polygon:", newPoly);
-            setPolygons(prev => {
-                const updated = [...prev, newPoly];
-                console.log("Updated polygons:", updated);
-                return updated;
-            });
+
+            // Send POST request to backend
+            try {
+                const payload = {
+                    name: newPoly.name,
+                    active: true,
+                    startValidity: new Date().toISOString(),
+                    endValidity: null,
+                    geodata: coordsToWKT(newPoly.coords),
+                    color: newPoly.color,
+                };
+
+                const response = await apiPost(`/farm/${props.farm_id}/parcels`, payload);
+                if (response.ok) {
+                    const createdParcel = await response.json();
+                    // Update the polygon with the backend-generated ID
+                    newPoly.id = String(createdParcel.id);
+                    setPolygons(prev => {
+                        const updated = [...prev, newPoly];
+                        console.log("Updated polygons:", updated);
+                        return updated;
+                    });
+                } else {
+                    console.error("Failed to create parcel:", response.statusText);
+                    // Still add locally with temp ID for now
+                    setPolygons(prev => {
+                        const updated = [...prev, newPoly];
+                        console.log("Updated polygons:", updated);
+                        return updated;
+                    });
+                }
+            } catch (err) {
+                console.error("Failed to create parcel:", err);
+                // Still add locally with temp ID for now
+                setPolygons(prev => {
+                    const updated = [...prev, newPoly];
+                    console.log("Updated polygons:", updated);
+                    return updated;
+                });
+            }
         } else {
             // For edited polygons
             console.log("Updating existing polygon");
+
+            // Send PUT request to backend to update the polygon
+            try {
+                const payload = {
+                    geodata: coordsToWKT(overlapWarning.fixedCoords),
+                };
+
+                const response = await apiPut(`/farm/${props.farm_id}/parcels/${overlapWarning.polygonId}`, payload);
+                if (response.ok) {
+                    console.log("Polygon updated successfully on backend");
+                } else {
+                    console.error("Failed to update parcel:", response.statusText);
+                }
+            } catch (err) {
+                console.error("Failed to update parcel:", err);
+            }
+
             updatePolygon(overlapWarning.polygonId, overlapWarning.fixedCoords, true);
             delete originalCoordsRef.current[overlapWarning.polygonId];
             cleanupEdit();
@@ -308,7 +437,7 @@ export default function MapWithPolygons() {
         setAreaName("");
         setOverlapWarning(null);
         setShowPreview(false);
-    }, [overlapWarning, areaName, updatePolygon, cleanupEdit]);
+    }, [overlapWarning, areaName, updatePolygon, cleanupEdit, props.farm_id]);
 
     const handleOverlapCancel = useCallback(() => {
         if (overlapWarning?.isNewPolygon) {
@@ -405,7 +534,7 @@ export default function MapWithPolygons() {
         setIsCreating(false);
     }, []);
 
-    const confirmCreate = useCallback(() => {
+    const confirmCreate = useCallback(async () => {
         const coords = modal.coords;
         if (!coords) return;
         
@@ -430,17 +559,47 @@ export default function MapWithPolygons() {
         
         createdLayerRef.current && getMap()?.removeLayer(createdLayerRef.current);
         createdLayerRef.current = null;
-        setPolygons(prev => [...prev, {
+
+        const newPoly: PolygonData = {
             id: tempId,
             name: areaName || "Polygon",
             coords,
             version: 0,
             visible: true,
             color: '#3388ff',
-        }]);
+        };
+
+        // Send POST request to backend
+        try {
+            const payload = {
+                name: newPoly.name,
+                active: true,
+                startValidity: new Date().toISOString(),
+                endValidity: null,
+                geodata: coordsToWKT(newPoly.coords),
+                color: newPoly.color,
+            };
+
+            const response = await apiPost(`/farm/${props.farm_id}/parcels`, payload);
+            if (response.ok) {
+                const createdParcel = await response.json();
+                // Update the polygon with the backend-generated ID
+                newPoly.id = String(createdParcel.id);
+                setPolygons(prev => [...prev, newPoly]);
+            } else {
+                console.error("Failed to create parcel:", response.statusText);
+                // Still add locally with temp ID for now
+                setPolygons(prev => [...prev, newPoly]);
+            }
+        } catch (err) {
+            console.error("Failed to create parcel:", err);
+            // Still add locally with temp ID for now
+            setPolygons(prev => [...prev, newPoly]);
+        }
+
         setModal({ open: false, coords: null });
         setAreaName("");
-    }, [modal.coords, areaName, polygons]);
+    }, [modal.coords, areaName, polygons, props.farm_id]);
 
     const cancelModal = useCallback(() => {
         createdLayerRef.current && getMap()?.removeLayer(createdLayerRef.current);
@@ -476,11 +635,61 @@ export default function MapWithPolygons() {
 
     // Effects
     useEffect(() => {
-        fetch("/api/polygons")
-            .then(res => res.json())
-            .then(data => setPolygons(data.map((p: any) => ({ ...p, visible: true, version: 0 }))))
-            .catch(err => console.error("Failed to fetch polygons:", err));
-    }, []);
+        const fetchPolygons = async () => {
+            try {
+                const response = await apiGet(`/farm/${props.farm_id}/parcels`);
+                if (response.ok) {
+                    const data = await response.json();
+                    setPolygons(data.map((p: any) => {
+                        // Parse geodata WKT string to coordinates
+                        let coords: [number, number][] = [];
+                        try {
+                            if (p.geodata) {
+                                // WKT format: POLYGON((lng lat, lng lat, ...)) or POLYGON ((lng lat, lng lat, ...))
+                                const wkt = typeof p.geodata === 'string' ? p.geodata : String(p.geodata);
+                                const polygonMatch = wkt.match(/POLYGON\s*\(\((.*?)\)\)/i);
+                                if (polygonMatch) {
+                                    const coordsStr = polygonMatch[1];
+                                    // Split by comma, then each pair by space
+                                    coords = coordsStr.split(',').map((pair: string) => {
+                                        const [lng, lat] = pair.trim().split(/\s+/).map(Number);
+                                        // Convert from WKT (lng, lat) to Leaflet (lat, lng)
+                                        return [lat, lng] as [number, number];
+                                    });
+                                } else {
+                                    console.warn('Invalid WKT format for parcel:', p.id, wkt);
+                                }
+                            }
+                        } catch (e) {
+                            console.error('Error parsing geodata for parcel:', p.id, e);
+                        }
+
+                        return {
+                            id: String(p.id),
+                            name: p.name || 'Unnamed Parcel',
+                            coords,
+                            visible: true,
+                            version: 0,
+                            color: p.color || '#3388ff',
+                            // Store additional API fields for reference
+                            active: p.active,
+                            startValidity: p.startValidity,
+                            endValidity: p.endValidity,
+                            farmId: p.farmId,
+                        };
+                    }));
+                } else {
+                    console.error("Failed to fetch polygons:", response.statusText);
+                    setPolygons([]);
+                }
+            } catch (err) {
+                console.error("Failed to fetch polygons:", err);
+                setPolygons([]);
+            }
+        };
+
+        fetchPolygons();
+    }, [props.farm_id]);
 
     useEffect(() => {
         if (!isCreating) return;
@@ -692,10 +901,26 @@ export default function MapWithPolygons() {
                                     return (
                                         <button
                                             key={color}
-                                            onClick={() => {
+                                            onClick={async () => {
                                                 setPolygons(prev => prev.map(p => p.id === polygonContextMenu.polygonId ? { ...p, color } : p));
                                                 originalColorRef.current = null;
                                                 closePolygonContextMenu();
+
+                                                // Send PUT request to backend to update the color
+                                                try {
+                                                    const payload = {
+                                                        color: color,
+                                                    };
+
+                                                    const response = await apiPut(`/farm/${props.farm_id}/parcels/${polygonContextMenu.polygonId}`, payload);
+                                                    if (response.ok) {
+                                                        console.log("Polygon color updated successfully on backend");
+                                                    } else {
+                                                        console.error("Failed to update parcel color:", response.statusText);
+                                                    }
+                                                } catch (err) {
+                                                    console.error("Failed to update parcel color:", err);
+                                                }
                                             }}
                                             onMouseEnter={(e) => {
                                                 e.currentTarget.style.transform = 'scale(1.2)';
@@ -774,9 +999,26 @@ export default function MapWithPolygons() {
                 <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 10001 }}>
                     <div style={{ background: "#fff", padding: "2rem", borderRadius: 8, boxShadow: "0 4px 24px rgba(0,0,0,0.3)", minWidth: 400, display: "flex", flexDirection: "column", gap: "1.5rem" }}>
                         <h2 style={{ margin: 0, color: '#222', fontSize: "1.5rem" }}>Rename Polygon</h2>
-                        <input type="text" value={renameValue} onChange={e => setRenameValue(e.target.value)} onKeyDown={e => { 
-                            if (e.key === "Enter") { 
-                                setPolygons(prev => prev.map(p => p.id === renamingId ? { ...p, name: renameValue } : p)); 
+                        <input type="text" value={renameValue} onChange={e => setRenameValue(e.target.value)} onKeyDown={async e => { 
+                            if (e.key === "Enter") {
+                                setPolygons(prev => prev.map(p => p.id === renamingId ? { ...p, name: renameValue } : p));
+                                
+                                // Send PUT request to backend to update the name
+                                try {
+                                    const payload = {
+                                        name: renameValue,
+                                    };
+
+                                    const response = await apiPut(`/farm/${props.farm_id}/parcels/${renamingId}`, payload);
+                                    if (response.ok) {
+                                        console.log("Polygon name updated successfully on backend");
+                                    } else {
+                                        console.error("Failed to update parcel name:", response.statusText);
+                                    }
+                                } catch (err) {
+                                    console.error("Failed to update parcel name:", err);
+                                }
+                                
                                 setRenamingId(null); 
                             } else if (e.key === "Escape") {
                                 setRenamingId(null);
@@ -784,7 +1026,27 @@ export default function MapWithPolygons() {
                         }} placeholder="Polygon name" style={{ padding: "0.75rem", fontSize: "1rem", borderRadius: 4, border: "1px solid #ccc", color: "#222" }} autoFocus />
                         <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem", paddingTop: "1rem", borderTop: "1px solid #eee" }}>
                             <button onClick={() => setRenamingId(null)} style={{ padding: "0.75rem 1.5rem", borderRadius: 4, border: "1px solid #ccc", background: "#fff", cursor: "pointer", fontWeight: 500, color: "#333" }}>Cancel</button>
-                            <button onClick={() => { setPolygons(prev => prev.map(p => p.id === renamingId ? { ...p, name: renameValue } : p)); setRenamingId(null); }} style={{ padding: "0.75rem 1.5rem", borderRadius: 4, border: "none", background: "#007bff", color: "#fff", cursor: "pointer", fontWeight: 500 }}>Confirm</button>
+                            <button onClick={async () => {
+                                setPolygons(prev => prev.map(p => p.id === renamingId ? { ...p, name: renameValue } : p));
+                                
+                                // Send PUT request to backend to update the name
+                                try {
+                                    const payload = {
+                                        name: renameValue,
+                                    };
+
+                                    const response = await apiPut(`/farm/${props.farm_id}/parcels/${renamingId}`, payload);
+                                    if (response.ok) {
+                                        console.log("Polygon name updated successfully on backend");
+                                    } else {
+                                        console.error("Failed to update parcel name:", response.statusText);
+                                    }
+                                } catch (err) {
+                                    console.error("Failed to update parcel name:", err);
+                                }
+                                
+                                setRenamingId(null);
+                            }} style={{ padding: "0.75rem 1.5rem", borderRadius: 4, border: "none", background: "#007bff", color: "#fff", cursor: "pointer", fontWeight: 500 }}>Confirm</button>
                         </div>
                     </div>
                 </div>

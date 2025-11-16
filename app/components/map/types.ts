@@ -5,6 +5,10 @@ export interface PolygonData {
     visible: boolean;
     color?: string;
     version?: number;
+    active?: boolean;
+    startValidity?: string;
+    endValidity?: string;
+    farmId?: number;
 }
 
 export interface EditState {

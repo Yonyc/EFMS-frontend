@@ -7,7 +7,8 @@
     "user_menu": "Menu utilisateur",
     "profile": "Votre profil",
     "settings": "Paramètres",
-    "sign_out": "Se déconnecter"
+    "sign_out": "Se déconnecter",
+    "sign_in": "Se connecter"
   },
   "home": {
     "title": "Bienvenue sur EFMS",

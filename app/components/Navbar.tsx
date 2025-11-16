@@ -2,6 +2,9 @@ import { Disclosure, DisclosureButton, DisclosurePanel, Menu, MenuButton, MenuIt
 import { useTranslation } from "react-i18next";
 import { Bars3Icon, BellIcon, XMarkIcon } from '@heroicons/react/24/outline'
 import { CircleFlagLanguage } from 'react-circle-flags'
+import { useAuth } from '../contexts/AuthContext'
+import { useNavigate } from 'react-router';
+import FarmSelector from './FarmSelector';
 
 const navigation = [
     { name: 'Home', href: '/', current: true, translation_id: 'nav.home' },
@@ -15,10 +18,18 @@ function classNames(...classes: string[]) {
 
 export default function Navbar({ currentPage }: { currentPage: string }) {
     const { i18n, t } = useTranslation();
+    const { isAuthenticated, user, logout } = useAuth();
+    const navigate = useNavigate();
+    
     navigation.forEach(item => {
         item.href === currentPage ? item.current = true : item.current = false;
         item.name = t(item.translation_id);
     });
+
+    const handleLogout = () => {
+        logout();
+        navigate('/login');
+    };
 
     return (
         <Disclosure
@@ -63,6 +74,9 @@ export default function Navbar({ currentPage }: { currentPage: string }) {
                         </div>
                     </div>
                     <div className="absolute inset-y-0 right-0 flex items-center pr-2 gap-2 sm:static sm:inset-auto sm:ml-6 sm:pr-0">
+                        {/* Farm Selector - Only show when authenticated */}
+                        {isAuthenticated && <FarmSelector />}
+                        
                         {/* Language Switcher */}
                         <Menu as="div" className="relative ml-3">
                             <MenuButton className="relative flex rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500">
@@ -72,7 +86,7 @@ export default function Navbar({ currentPage }: { currentPage: string }) {
                             </MenuButton>
                             <MenuItems
                                 transition
-                                className="absolute right-0 z-10 mt-2 w-48 origin-top-right rounded-md bg-gray-800 py-1 outline -outline-offset-1 outline-white/10 transition data-closed:scale-95 data-closed:transform data-closed:opacity-0 data-enter:duration-100 data-enter:ease-out data-leave:duration-75 data-leave:ease-in"
+                                className="absolute right-0 z-500 mt-2 w-48 origin-top-right rounded-md bg-gray-800 py-1 outline -outline-offset-1 outline-white/10 transition data-closed:scale-95 data-closed:transform data-closed:opacity-0 data-enter:duration-100 data-enter:ease-out data-leave:duration-75 data-leave:ease-in"
                             >
                                 {Object.entries({ en: "English", fr: "Français", nl: "Nederlands", ja: "日本語" }).map(([lang, label]) => lang !== i18n.language ? (
                                     <MenuItem key={lang}>
@@ -88,57 +102,69 @@ export default function Navbar({ currentPage }: { currentPage: string }) {
                                 ) : <></>)}
                             </MenuItems>
                         </Menu>
-                        {/* <button
-                            type="button"
-                            className="relative rounded-full p-1 text-gray-400 hover:text-white focus:outline-2 focus:outline-offset-2 focus:outline-indigo-500"
-                        >
-                            <span className="absolute -inset-1.5" />
-                            <span className="sr-only">View notifications</span>
-                            <BellIcon aria-hidden="true" className="size-6" />
-                        </button> */}
 
-                        {/* Profile dropdown */}
-                        <Menu as="div" className="relative ml-3">
-                            <MenuButton className="relative flex rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500">
-                                <span className="absolute -inset-1.5" />
-                                <span className="sr-only">{t('nav.user_menu')}</span>
-                                <img
-                                    alt=""
-                                    src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
-                                    className="size-8 rounded-full bg-gray-800 outline -outline-offset-1 outline-white/10"
-                                />
-                            </MenuButton>
+                        {/* Profile dropdown or Login button */}
+                        {isAuthenticated ? (
+                            <Menu as="div" className="relative ml-3">
+                                <MenuButton className="relative flex rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500">
+                                    <span className="absolute -inset-1.5" />
+                                    <span className="sr-only">{t('nav.user_menu')}</span>
+                                    <img
+                                        alt=""
+                                        src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
+                                        className="size-8 rounded-full bg-gray-800 outline -outline-offset-1 outline-white/10"
+                                    />
+                                </MenuButton>
 
-                            <MenuItems
-                                transition
-                                className="absolute right-0 z-10 mt-2 w-48 origin-top-right rounded-md bg-gray-800 py-1 outline -outline-offset-1 outline-white/10 transition data-closed:scale-95 data-closed:transform data-closed:opacity-0 data-enter:duration-100 data-enter:ease-out data-leave:duration-75 data-leave:ease-in"
+                                <MenuItems
+                                    transition
+                                    className="absolute right-0 z-500 mt-2 w-48 origin-top-right rounded-md bg-gray-800 py-1 outline -outline-offset-1 outline-white/10 transition data-closed:scale-95 data-closed:transform data-closed:opacity-0 data-enter:duration-100 data-enter:ease-out data-leave:duration-75 data-leave:ease-in"
+                                >
+                                    <div className="px-4 py-2 text-xs text-gray-400 border-b border-white/10">
+                                        {user?.username}
+                                    </div>
+                                    <MenuItem>
+                                        <a
+                                            href="#"
+                                            className="block px-4 py-2 text-sm text-gray-300 data-focus:bg-white/5 data-focus:outline-hidden"
+                                        >
+                                            {t('nav.profile')}
+                                        </a>
+                                    </MenuItem>
+                                    <MenuItem>
+                                        <a
+                                            href="/create-farm"
+                                            className="block px-4 py-2 text-sm text-gray-300 data-focus:bg-white/5 data-focus:outline-hidden"
+                                        >
+                                            {t('nav.create_farm')}
+                                        </a>
+                                    </MenuItem>
+                                    <MenuItem>
+                                        <a
+                                            href="#"
+                                            className="block px-4 py-2 text-sm text-gray-300 data-focus:bg-white/5 data-focus:outline-hidden"
+                                        >
+                                            {t('nav.settings')}
+                                        </a>
+                                    </MenuItem>
+                                    <MenuItem>
+                                        <button
+                                            onClick={handleLogout}
+                                            className="block w-full text-left px-4 py-2 text-sm text-gray-300 data-focus:bg-white/5 data-focus:outline-hidden"
+                                        >
+                                            {t('nav.sign_out')}
+                                        </button>
+                                    </MenuItem>
+                                </MenuItems>
+                            </Menu>
+                        ) : (
+                            <a
+                                href="/login"
+                                className="rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500"
                             >
-                                <MenuItem>
-                                    <a
-                                        href="#"
-                                        className="block px-4 py-2 text-sm text-gray-300 data-focus:bg-white/5 data-focus:outline-hidden"
-                                    >
-                                        {t('nav.profile')}
-                                    </a>
-                                </MenuItem>
-                                <MenuItem>
-                                    <a
-                                        href="#"
-                                        className="block px-4 py-2 text-sm text-gray-300 data-focus:bg-white/5 data-focus:outline-hidden"
-                                    >
-                                        {t('nav.settings')}
-                                    </a>
-                                </MenuItem>
-                                <MenuItem>
-                                    <a
-                                        href="#"
-                                        className="block px-4 py-2 text-sm text-gray-300 data-focus:bg-white/5 data-focus:outline-hidden"
-                                    >
-                                        {t('nav.sign_out')}
-                                    </a>
-                                </MenuItem>
-                            </MenuItems>
-                        </Menu>
+                                {t('nav.sign_in') || 'Sign In'}
+                            </a>
+                        )}
                     </div>
                 </div>
             </div>
