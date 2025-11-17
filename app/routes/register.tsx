@@ -3,6 +3,8 @@ import type { FormEvent } from 'react';
 import { useNavigate, Link } from 'react-router';
 import { useAuth } from '../contexts/AuthContext';
 import { apiPost } from '~/utils/api';
+import { useCurrentLocale } from '../hooks/useCurrentLocale';
+import { buildLocalizedPath } from '../utils/locale';
 
 export function meta() {
   return [
@@ -20,12 +22,13 @@ export default function Register() {
   
   const { login, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const locale = useCurrentLocale();
 
   useEffect(() => {
     if (isAuthenticated) {
-      navigate('/');
+      navigate(buildLocalizedPath(locale, '/'));
     }
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, locale, navigate]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -56,7 +59,7 @@ export default function Register() {
         // Registration successful, now login
         try {
           await login(username, password);
-          navigate('/');
+          navigate(buildLocalizedPath(locale, '/'));
         } catch (loginErr) {
           setError('Registration successful but login failed. Please try logging in manually.');
         }
@@ -155,7 +158,7 @@ export default function Register() {
           <div className="text-center">
             <p className="text-sm text-gray-600">
               Already have an account?{' '}
-              <Link to="/login" className="font-medium text-indigo-600 hover:text-indigo-500">
+              <Link to={buildLocalizedPath(locale, '/login')} className="font-medium text-indigo-600 hover:text-indigo-500">
                 Sign in
               </Link>
             </p>

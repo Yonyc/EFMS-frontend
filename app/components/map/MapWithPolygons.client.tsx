@@ -13,6 +13,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "leaflet-draw/dist/leaflet.draw.css";
 import { useEffect, useRef, useState, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import PolygonList from "./PolygonList";
 import OverlapModal from "./components/OverlapModal";
 import { checkOverlap, fixOverlap } from "./utils/geometry";
@@ -20,6 +21,7 @@ import type { EditState, ManualEditContext, OverlapWarning, PolygonData } from "
 import { apiGet, apiPost, apiPut } from "~/utils/api";
 
 export default function MapWithPolygons(props: { farm_id: string }) {
+    const { t } = useTranslation();
     const center: [number, number] = [50.668333, 4.621278];
     
     // State
@@ -273,7 +275,7 @@ export default function MapWithPolygons(props: { farm_id: string }) {
             
             const newPoly: PolygonData = {
                 id: overlapWarning.polygonId,
-                name: areaName || "Polygon",
+                name: areaName || t('map.defaultPolygonName'),
                 coords: overlapWarning.originalCoords,
                 version: 0,
                 visible: true,
@@ -340,7 +342,7 @@ export default function MapWithPolygons(props: { farm_id: string }) {
         
         setOverlapWarning(null);
         setShowPreview(false);
-    }, [overlapWarning, areaName, updatePolygon, cleanupEdit, props.farm_id]);
+    }, [overlapWarning, areaName, updatePolygon, cleanupEdit, props.farm_id, t]);
 
     const handleOverlapAccept = useCallback(async () => {
         if (!overlapWarning || !overlapWarning.fixedCoords) {
@@ -358,7 +360,7 @@ export default function MapWithPolygons(props: { farm_id: string }) {
             
             const newPoly: PolygonData = {
                 id: overlapWarning.polygonId,
-                name: areaName || "Polygon",
+                name: areaName || t('map.defaultPolygonName'),
                 coords: overlapWarning.fixedCoords,
                 version: 0,
                 visible: true,
@@ -437,7 +439,7 @@ export default function MapWithPolygons(props: { farm_id: string }) {
         setAreaName("");
         setOverlapWarning(null);
         setShowPreview(false);
-    }, [overlapWarning, areaName, updatePolygon, cleanupEdit, props.farm_id]);
+    }, [overlapWarning, areaName, updatePolygon, cleanupEdit, props.farm_id, t]);
 
     const handleOverlapCancel = useCallback(() => {
         if (overlapWarning?.isNewPolygon) {
@@ -477,7 +479,7 @@ export default function MapWithPolygons(props: { farm_id: string }) {
 
         const newPoly: PolygonData = {
             id: overlapWarning.polygonId,
-            name: areaName || "Polygon",
+            name: areaName || t('map.defaultPolygonName'),
             coords: overlapWarning.originalCoords,
             version: 0,
             visible: true,
@@ -492,7 +494,7 @@ export default function MapWithPolygons(props: { farm_id: string }) {
         setModal({ open: false, coords: null });
         setOverlapWarning(null);
         setShowPreview(false);
-    }, [overlapWarning, areaName]);
+    }, [overlapWarning, areaName, t]);
 
     // Creation
     const getPointCount = (handler: any) => {
@@ -562,7 +564,7 @@ export default function MapWithPolygons(props: { farm_id: string }) {
 
         const newPoly: PolygonData = {
             id: tempId,
-            name: areaName || "Polygon",
+            name: areaName || t('map.defaultPolygonName'),
             coords,
             version: 0,
             visible: true,
@@ -599,7 +601,7 @@ export default function MapWithPolygons(props: { farm_id: string }) {
 
         setModal({ open: false, coords: null });
         setAreaName("");
-    }, [modal.coords, areaName, polygons, props.farm_id]);
+    }, [modal.coords, areaName, polygons, props.farm_id, t]);
 
     const cancelModal = useCallback(() => {
         createdLayerRef.current && getMap()?.removeLayer(createdLayerRef.current);
@@ -666,7 +668,7 @@ export default function MapWithPolygons(props: { farm_id: string }) {
 
                         return {
                             id: String(p.id),
-                            name: p.name || 'Unnamed Parcel',
+                            name: p.name || t('map.unnamedParcel'),
                             coords,
                             visible: true,
                             version: 0,
@@ -689,7 +691,7 @@ export default function MapWithPolygons(props: { farm_id: string }) {
         };
 
         fetchPolygons();
-    }, [props.farm_id]);
+    }, [props.farm_id, t]);
 
     useEffect(() => {
         if (!isCreating) return;
@@ -866,7 +868,7 @@ export default function MapWithPolygons(props: { farm_id: string }) {
             {contextMenu && (
                 <div style={{ position: 'fixed', left: contextMenu.x, top: contextMenu.y, background: 'white', border: '1px solid #ccc', borderRadius: 4, boxShadow: '0 2px 8px rgba(0,0,0,0.15)', zIndex: 10000, minWidth: 150 }}>
                     <button onClick={() => { setContextMenu(null); startCreate(); }} style={{ width: '100%', padding: '0.5rem 1rem', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', fontSize: '0.9rem', color: '#333' }} onMouseEnter={e => e.currentTarget.style.background = '#f0f0f0'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                        ➕ Add New Polygon
+                        ➕ {t('map.contextMenu.addPolygon')}
                     </button>
                 </div>
             )}
@@ -885,14 +887,14 @@ export default function MapWithPolygons(props: { farm_id: string }) {
                         setRenamingId(polygonContextMenu.polygonId); 
                         setRenameValue(poly?.name || ''); 
                     }} style={{ width: '100%', padding: '0.5rem 1rem', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', fontSize: '0.9rem', color: '#333', display: 'flex', alignItems: 'center', gap: '0.5rem', transition: 'background 0.2s' }} onMouseEnter={e => e.currentTarget.style.background = '#f0f0f0'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                        <span>✏️</span> Rename
+                        <span>✏️</span> {t('map.polygonMenu.rename')}
                     </button>
                     <button onClick={() => { closePolygonContextMenu(); startEdit(polygonContextMenu.polygonId); }} style={{ width: '100%', padding: '0.5rem 1rem', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', fontSize: '0.9rem', color: '#333', display: 'flex', alignItems: 'center', gap: '0.5rem', transition: 'background 0.2s' }} onMouseEnter={e => e.currentTarget.style.background = '#f0f0f0'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                        <span>🔧</span> Edit
+                        <span>🔧</span> {t('map.polygonMenu.edit')}
                     </button>
                     {!showColorPicker ? (
                         <button onClick={() => setShowColorPicker(true)} style={{ width: '100%', padding: '0.5rem 1rem', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', fontSize: '0.9rem', color: '#333', display: 'flex', alignItems: 'center', gap: '0.5rem', transition: 'background 0.2s' }} onMouseEnter={e => e.currentTarget.style.background = '#f0f0f0'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                            <span>🎨</span> Color
+                            <span>🎨</span> {t('map.polygonMenu.color')}
                         </button>
                     ) : (
                         <div style={{ padding: '0.5rem 1rem', animation: 'slideIn 0.3s ease-out' }}>
@@ -980,17 +982,17 @@ export default function MapWithPolygons(props: { farm_id: string }) {
                         onMouseEnter={e => e.currentTarget.style.background = pendingDeleteId ? '#e53935' : '#ffebee'} 
                         onMouseLeave={e => e.currentTarget.style.background = pendingDeleteId ? '#ef5350' : 'transparent'}
                     >
-                        <span>🗑️</span> {pendingDeleteId ? 'Confirm' : 'Delete'}
+                        <span>🗑️</span> {pendingDeleteId ? t('common.confirm') : t('common.delete')}
                     </button>
                 </div>
             )}
 
             {pendingDeleteId && !polygonContextMenu && (
                 <div style={{ position: "fixed", top: "20px", left: "50%", transform: "translateX(-50%)", background: "#ef5350", color: "white", padding: "1rem 2rem", borderRadius: 8, boxShadow: "0 4px 12px rgba(0,0,0,0.3)", zIndex: 10000, display: "flex", alignItems: "center", gap: "1rem", animation: "slideIn 0.3s ease-out" }}>
-                    <span style={{ fontSize: "1.1rem", fontWeight: 500 }}>Delete "{polygons.find(p => p.id === pendingDeleteId)?.name}"?</span>
+                    <span style={{ fontSize: "1.1rem", fontWeight: 500 }}>{t('map.deletePrompt', { name: polygons.find(p => p.id === pendingDeleteId)?.name ?? '' })}</span>
                     <div style={{ display: "flex", gap: "0.5rem" }}>
-                        <button onClick={() => { deletePolygon(pendingDeleteId); setPendingDeleteId(null); }} style={{ padding: "0.5rem 1rem", borderRadius: 4, border: "none", background: "white", color: "#ef5350", cursor: "pointer", fontWeight: 600 }}>Confirm</button>
-                        <button onClick={() => setPendingDeleteId(null)} style={{ padding: "0.5rem 1rem", borderRadius: 4, border: "1px solid white", background: "transparent", color: "white", cursor: "pointer" }}>Cancel</button>
+                        <button onClick={() => { deletePolygon(pendingDeleteId); setPendingDeleteId(null); }} style={{ padding: "0.5rem 1rem", borderRadius: 4, border: "none", background: "white", color: "#ef5350", cursor: "pointer", fontWeight: 600 }}>{t('common.confirm')}</button>
+                        <button onClick={() => setPendingDeleteId(null)} style={{ padding: "0.5rem 1rem", borderRadius: 4, border: "1px solid white", background: "transparent", color: "white", cursor: "pointer" }}>{t('common.cancel')}</button>
                     </div>
                 </div>
             )}
@@ -998,7 +1000,7 @@ export default function MapWithPolygons(props: { farm_id: string }) {
             {renamingId && (
                 <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 10001 }}>
                     <div style={{ background: "#fff", padding: "2rem", borderRadius: 8, boxShadow: "0 4px 24px rgba(0,0,0,0.3)", minWidth: 400, display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-                        <h2 style={{ margin: 0, color: '#222', fontSize: "1.5rem" }}>Rename Polygon</h2>
+                        <h2 style={{ margin: 0, color: '#222', fontSize: "1.5rem" }}>{t('map.renameModal.title')}</h2>
                         <input type="text" value={renameValue} onChange={e => setRenameValue(e.target.value)} onKeyDown={async e => { 
                             if (e.key === "Enter") {
                                 setPolygons(prev => prev.map(p => p.id === renamingId ? { ...p, name: renameValue } : p));
@@ -1023,9 +1025,9 @@ export default function MapWithPolygons(props: { farm_id: string }) {
                             } else if (e.key === "Escape") {
                                 setRenamingId(null);
                             }
-                        }} placeholder="Polygon name" style={{ padding: "0.75rem", fontSize: "1rem", borderRadius: 4, border: "1px solid #ccc", color: "#222" }} autoFocus />
+                        }} placeholder={t('map.renameModal.placeholder')} style={{ padding: "0.75rem", fontSize: "1rem", borderRadius: 4, border: "1px solid #ccc", color: "#222" }} autoFocus />
                         <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem", paddingTop: "1rem", borderTop: "1px solid #eee" }}>
-                            <button onClick={() => setRenamingId(null)} style={{ padding: "0.75rem 1.5rem", borderRadius: 4, border: "1px solid #ccc", background: "#fff", cursor: "pointer", fontWeight: 500, color: "#333" }}>Cancel</button>
+                            <button onClick={() => setRenamingId(null)} style={{ padding: "0.75rem 1.5rem", borderRadius: 4, border: "1px solid #ccc", background: "#fff", cursor: "pointer", fontWeight: 500, color: "#333" }}>{t('common.cancel')}</button>
                             <button onClick={async () => {
                                 setPolygons(prev => prev.map(p => p.id === renamingId ? { ...p, name: renameValue } : p));
                                 
@@ -1046,7 +1048,7 @@ export default function MapWithPolygons(props: { farm_id: string }) {
                                 }
                                 
                                 setRenamingId(null);
-                            }} style={{ padding: "0.75rem 1.5rem", borderRadius: 4, border: "none", background: "#007bff", color: "#fff", cursor: "pointer", fontWeight: 500 }}>Confirm</button>
+                            }} style={{ padding: "0.75rem 1.5rem", borderRadius: 4, border: "none", background: "#007bff", color: "#fff", cursor: "pointer", fontWeight: 500 }}>{t('common.confirm')}</button>
                         </div>
                     </div>
                 </div>
@@ -1055,11 +1057,11 @@ export default function MapWithPolygons(props: { farm_id: string }) {
             {modal.open && (
                 <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 10001 }}>
                     <div style={{ background: "#fff", padding: "2rem", borderRadius: 8, boxShadow: "0 4px 24px rgba(0,0,0,0.3)", minWidth: 400, display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-                        <h2 style={{ margin: 0, color: '#222', fontSize: "1.5rem" }}>Enter Area Name</h2>
-                        <input type="text" value={areaName} onChange={e => setAreaName(e.target.value)} onKeyDown={e => e.key === "Enter" && confirmCreate()} placeholder="Area name" style={{ padding: "0.75rem", fontSize: "1rem", borderRadius: 4, border: "1px solid #ccc", color: "#222" }} autoFocus />
+                        <h2 style={{ margin: 0, color: '#222', fontSize: "1.5rem" }}>{t('map.areaModal.title')}</h2>
+                        <input type="text" value={areaName} onChange={e => setAreaName(e.target.value)} onKeyDown={e => e.key === "Enter" && confirmCreate()} placeholder={t('map.areaModal.placeholder')} style={{ padding: "0.75rem", fontSize: "1rem", borderRadius: 4, border: "1px solid #ccc", color: "#222" }} autoFocus />
                         <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem", paddingTop: "1rem", borderTop: "1px solid #eee" }}>
-                            <button onClick={cancelModal} style={{ padding: "0.75rem 1.5rem", borderRadius: 4, border: "1px solid #ccc", background: "#fff", cursor: "pointer", fontWeight: 500, color: "#333" }}>Cancel</button>
-                            <button onClick={confirmCreate} style={{ padding: "0.75rem 1.5rem", borderRadius: 4, border: "none", background: "#007bff", color: "#fff", cursor: "pointer", fontWeight: 500 }}>Confirm</button>
+                            <button onClick={cancelModal} style={{ padding: "0.75rem 1.5rem", borderRadius: 4, border: "1px solid #ccc", background: "#fff", cursor: "pointer", fontWeight: 500, color: "#333" }}>{t('common.cancel')}</button>
+                            <button onClick={confirmCreate} style={{ padding: "0.75rem 1.5rem", borderRadius: 4, border: "none", background: "#007bff", color: "#fff", cursor: "pointer", fontWeight: 500 }}>{t('common.confirm')}</button>
                         </div>
                     </div>
                 </div>
@@ -1202,7 +1204,7 @@ export default function MapWithPolygons(props: { farm_id: string }) {
                         )}
                     </FeatureGroup>
 
-                    <Marker position={center}><Popup>Center Location</Popup></Marker>
+                    <Marker position={center}><Popup>{t('map.popup.center')}</Popup></Marker>
                 </MapContainer>
 
                 <div style={{ position: 'absolute', top: 16, right: 16, zIndex: 2000, display: 'flex', gap: 8 }}>
@@ -1210,7 +1212,7 @@ export default function MapWithPolygons(props: { farm_id: string }) {
                         <>
                             <button
                                 onClick={() => setShowPreview(false)}
-                                title="Back to overlap options"
+                                title={t('map.preview.back')}
                                 style={{
                                     background: '#007bff',
                                     color: 'white',
@@ -1224,7 +1226,7 @@ export default function MapWithPolygons(props: { farm_id: string }) {
                                 }}
                             >
                                 <span>👁️</span>
-                                Back to options
+                                {t('map.preview.back')}
                             </button>
                             <div style={{ display: 'flex', gap: 6, background: 'rgba(0,0,0,0.45)', padding: '0.35rem', borderRadius: 999, boxShadow: '0 2px 6px rgba(0,0,0,0.2)' }}>
                                 <button
@@ -1242,7 +1244,7 @@ export default function MapWithPolygons(props: { farm_id: string }) {
                                         transition: 'background 0.2s, opacity 0.2s'
                                     }}
                                 >
-                                    Original
+                                    {t('map.preview.original')}
                                 </button>
                                 <button
                                     onClick={() => setPreviewVisibility(prev => ({ ...prev, fixed: !prev.fixed }))}
@@ -1259,24 +1261,24 @@ export default function MapWithPolygons(props: { farm_id: string }) {
                                         transition: 'background 0.2s, opacity 0.2s'
                                     }}
                                 >
-                                    Auto-fixed
+                                    {t('map.preview.fixed')}
                                 </button>
                             </div>
                         </>
                     ) : (!editingId && !isCreating && (
-                        <button onClick={startCreate} title="Add" style={{ background: '#007bff', color: 'white', border: 'none', padding: '0.5rem', borderRadius: 4 }}>+</button>
+                        <button onClick={startCreate} title={t('map.toolbar.addTitle')} style={{ background: '#007bff', color: 'white', border: 'none', padding: '0.5rem', borderRadius: 4 }}>+</button>
                     ))}
                     {isCreating && (
                         <>
-                            <button onClick={finishCreate} title="Finish drawing" disabled={createPointCount < 3} style={{ background: createPointCount >= 3 ? 'green' : '#9fc59f', color: 'white', border: 'none', padding: '0.5rem', borderRadius: 4, cursor: createPointCount >= 3 ? 'pointer' : 'not-allowed', opacity: createPointCount >= 3 ? 1 : 0.6 }}>✓</button>
-                            <button onClick={cancelCreate} title="Cancel drawing" style={{ background: 'red', color: 'white', border: 'none', padding: '0.5rem', borderRadius: 4 }}>✕</button>
-                            <button onClick={() => createHandlerRef.current?.deleteLastVertex?.()} title="Remove last point" style={{ background: '#ddd', color: '#333', border: 'none', padding: '0.5rem', borderRadius: 4 }}>-</button>
+                            <button onClick={finishCreate} title={t('map.toolbar.finishDrawing')} disabled={createPointCount < 3} style={{ background: createPointCount >= 3 ? 'green' : '#9fc59f', color: 'white', border: 'none', padding: '0.5rem', borderRadius: 4, cursor: createPointCount >= 3 ? 'pointer' : 'not-allowed', opacity: createPointCount >= 3 ? 1 : 0.6 }}>✓</button>
+                            <button onClick={cancelCreate} title={t('map.toolbar.cancelDrawing')} style={{ background: 'red', color: 'white', border: 'none', padding: '0.5rem', borderRadius: 4 }}>✕</button>
+                            <button onClick={() => createHandlerRef.current?.deleteLastVertex?.()} title={t('map.toolbar.removeLastPoint')} style={{ background: '#ddd', color: '#333', border: 'none', padding: '0.5rem', borderRadius: 4 }}>-</button>
                         </>
                     )}
                     {editingId && (
                         <>
-                            <button onClick={finishEdit} title="Save" style={{ background: 'green', color: 'white', border: 'none', padding: '0.5rem', borderRadius: 4 }}>✓</button>
-                            <button onClick={cancelEdit} title="Cancel" style={{ background: 'red', color: 'white', border: 'none', padding: '0.5rem', borderRadius: 4 }}>✕</button>
+                            <button onClick={finishEdit} title={t('map.toolbar.saveEdit')} style={{ background: 'green', color: 'white', border: 'none', padding: '0.5rem', borderRadius: 4 }}>✓</button>
+                            <button onClick={cancelEdit} title={t('map.toolbar.cancelEdit')} style={{ background: 'red', color: 'white', border: 'none', padding: '0.5rem', borderRadius: 4 }}>✕</button>
                         </>
                     )}
                 </div>

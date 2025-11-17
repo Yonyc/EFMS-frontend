@@ -1,34 +1,48 @@
 import { Disclosure, DisclosureButton, DisclosurePanel, Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react'
 import { useTranslation } from "react-i18next";
-import { Bars3Icon, BellIcon, XMarkIcon } from '@heroicons/react/24/outline'
+import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline'
 import { CircleFlagLanguage } from 'react-circle-flags'
 import { useAuth } from '../contexts/AuthContext'
-import { useNavigate } from 'react-router';
+import { Link, NavLink, useLocation, useNavigate } from 'react-router';
 import FarmSelector from './FarmSelector';
+import { buildLocalizedPath, buildLocalizedUrl, SUPPORTED_LOCALES } from '../utils/locale';
+import type { Locale } from '../utils/locale';
 
-const navigation = [
-    { name: 'Home', href: '/', current: true, translation_id: 'nav.home' },
-    { name: 'Map', href: '/map', current: false, translation_id: 'nav.map' },
-    { name: 'Wiki', href: '/wiki', current: false, translation_id: 'nav.wiki' }
-]
+const NAV_ITEMS = [
+    { translationId: 'nav.home', slug: '', end: true },
+    { translationId: 'nav.map', slug: 'map', end: false },
+    { translationId: 'nav.wiki', slug: 'wiki', end: false }
+] as const;
 
 function classNames(...classes: string[]) {
     return classes.filter(Boolean).join(' ')
 }
 
-export default function Navbar({ currentPage }: { currentPage: string }) {
+interface NavbarProps {
+    currentLocale: Locale;
+}
+
+export default function Navbar({ currentLocale }: NavbarProps) {
     const { i18n, t } = useTranslation();
     const { isAuthenticated, user, logout } = useAuth();
     const navigate = useNavigate();
-    
-    navigation.forEach(item => {
-        item.href === currentPage ? item.current = true : item.current = false;
-        item.name = t(item.translation_id);
-    });
+    const location = useLocation();
+
+    const localizedPath = (slug: string) => buildLocalizedPath(currentLocale, slug ? `/${slug}` : '/');
+
+    const handleLanguageChange = (lang: Locale) => {
+        if (lang === currentLocale) {
+            return;
+        }
+
+        i18n.changeLanguage(lang);
+        const nextUrl = buildLocalizedUrl(lang, location.pathname, location.search, location.hash);
+        navigate(nextUrl, { replace: true });
+    };
 
     const handleLogout = () => {
         logout();
-        navigate('/login');
+        navigate(localizedPath('login'));
     };
 
     return (
@@ -57,18 +71,20 @@ export default function Navbar({ currentPage }: { currentPage: string }) {
                         </div>
                         <div className="hidden sm:ml-6 sm:block">
                             <div className="flex space-x-4">
-                                {navigation.map((item) => (
-                                    <a
-                                        key={item.name}
-                                        href={item.href}
-                                        aria-current={item.current ? 'page' : undefined}
-                                        className={classNames(
-                                            item.current ? 'bg-gray-950/50 text-white' : 'text-gray-300 hover:bg-white/5 hover:text-white',
-                                            'rounded-md px-3 py-2 text-sm font-medium',
-                                        )}
+                                {NAV_ITEMS.map((item) => (
+                                    <NavLink
+                                        key={item.translationId}
+                                        to={localizedPath(item.slug)}
+                                        end={Boolean(item.end)}
+                                        className={({ isActive }) =>
+                                            classNames(
+                                                isActive ? 'bg-gray-950/50 text-white' : 'text-gray-300 hover:bg-white/5 hover:text-white',
+                                                'rounded-md px-3 py-2 text-sm font-medium',
+                                            )
+                                        }
                                     >
-                                        {item.name}
-                                    </a>
+                                        {t(item.translationId)}
+                                    </NavLink>
                                 ))}
                             </div>
                         </div>
@@ -82,24 +98,24 @@ export default function Navbar({ currentPage }: { currentPage: string }) {
                             <MenuButton className="relative flex rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500">
                                 <span className="absolute -inset-1.5" />
                                 <span className="sr-only">{t('nav.language_switcher')}</span>
-                                <CircleFlagLanguage languageCode={i18n.language} className="size-8 rounded-full bg-gray-800 outline -outline-offset-1 outline-white/10" />
+                                <CircleFlagLanguage languageCode={currentLocale} className="size-8 rounded-full bg-gray-800 outline -outline-offset-1 outline-white/10" />
                             </MenuButton>
                             <MenuItems
                                 transition
                                 className="absolute right-0 z-500 mt-2 w-48 origin-top-right rounded-md bg-gray-800 py-1 outline -outline-offset-1 outline-white/10 transition data-closed:scale-95 data-closed:transform data-closed:opacity-0 data-enter:duration-100 data-enter:ease-out data-leave:duration-75 data-leave:ease-in"
                             >
-                                {Object.entries({ en: "English", fr: "Français", nl: "Nederlands", ja: "日本語" }).map(([lang, label]) => lang !== i18n.language ? (
+                                {SUPPORTED_LOCALES.filter((lang) => lang !== currentLocale).map((lang) => (
                                     <MenuItem key={lang}>
-                                        <a
-                                            href="#"
-                                            className="block px-4 py-2 text-sm text-gray-300 data-focus:bg-white/5 data-focus:outline-hidden"
-                                            onClick={() => i18n.changeLanguage(lang)}
+                                        <button
+                                            type="button"
+                                            className="block w-full px-4 py-2 text-left text-sm text-gray-300 data-focus:bg-white/5 data-focus:outline-hidden"
+                                            onClick={() => handleLanguageChange(lang)}
                                         >
                                             <CircleFlagLanguage languageCode={lang} className="size-6 inline-block mr-2" />
-                                            {label}
-                                        </a>
+                                            {t(`languages.${lang}` as const)}
+                                        </button>
                                     </MenuItem>
-                                ) : <></>)}
+                                ))}
                             </MenuItems>
                         </Menu>
 
@@ -132,12 +148,12 @@ export default function Navbar({ currentPage }: { currentPage: string }) {
                                         </a>
                                     </MenuItem>
                                     <MenuItem>
-                                        <a
-                                            href="/create-farm"
+                                        <Link
+                                            to={localizedPath('create-farm')}
                                             className="block px-4 py-2 text-sm text-gray-300 data-focus:bg-white/5 data-focus:outline-hidden"
                                         >
                                             {t('nav.create_farm')}
-                                        </a>
+                                        </Link>
                                     </MenuItem>
                                     <MenuItem>
                                         <a
@@ -158,12 +174,12 @@ export default function Navbar({ currentPage }: { currentPage: string }) {
                                 </MenuItems>
                             </Menu>
                         ) : (
-                            <a
-                                href="/login"
+                            <Link
+                                to={localizedPath('login')}
                                 className="rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500"
                             >
                                 {t('nav.sign_in') || 'Sign In'}
-                            </a>
+                            </Link>
                         )}
                     </div>
                 </div>
@@ -171,18 +187,20 @@ export default function Navbar({ currentPage }: { currentPage: string }) {
 
             <DisclosurePanel className="sm:hidden">
                 <div className="space-y-1 px-2 pt-2 pb-3">
-                    {navigation.map((item) => (
+                    {NAV_ITEMS.map((item) => (
                         <DisclosureButton
-                            key={item.name}
-                            as="a"
-                            href={item.href}
-                            aria-current={item.current ? 'page' : undefined}
-                            className={classNames(
-                                item.current ? 'bg-gray-950/50 text-white' : 'text-gray-300 hover:bg-white/5 hover:text-white',
-                                'block rounded-md px-3 py-2 text-base font-medium',
-                            )}
+                            key={item.translationId}
+                            as={NavLink}
+                            to={localizedPath(item.slug)}
+                            end={Boolean(item.end)}
+                            className={({ isActive }: { isActive: boolean }) =>
+                                classNames(
+                                    isActive ? 'bg-gray-950/50 text-white' : 'text-gray-300 hover:bg-white/5 hover:text-white',
+                                    'block rounded-md px-3 py-2 text-base font-medium',
+                                )
+                            }
                         >
-                            {item.name}
+                            {t(item.translationId)}
                         </DisclosureButton>
                     ))}
                 </div>

@@ -1,21 +1,18 @@
-import { type RouteConfig } from "@react-router/dev/routes";
 import { useEffect, useState } from "react";
 import { useFarm } from "../contexts/FarmContext";
 import { useAuth } from "../contexts/AuthContext";
-import { useNavigate } from "react-router";
 import ProtectedRoute from "~/components/ProtectedRoute";
 
 export default function MapPage() {
     const [MapComponent, setMapComponent] = useState<React.ComponentType<any> | null>(null);
     const { selectedFarm, isLoading: farmsLoading } = useFarm();
     const { isAuthenticated } = useAuth();
-    const navigate = useNavigate();
 
     useEffect(() => {
         import("../components/map/MapWithPolygons.client").then((mod) => {
             setMapComponent(() => mod.default);
         });
-    }, [isAuthenticated, navigate]);
+    }, [isAuthenticated]);
 
     if (!isAuthenticated) {
         return null;

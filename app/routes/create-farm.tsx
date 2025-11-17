@@ -4,6 +4,8 @@ import { useNavigate } from 'react-router';
 import { useAuth } from '../contexts/AuthContext';
 import { apiPost } from '~/utils/api';
 import ProtectedRoute from '~/components/ProtectedRoute';
+import { useCurrentLocale } from '../hooks/useCurrentLocale';
+import { buildLocalizedPath } from '../utils/locale';
 
 export function meta() {
     return [
@@ -19,6 +21,7 @@ export default function CreateFarm() {
 
     const { isAuthenticated } = useAuth();
     const navigate = useNavigate();
+    const locale = useCurrentLocale();
 
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
@@ -46,7 +49,7 @@ export default function CreateFarm() {
                 const createdFarm = await response.json();
                 console.log('Farm created successfully:', createdFarm);
                 // Redirect to home or map page after creation
-                navigate('/');
+                navigate(buildLocalizedPath(locale, '/'));
             } else {
                 const data = await response.json().catch(() => ({}));
                 setError(data.message || 'Failed to create farm. Please try again.');
@@ -60,7 +63,7 @@ export default function CreateFarm() {
     };
 
     const handleCancel = () => {
-        navigate('/');
+    navigate(buildLocalizedPath(locale, '/'));
     };
 
     if (!isAuthenticated) {

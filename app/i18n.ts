@@ -4,6 +4,7 @@ import { initReactI18next } from "react-i18next";
 // Language resources
 import enTranslation from "../src/locales/en/translation.json";
 import frTranslation from "../src/locales/fr/translation.json";
+import { DEFAULT_LOCALE } from "./utils/locale";
 
 const resources = {
   en: {
@@ -18,8 +19,8 @@ i18n
   .use(initReactI18next)
   .init({
     resources,
-    lng: "fr", // default language
-    fallbackLng: "fr",
+    lng: DEFAULT_LOCALE,
+    fallbackLng: DEFAULT_LOCALE,
     interpolation: {
       escapeValue: false,
     },
