@@ -115,8 +115,19 @@
       "saveEdit": "Save",
       "cancelEdit": "Cancel"
     },
-    "popup": {
-      "center": "Center Location"
+    "overlap": {
+      "title": "Overlap Detected",
+      "polygonNameLabel": "Polygon Name",
+      "polygonNamePlaceholder": "Enter polygon name",
+      "description_one": "The polygon overlaps with the following area:",
+      "description_other": "The polygon overlaps with the following areas:",
+      "autoFixTitle": "Auto-fix available",
+      "autoFixMessage": "We can shrink the polygon to avoid overlap ({{vertices}} vertices, {{percentage}}% of original area).",
+      "previewButton": "Show preview on map",
+      "manualEdit": "Manually edit",
+      "continueEditing": "Continue editing",
+      "allowOverlap": "Allow overlap",
+      "applyShrink": "Apply shrink"
     }
   }
 }

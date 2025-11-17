@@ -115,8 +115,19 @@
       "saveEdit": "Enregistrer",
       "cancelEdit": "Annuler"
     },
-    "popup": {
-      "center": "Position centrale"
+    "overlap": {
+      "title": "Chevauchement détecté",
+      "polygonNameLabel": "Nom de la parcelle",
+      "polygonNamePlaceholder": "Saisir le nom de la parcelle",
+      "description_one": "La parcelle chevauche la zone suivante :",
+      "description_other": "La parcelle chevauche les zones suivantes :",
+      "autoFixTitle": "Correction automatique disponible",
+      "autoFixMessage": "Nous pouvons réduire la parcelle pour éviter le chevauchement ({{vertices}} sommets, {{percentage}} % de la surface d'origine).",
+      "previewButton": "Afficher l'aperçu sur la carte",
+      "manualEdit": "Modifier manuellement",
+      "continueEditing": "Continuer la modification",
+      "allowOverlap": "Autoriser le chevauchement",
+      "applyShrink": "Appliquer la correction"
     }
   }
 }

@@ -1203,8 +1203,6 @@ export default function MapWithPolygons(props: { farm_id: string }) {
                             </>
                         )}
                     </FeatureGroup>
-
-                    <Marker position={center}><Popup>{t('map.popup.center')}</Popup></Marker>
                 </MapContainer>
 
                 <div style={{ position: 'absolute', top: 16, right: 16, zIndex: 2000, display: 'flex', gap: 8 }}>
