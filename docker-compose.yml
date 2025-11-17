@@ -1,0 +1,19 @@
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: efms-frontend:latest
+    container_name: efms-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - API_URL=http://localhost:8080  # Change this to your backend API URL
+    restart: unless-stopped
+    networks:
+      - efms-network
+
+networks:
+  efms-network:
+    driver: bridge

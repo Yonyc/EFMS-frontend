@@ -31,6 +31,9 @@ export const links: Route.LinksFunction = () => [
 export function Layout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
 
+  // Get API URL from environment variable (server-side)
+  const apiUrl = typeof process !== 'undefined' ? (process as any).env?.API_URL : undefined;
+
   return (
     <html lang="en">
       <head>
@@ -38,6 +41,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <Meta />
         <Links />
+        {apiUrl && (
+          <script
+            dangerouslySetInnerHTML={{
+              __html: `window.__ENV__ = { API_URL: ${JSON.stringify(apiUrl)} };`,
+            }}
+          />
+        )}
       </head>
       <body>
         <AuthProvider>
