@@ -1,13 +1,15 @@
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
+import { useTranslation } from "react-i18next";
 import { useFarm } from '../contexts/FarmContext';
 
 export default function FarmSelector() {
   const { farms, selectedFarm, selectFarm, isLoading, error } = useFarm();
+  const { t } = useTranslation();
 
   if (!selectedFarm && !isLoading && farms.length === 0) {
     return (
       <div className="px-4 py-2 text-sm text-gray-400">
-        No farms available
+        {t('farmSelector.noFarms')}
       </div>
     );
   }
@@ -15,7 +17,7 @@ export default function FarmSelector() {
   if (isLoading) {
     return (
       <div className="px-4 py-2 text-sm text-gray-400">
-        Loading farms...
+        {t('farmSelector.loading')}
       </div>
     );
   }
@@ -23,7 +25,7 @@ export default function FarmSelector() {
   if (error) {
     return (
       <div className="px-4 py-2 text-sm text-red-400">
-        {error}
+        {t('farmSelector.error')}
       </div>
     );
   }
@@ -32,7 +34,7 @@ export default function FarmSelector() {
     <Menu as="div" className="relative">
       <MenuButton className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-300 hover:bg-white/5 hover:text-white rounded-md transition-colors">
         <span>🏛️</span>
-        <span>{selectedFarm?.name || 'Select Farm'}</span>
+        <span>{selectedFarm?.name || t('farmSelector.selectFarm')}</span>
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
         </svg>
@@ -72,7 +74,7 @@ export default function FarmSelector() {
         
         {farms.length === 0 && (
           <div className="px-4 py-2 text-sm text-gray-400">
-            No farms available
+            {t('farmSelector.noFarms')}
           </div>
         )}
       </MenuItems>

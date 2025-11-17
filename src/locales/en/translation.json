@@ -23,11 +23,67 @@
     "cancel": "Cancel",
     "confirm": "Confirm",
     "save": "Save",
-    "delete": "Delete"
+    "delete": "Delete",
+    "loading": "Loading..."
+  },
+  "farmSelector": {
+    "noFarms": "No farms available",
+    "loading": "Loading farms...",
+    "error": "Failed to load farms",
+    "selectFarm": "Select Farm"
+  },
+  "createFarm": {
+    "title": "Create a New Farm",
+    "description": "Enter the details for your new farm",
+    "nameLabel": "Farm Name",
+    "namePlaceholder": "Enter farm name",
+    "nameHelp": "Minimum 3 characters",
+    "errors": {
+      "required": "Farm name is required",
+      "minLength": "Farm name must be at least 3 characters long",
+      "generic": "Failed to create farm. Please try again."
+    },
+    "submit": "Create Farm",
+    "submitting": "Creating..."
+  },
+  "auth": {
+    "shared": {
+      "subtitle": "Experimental Farms Management System",
+      "username": "Username",
+      "password": "Password",
+      "confirmPassword": "Confirm Password"
+    },
+    "login": {
+      "title": "Sign in to EFMS",
+      "submit": "Sign in",
+      "submitting": "Signing in...",
+      "errors": {
+        "invalidCredentials": "Invalid username or password"
+      },
+      "registerPrompt": "Don't have an account?",
+      "registerLink": "Register"
+    },
+    "register": {
+      "title": "Create your account",
+      "submit": "Register",
+      "submitting": "Creating account...",
+      "loginPrompt": "Already have an account?",
+      "loginLink": "Sign in",
+      "errors": {
+        "passwordMismatch": "Passwords do not match",
+        "passwordLength": "Password must be at least 6 characters long",
+        "loginFailed": "Registration successful but login failed. Please try logging in manually.",
+        "usernameExists": "Registration failed. Username may already exist.",
+        "generic": "Registration failed. Please try again."
+      }
+    }
   },
   "map": {
     "defaultPolygonName": "Polygon",
     "unnamedParcel": "Unnamed Parcel",
+    "polygonList": {
+      "title": "Polygons"
+    },
     "contextMenu": {
       "addPolygon": "Add New Polygon"
     },

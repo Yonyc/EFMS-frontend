@@ -23,11 +23,67 @@
     "cancel": "Annuler",
     "confirm": "Confirmer",
     "save": "Enregistrer",
-    "delete": "Supprimer"
+    "delete": "Supprimer",
+    "loading": "Chargement..."
+  },
+  "farmSelector": {
+    "noFarms": "Aucune exploitation disponible",
+    "loading": "Chargement des exploitations...",
+    "error": "Échec du chargement des exploitations",
+    "selectFarm": "Sélectionner une exploitation"
+  },
+  "createFarm": {
+    "title": "Créer une nouvelle exploitation",
+    "description": "Saisissez les détails de votre nouvelle exploitation",
+    "nameLabel": "Nom de l'exploitation",
+    "namePlaceholder": "Saisir le nom de l'exploitation",
+    "nameHelp": "Minimum 3 caractères",
+    "errors": {
+      "required": "Le nom de l'exploitation est obligatoire",
+      "minLength": "Le nom de l'exploitation doit contenir au moins 3 caractères",
+      "generic": "Échec de la création de l'exploitation. Veuillez réessayer."
+    },
+    "submit": "Créer l'exploitation",
+    "submitting": "Création..."
+  },
+  "auth": {
+    "shared": {
+      "subtitle": "Système de gestion des exploitations expérimentales",
+      "username": "Nom d'utilisateur",
+      "password": "Mot de passe",
+      "confirmPassword": "Confirmer le mot de passe"
+    },
+    "login": {
+      "title": "Se connecter à EFMS",
+      "submit": "Se connecter",
+      "submitting": "Connexion...",
+      "errors": {
+        "invalidCredentials": "Nom d'utilisateur ou mot de passe invalide"
+      },
+      "registerPrompt": "Vous n'avez pas de compte ?",
+      "registerLink": "S'inscrire"
+    },
+    "register": {
+      "title": "Créer votre compte",
+      "submit": "S'inscrire",
+      "submitting": "Création du compte...",
+      "loginPrompt": "Vous avez déjà un compte ?",
+      "loginLink": "Se connecter",
+      "errors": {
+        "passwordMismatch": "Les mots de passe ne correspondent pas",
+        "passwordLength": "Le mot de passe doit contenir au moins 6 caractères",
+        "loginFailed": "Inscription réussie mais connexion échouée. Veuillez essayer de vous connecter manuellement.",
+        "usernameExists": "Échec de l'inscription. Le nom d'utilisateur existe peut-être déjà.",
+        "generic": "Échec de l'inscription. Veuillez réessayer."
+      }
+    }
   },
   "map": {
     "defaultPolygonName": "Parcelle",
     "unnamedParcel": "Parcelle sans nom",
+    "polygonList": {
+      "title": "Parcelles"
+    },
     "contextMenu": {
       "addPolygon": "Ajouter une nouvelle parcelle"
     },
