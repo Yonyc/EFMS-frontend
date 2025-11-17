@@ -7,6 +7,8 @@ import {
   ScrollRestoration,
   useLocation,
 } from "react-router";
+import { useEffect } from "react";
+import { useTranslation } from "react-i18next";
 
 import type { Route } from "./+types/root";
 import "./app.css";
@@ -14,6 +16,7 @@ import Navbar from "./components/Navbar";
 import "./i18n";
 import { AuthProvider } from "./contexts/AuthContext";
 import { FarmProvider } from "./contexts/FarmContext";
+import { getLocaleFromPathname } from "./utils/locale";
 
 export const links: Route.LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -30,9 +33,17 @@ export const links: Route.LinksFunction = () => [
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
+  const { i18n } = useTranslation();
+  const currentLocale = getLocaleFromPathname(location.pathname ?? "/");
+
+  useEffect(() => {
+    if (i18n.language !== currentLocale) {
+      i18n.changeLanguage(currentLocale);
+    }
+  }, [currentLocale, i18n]);
 
   return (
-    <html lang="en">
+    <html lang={currentLocale}>
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -42,7 +53,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <body>
         <AuthProvider>
           <FarmProvider>
-            <Navbar currentPage={location.pathname ?? "/"} />
+            <Navbar currentLocale={currentLocale} />
             {children}
           </FarmProvider>
         </AuthProvider>

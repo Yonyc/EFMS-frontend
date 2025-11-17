@@ -2,11 +2,13 @@
 import { route, index, type RouteConfig } from "@react-router/dev/routes";
 
 export default [
-	index("routes/home.tsx"),
-	route("login", "routes/login.tsx"),
-	route("register", "routes/register.tsx"),
-	route("create-farm", "routes/create-farm.tsx"),
-	route("map", "routes/map.tsx"),
-    route("wiki", "routes/wiki.tsx"),
-	route("protected-example", "routes/protected-example.tsx"),
+	index("routes/redirect-to-default-locale.tsx"),
+	route(":locale", "routes/home.tsx"),
+	route(":locale/login", "routes/login.tsx"),
+	route(":locale/register", "routes/register.tsx"),
+	route(":locale/create-farm", "routes/create-farm.tsx"),
+	route(":locale/map", "routes/map.tsx"),
+	route(":locale/wiki", "routes/wiki.tsx"),
+	route(":locale/protected-example", "routes/protected-example.tsx"),
+	route("*", "routes/locale-fallback.tsx"),
 ] satisfies RouteConfig;

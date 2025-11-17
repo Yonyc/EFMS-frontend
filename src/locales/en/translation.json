@@ -8,10 +8,59 @@
     "profile": "Your profile",
     "settings": "Settings",
     "sign_out": "Sign out",
-    "sign_in": "Sign In"
+    "sign_in": "Sign In",
+    "create_farm": "Create Farm"
+  },
+  "languages": {
+    "en": "English",
+    "fr": "Français"
   },
   "home": {
     "title": "Welcome to EFMS",
     "description": "This is a platform for managing plots."
+  },
+  "common": {
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "save": "Save",
+    "delete": "Delete"
+  },
+  "map": {
+    "defaultPolygonName": "Polygon",
+    "unnamedParcel": "Unnamed Parcel",
+    "contextMenu": {
+      "addPolygon": "Add New Polygon"
+    },
+    "polygonMenu": {
+      "rename": "Rename",
+      "edit": "Edit",
+      "color": "Color",
+      "delete": "Delete"
+    },
+    "deletePrompt": "Delete \"{{name}}\"?",
+    "renameModal": {
+      "title": "Rename Polygon",
+      "placeholder": "Polygon name"
+    },
+    "areaModal": {
+      "title": "Enter Area Name",
+      "placeholder": "Area name"
+    },
+    "preview": {
+      "back": "Back to options",
+      "original": "Original",
+      "fixed": "Auto-fixed"
+    },
+    "toolbar": {
+      "addTitle": "Add",
+      "finishDrawing": "Finish drawing",
+      "cancelDrawing": "Cancel drawing",
+      "removeLastPoint": "Remove last point",
+      "saveEdit": "Save",
+      "cancelEdit": "Cancel"
+    },
+    "popup": {
+      "center": "Center Location"
+    }
   }
 }

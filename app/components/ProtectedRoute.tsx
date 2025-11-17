@@ -2,6 +2,8 @@ import { useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import { useAuth } from '../contexts/AuthContext';
+import { useCurrentLocale } from '../hooks/useCurrentLocale';
+import { buildLocalizedPath } from '../utils/locale';
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -10,12 +12,13 @@ interface ProtectedRouteProps {
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { isAuthenticated, isLoading } = useAuth();
   const navigate = useNavigate();
+  const locale = useCurrentLocale();
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      navigate('/login');
+      navigate(buildLocalizedPath(locale, '/login'));
     }
-  }, [isAuthenticated, isLoading, navigate]);
+  }, [isAuthenticated, isLoading, locale, navigate]);
 
   if (isLoading) {
     return (

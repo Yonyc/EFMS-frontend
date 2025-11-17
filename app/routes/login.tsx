@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import type { FormEvent } from 'react';
 import { useNavigate, Link } from 'react-router';
 import { useAuth } from '../contexts/AuthContext';
+import { useCurrentLocale } from '../hooks/useCurrentLocale';
+import { buildLocalizedPath } from '../utils/locale';
 
 export function meta() {
   return [
@@ -18,13 +20,14 @@ export default function Login() {
   
   const { login, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const locale = useCurrentLocale();
 
   // Redirect to home if already authenticated
   useEffect(() => {
     if (isAuthenticated) {
-      navigate('/');
+      navigate(buildLocalizedPath(locale, '/'));
     }
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, locale, navigate]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -32,8 +35,8 @@ export default function Login() {
     setIsLoading(true);
 
     try {
-      await login(username, password);
-      navigate('/');
+  await login(username, password);
+  navigate(buildLocalizedPath(locale, '/'));
     } catch (err) {
       setError('Invalid username or password');
     } finally {
@@ -108,7 +111,7 @@ export default function Login() {
           <div className="text-center">
             <p className="text-sm text-gray-600">
               Don't have an account?{' '}
-              <Link to="/register" className="font-medium text-indigo-600 hover:text-indigo-500">
+              <Link to={buildLocalizedPath(locale, '/register')} className="font-medium text-indigo-600 hover:text-indigo-500">
                 Register
               </Link>
             </p>

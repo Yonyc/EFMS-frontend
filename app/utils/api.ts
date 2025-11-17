@@ -1,4 +1,5 @@
 import { apiUrl } from '../config';
+import { buildLocalizedPath, DEFAULT_LOCALE, getLocaleFromPathname } from './locale';
 
 export interface ApiRequestOptions extends RequestInit {
   requireAuth?: boolean;
@@ -39,7 +40,10 @@ export async function apiRequest(
     localStorage.removeItem('authToken');
     localStorage.removeItem('authUser');
     // Redirect to login
-    window.location.href = '/login';
+    const targetLocale = typeof window !== 'undefined'
+      ? getLocaleFromPathname(window.location.pathname || '/')
+      : DEFAULT_LOCALE;
+    window.location.href = buildLocalizedPath(targetLocale, '/login');
   }
 
   return response;

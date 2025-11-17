@@ -8,10 +8,59 @@
     "profile": "Votre profil",
     "settings": "Paramètres",
     "sign_out": "Se déconnecter",
-    "sign_in": "Se connecter"
+    "sign_in": "Se connecter",
+    "create_farm": "Créer une exploitation"
+  },
+  "languages": {
+    "en": "English",
+    "fr": "Français"
   },
   "home": {
     "title": "Bienvenue sur EFMS",
     "description": "Ceci est une plateforme de gestion de parcelles."
+  },
+  "common": {
+    "cancel": "Annuler",
+    "confirm": "Confirmer",
+    "save": "Enregistrer",
+    "delete": "Supprimer"
+  },
+  "map": {
+    "defaultPolygonName": "Parcelle",
+    "unnamedParcel": "Parcelle sans nom",
+    "contextMenu": {
+      "addPolygon": "Ajouter une nouvelle parcelle"
+    },
+    "polygonMenu": {
+      "rename": "Renommer",
+      "edit": "Modifier",
+      "color": "Couleur",
+      "delete": "Supprimer"
+    },
+    "deletePrompt": "Supprimer \"{{name}}\" ?",
+    "renameModal": {
+      "title": "Renommer la parcelle",
+      "placeholder": "Nom de la parcelle"
+    },
+    "areaModal": {
+      "title": "Nommer la parcelle",
+      "placeholder": "Nom de la parcelle"
+    },
+    "preview": {
+      "back": "Retour aux options",
+      "original": "Original",
+      "fixed": "Auto-corrigé"
+    },
+    "toolbar": {
+      "addTitle": "Ajouter",
+      "finishDrawing": "Terminer le dessin",
+      "cancelDrawing": "Annuler le dessin",
+      "removeLastPoint": "Supprimer le dernier point",
+      "saveEdit": "Enregistrer",
+      "cancelEdit": "Annuler"
+    },
+    "popup": {
+      "center": "Position centrale"
+    }
   }
 }
