@@ -82,7 +82,21 @@
     "defaultPolygonName": "Parcelle",
     "unnamedParcel": "Parcelle sans nom",
     "polygonList": {
-      "title": "Parcelles"
+      "title": "Parcelles",
+      "empty": "Aucune parcelle pour le moment",
+      "placeholder": "Nom de la parcelle",
+      "visible": "Visible sur la carte",
+      "hidden": "Masquée sur la carte",
+      "toggle": "Afficher/masquer la liste des parcelles",
+      "helper": "Cliquez sur le nom pour renommer",
+      "emptyFiltered": "Aucune parcelle ne correspond à ce filtre",
+      "searchPlaceholder": "Rechercher une parcelle",
+      "clearSearch": "Effacer la recherche",
+      "filters": {
+        "all": "Toutes",
+        "visible": "Visibles",
+        "hidden": "Masquées"
+      }
     },
     "contextMenu": {
       "addPolygon": "Ajouter une nouvelle parcelle"

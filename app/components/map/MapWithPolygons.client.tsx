@@ -12,8 +12,9 @@ import { EditControl } from "react-leaflet-draw";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "leaflet-draw/dist/leaflet.draw.css";
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 import PolygonList from "./PolygonList";
 import OverlapModal from "./components/OverlapModal";
 import { checkOverlap, fixOverlap } from "./utils/geometry";
@@ -43,6 +44,9 @@ export default function MapWithPolygons(props: { farm_id: string }) {
     const [pendingManualEditId, setPendingManualEditId] = useState<string | null>(null);
     const [manualEditContext, setManualEditContext] = useState<ManualEditContext | null>(null);
     const [previewVisibility, setPreviewVisibility] = useState<{ original: boolean; fixed: boolean }>({ original: false, fixed: true });
+    const [isListCollapsed, setIsListCollapsed] = useState(false);
+    const [listFilter, setListFilter] = useState<'all' | 'visible' | 'hidden'>('all');
+    const [searchQuery, setSearchQuery] = useState('');
     const originalColorRef = useRef<string | null>(null);
     
     // Refs
@@ -55,6 +59,30 @@ export default function MapWithPolygons(props: { farm_id: string }) {
     const originalCoordsRef = useRef<Record<string, [number, number][]>>({});
 
     const getMap = () => (featureGroupRef.current as any)?._map || (featureGroupRef.current as any)?.getMap?.();
+
+    const togglePolygonVisibility = useCallback((id: string) => {
+        setPolygons(prev => prev.map(p => p.id === id ? { ...p, visible: !p.visible } : p));
+    }, []);
+
+    const renamePolygonInline = useCallback((id: string, name: string) => {
+        setPolygons(prev => prev.map(p => p.id === id ? { ...p, name } : p));
+    }, []);
+
+    const filteredPolygons = useMemo(() => {
+        let next = polygons;
+        if (listFilter === 'visible') {
+            next = next.filter(p => p.visible);
+        } else if (listFilter === 'hidden') {
+            next = next.filter(p => !p.visible);
+        }
+
+        if (searchQuery.trim()) {
+            const needle = searchQuery.trim().toLowerCase();
+            next = next.filter(p => (p.name || '').toLowerCase().includes(needle));
+        }
+
+        return next;
+    }, [polygons, listFilter, searchQuery]);
 
     const extractCoords = (layer: any): [number, number][] => {
         const raw = layer?.getLatLngs?.();
@@ -1027,7 +1055,7 @@ export default function MapWithPolygons(props: { farm_id: string }) {
                             }
                         }} placeholder={t('map.renameModal.placeholder')} style={{ padding: "0.75rem", fontSize: "1rem", borderRadius: 4, border: "1px solid #ccc", color: "#222" }} autoFocus />
                         <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem", paddingTop: "1rem", borderTop: "1px solid #eee" }}>
-                            <button onClick={() => setRenamingId(null)} style={{ padding: "0.75rem 1.5rem", borderRadius: 4, border: "1px solid #ccc", background: "#fff", cursor: "pointer", fontWeight: 500, color: "#333" }}>{t('common.cancel')}</button>
+                            <button onClick={() => setRenamingId(null)} style={{ padding: "0.75rem 1.5rem", borderRadius: 4, border: "1px solid #ccc", background: "#fff", cursor: "pointer", fontWeight: 500, color: "#333" }}>{t('common.cancel', { defaultValue: 'Cancel' })}</button>
                             <button onClick={async () => {
                                 setPolygons(prev => prev.map(p => p.id === renamingId ? { ...p, name: renameValue } : p));
                                 
@@ -1048,7 +1076,7 @@ export default function MapWithPolygons(props: { farm_id: string }) {
                                 }
                                 
                                 setRenamingId(null);
-                            }} style={{ padding: "0.75rem 1.5rem", borderRadius: 4, border: "none", background: "#007bff", color: "#fff", cursor: "pointer", fontWeight: 500 }}>{t('common.confirm')}</button>
+                            }} style={{ padding: "0.75rem 1.5rem", borderRadius: 4, border: "none", background: "#007bff", color: "#fff", cursor: "pointer", fontWeight: 500 }}>{t('common.confirm', { defaultValue: 'Confirm' })}</button>
                         </div>
                     </div>
                 </div>
@@ -1060,18 +1088,180 @@ export default function MapWithPolygons(props: { farm_id: string }) {
                         <h2 style={{ margin: 0, color: '#222', fontSize: "1.5rem" }}>{t('map.areaModal.title')}</h2>
                         <input type="text" value={areaName} onChange={e => setAreaName(e.target.value)} onKeyDown={e => e.key === "Enter" && confirmCreate()} placeholder={t('map.areaModal.placeholder')} style={{ padding: "0.75rem", fontSize: "1rem", borderRadius: 4, border: "1px solid #ccc", color: "#222" }} autoFocus />
                         <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem", paddingTop: "1rem", borderTop: "1px solid #eee" }}>
-                            <button onClick={cancelModal} style={{ padding: "0.75rem 1.5rem", borderRadius: 4, border: "1px solid #ccc", background: "#fff", cursor: "pointer", fontWeight: 500, color: "#333" }}>{t('common.cancel')}</button>
-                            <button onClick={confirmCreate} style={{ padding: "0.75rem 1.5rem", borderRadius: 4, border: "none", background: "#007bff", color: "#fff", cursor: "pointer", fontWeight: 500 }}>{t('common.confirm')}</button>
+                            <button onClick={cancelModal} style={{ padding: "0.75rem 1.5rem", borderRadius: 4, border: "1px solid #ccc", background: "#fff", cursor: "pointer", fontWeight: 500, color: "#333" }}>{t('common.cancel', { defaultValue: 'Cancel' })}</button>
+                            <button onClick={confirmCreate} style={{ padding: "0.75rem 1.5rem", borderRadius: 4, border: "none", background: "#007bff", color: "#fff", cursor: "pointer", fontWeight: 500 }}>{t('common.confirm', { defaultValue: 'Confirm' })}</button>
                         </div>
                     </div>
                 </div>
             )}
-
-            <div className="text-black" style={{ display: "flex", flexDirection: "column", width: "clamp(50px, 30%, 200px)" }}>
-                <PolygonList polygons={polygons} onToggle={id => setPolygons(prev => prev.map(p => p.id === id ? { ...p, visible: !p.visible } : p))} onRename={(id, name) => setPolygons(prev => prev.map(p => p.id === id ? { ...p, name } : p))} />
-            </div>
-
             <div style={{ flex: 1, position: 'relative' }}>
+                <div
+                    style={{
+                        position: 'absolute',
+                        top: '1.5rem',
+                        left: '1.5rem',
+                        zIndex: 1000,
+                        pointerEvents: 'none',
+                        display: 'flex',
+                        justifyContent: 'flex-start',
+                        width: '100%',
+                        gap: '1rem',
+                    }}
+                >
+                    <div
+                        style={{
+                            width: isListCollapsed ? 'auto' : '320px',
+                            pointerEvents: 'auto',
+                            transition: 'width 0.25s ease',
+                        }}
+                    >
+                        <div
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                gap: '0.75rem',
+                                background: 'rgba(15, 23, 42, 0.9)',
+                                color: '#fff',
+                                borderRadius: isListCollapsed ? '999px' : '1.25rem',
+                                padding: isListCollapsed ? '0.45rem' : '0.6rem 0.6rem 0.6rem 1.1rem',
+                                boxShadow: '0 18px 35px rgba(15,23,42,0.35)',
+                                backdropFilter: 'blur(6px)',
+                            }}
+                        >
+                            <div
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.5rem',
+                                    overflow: 'hidden',
+                                    opacity: isListCollapsed ? 0 : 1,
+                                    maxWidth: isListCollapsed ? 0 : '100%',
+                                    transition: 'opacity 0.2s ease, max-width 0.2s ease',
+                                }}
+                            >
+                                <span style={{ fontWeight: 600, fontSize: '0.95rem', whiteSpace: 'nowrap' }}>
+                                    {t('map.polygonList.title', { defaultValue: 'Polygons' })}
+                                </span>
+                                <span style={{ fontSize: '0.75rem', background: 'rgba(255,255,255,0.15)', padding: '0.15rem 0.5rem', borderRadius: '999px' }}>
+                                    {filteredPolygons.length}
+                                </span>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setIsListCollapsed(!isListCollapsed)}
+                                aria-label={t('map.polygonList.toggle', { defaultValue: 'Toggle polygon list' })}
+                                style={{
+                                    border: 'none',
+                                    borderRadius: '999px',
+                                    background: '#fff',
+                                    color: '#0f172a',
+                                    width: '2.5rem',
+                                    height: '2.5rem',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    cursor: 'pointer',
+                                    boxShadow: '0 10px 30px rgba(15,23,42,0.25)',
+                                    transition: 'transform 0.2s ease',
+                                }}
+                                onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.96)'}
+                                onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                                onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                            >
+                                {isListCollapsed ? (
+                                    <ChevronRightIcon width={20} height={20} />
+                                ) : (
+                                    <ChevronLeftIcon width={20} height={20} />
+                                )}
+                            </button>
+                        </div>
+                        {!isListCollapsed && (
+                            <div
+                                style={{
+                                    marginTop: '0.75rem',
+                                    background: 'rgba(255,255,255,0.95)',
+                                    borderRadius: '1.5rem',
+                                    padding: '1.25rem',
+                                    boxShadow: '0 30px 60px rgba(15,23,42,0.25)',
+                                    maxHeight: '65vh',
+                                    overflowY: 'auto',
+                                }}
+                            >
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1rem' }}>
+                                    <div style={{ position: 'relative' }}>
+                                        <input
+                                            type="search"
+                                            value={searchQuery}
+                                            onChange={(e) => setSearchQuery(e.target.value)}
+                                            placeholder={t('map.polygonList.searchPlaceholder', { defaultValue: 'Search polygons' })}
+                                            style={{
+                                                width: '100%',
+                                                borderRadius: '999px',
+                                                border: '1px solid rgba(15,23,42,0.15)',
+                                                padding: '0.65rem 3rem 0.65rem 1rem',
+                                                fontSize: '0.9rem',
+                                                outline: 'none',
+                                                boxShadow: 'inset 0 1px 2px rgba(15,23,42,0.08)',
+                                                color: '#0f172a',
+                                            }}
+                                        />
+                                        {searchQuery && (
+                                            <button
+                                                type="button"
+                                                onClick={() => setSearchQuery('')}
+                                                aria-label={t('map.polygonList.clearSearch', { defaultValue: 'Clear search' })}
+                                                style={{
+                                                    position: 'absolute',
+                                                    right: '0.6rem',
+                                                    top: '50%',
+                                                    transform: 'translateY(-50%)',
+                                                    border: 'none',
+                                                    background: 'transparent',
+                                                    color: '#94a3b8',
+                                                    cursor: 'pointer',
+                                                    fontSize: '1.1rem',
+                                                    lineHeight: 1,
+                                                }}
+                                            >
+                                                ×
+                                            </button>
+                                        )}
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                        {[{ key: 'all', label: t('map.polygonList.filters.all', { defaultValue: 'All' }) }, { key: 'visible', label: t('map.polygonList.filters.visible', { defaultValue: 'Visible' }) }, { key: 'hidden', label: t('map.polygonList.filters.hidden', { defaultValue: 'Hidden' }) }].map(filter => (
+                                            <button
+                                                key={filter.key}
+                                                type="button"
+                                                onClick={() => setListFilter(filter.key as 'all' | 'visible' | 'hidden')}
+                                                style={{
+                                                    border: 'none',
+                                                    borderRadius: '999px',
+                                                    padding: '0.35rem 0.85rem',
+                                                    fontSize: '0.85rem',
+                                                    fontWeight: 500,
+                                                    cursor: 'pointer',
+                                                    background: listFilter === filter.key ? '#0f172a' : 'rgba(15,23,42,0.08)',
+                                                    color: listFilter === filter.key ? '#fff' : '#0f172a',
+                                                    boxShadow: listFilter === filter.key ? '0 10px 20px rgba(15,23,42,0.35)' : 'none',
+                                                    transition: 'all 0.2s ease',
+                                                }}
+                                            >
+                                                {filter.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                                <PolygonList
+                                    polygons={filteredPolygons}
+                                    onToggle={togglePolygonVisibility}
+                                    onRename={renamePolygonInline}
+                                    emptyLabel={polygons.length ? t('map.polygonList.emptyFiltered', { defaultValue: 'No polygons match this filter' }) : undefined}
+                                />
+                            </div>
+                        )}
+                    </div>
+                </div>
                 <MapContainer style={{ height: "100%", width: "100%" }} center={center} zoom={15}>
                     <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; <a href="https://osm.org/copyright">OpenStreetMap</a>' />
                     <MapEvents />

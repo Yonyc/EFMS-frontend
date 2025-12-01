@@ -82,7 +82,21 @@
     "defaultPolygonName": "Polygon",
     "unnamedParcel": "Unnamed Parcel",
     "polygonList": {
-      "title": "Polygons"
+      "title": "Polygons",
+      "empty": "No polygons yet",
+      "placeholder": "Polygon name",
+      "visible": "Visible on map",
+      "hidden": "Hidden on map",
+      "toggle": "Toggle polygon list",
+      "helper": "Click name to rename",
+      "emptyFiltered": "No polygons match this filter",
+      "searchPlaceholder": "Search polygons",
+      "clearSearch": "Clear search",
+      "filters": {
+        "all": "All",
+        "visible": "Visible",
+        "hidden": "Hidden"
+      }
     },
     "contextMenu": {
       "addPolygon": "Add New Polygon"
