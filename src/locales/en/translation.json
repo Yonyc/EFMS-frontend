@@ -125,10 +125,10 @@
             ]
           },
           {
-            "title": "5. Delete or duplicate",
-            "body": "Clean up prototypes or reuse shapes for faster data entry.",
+            "title": "5. Delete",
+            "body": "Clean up prototypes.",
             "actions": [
-              "Use the three-dot menu on a polygon to duplicate it and tweak the copy.",
+              "Use the menu on a polygon.",
               "Select \"Delete\" to remove a parcel. You will be asked to confirm to avoid accidental loss.",
               "When deleting, EFMS keeps the historical log but removes it from the live map."
             ]
@@ -137,9 +137,7 @@
         "tips": {
           "title": "Field-tested tips",
           "items": [
-            "Combine satellite imagery with cadastral overlays (layer button) for centimeter-level accuracy.",
-            "Name polygons with a consistent convention such as FIELD-PLOT-SUBPLOT (e.g., B1-Red-2025).",
-            "Refresh the map after long editing sessions by pressing R to ensure overlapping checks rerun."
+            "Name polygons with a consistent convention such as FIELD-PLOT-SUBPLOT (e.g., B1-Red-2025)."
           ]
         },
         "shortcuts": {

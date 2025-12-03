@@ -125,10 +125,10 @@
             ]
           },
           {
-            "title": "5. Supprimer ou dupliquer",
-            "body": "Nettoyez vos prototypes ou réutilisez des formes pour accélérer la saisie.",
+            "title": "5. Supprimer",
+            "body": "Nettoyez vos prototypes.",
             "actions": [
-              "Utilisez le menu trois points d'un polygone pour le dupliquer puis ajuster la copie.",
+              "Utilisez le menu d'un polygone pour le supprimer.",
               "Choisissez \"Supprimer\" pour retirer une parcelle. Une confirmation évite les suppressions accidentelles.",
               "Lors d'une suppression, EFMS conserve l'historique mais retire la parcelle de la carte active."
             ]
@@ -137,9 +137,7 @@
         "tips": {
           "title": "Astuces de terrain",
           "items": [
-            "Combinez imagerie satellite et couches cadastrales (bouton des calques) pour une précision centimétrique.",
-            "Nommez les polygones avec une convention cohérente comme CHAMP-PARCELLE-SOUSPARCELLE (ex : B1-Rouge-2025).",
-            "Après de longues sessions d'édition, appuyez sur R pour relancer les vérifications de chevauchement."
+            "Nommez les polygones avec une convention cohérente comme CHAMP-PARCELLE-SOUSPARCELLE (ex : B1-Rouge-2025)."
           ]
         },
         "shortcuts": {
