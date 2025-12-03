@@ -59,6 +59,10 @@ export default function MapWithPolygons(props: { farm_id: string }) {
     const editStateRef = useRef<EditState | null>(null);
     const originalCoordsRef = useRef<Record<string, [number, number][]>>({});
 
+    const floatingMenuClasses = "fixed z-[10000] min-w-[14rem] rounded-2xl border border-slate-200 bg-white/95 p-1 shadow-2xl shadow-slate-900/15 backdrop-blur";
+    const floatingButtonClasses = "flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-200";
+    const toolbarButtonBase = "inline-flex items-center justify-center rounded-2xl border px-3 py-2 text-sm font-semibold shadow-lg shadow-slate-900/10 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-200";
+
     const getMap = () => (featureGroupRef.current as any)?._map || (featureGroupRef.current as any)?.getMap?.();
 
     const togglePolygonVisibility = useCallback((id: string) => {
@@ -895,133 +899,150 @@ export default function MapWithPolygons(props: { farm_id: string }) {
             )}
 
             {contextMenu && (
-                <div style={{ position: 'fixed', left: contextMenu.x, top: contextMenu.y, background: 'white', border: '1px solid #ccc', borderRadius: 4, boxShadow: '0 2px 8px rgba(0,0,0,0.15)', zIndex: 10000, minWidth: 150 }}>
-                    <button onClick={() => { setContextMenu(null); startCreate(); }} style={{ width: '100%', padding: '0.5rem 1rem', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', fontSize: '0.9rem', color: '#333' }} onMouseEnter={e => e.currentTarget.style.background = '#f0f0f0'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                        ➕ {t('map.contextMenu.addPolygon')}
+                <div
+                    className={floatingMenuClasses}
+                    style={{ left: contextMenu.x, top: contextMenu.y }}
+                >
+                    <button
+                        type="button"
+                        onClick={() => { setContextMenu(null); startCreate(); }}
+                        className={`${floatingButtonClasses} text-indigo-700`}
+                    >
+                        <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-50 text-base text-indigo-600">+</span>
+                        {t('map.contextMenu.addPolygon')}
                     </button>
                 </div>
             )}
 
             {polygonContextMenu && (
-                <div style={{ position: 'fixed', left: polygonContextMenu.x, top: polygonContextMenu.y, background: 'white', border: '1px solid #ccc', borderRadius: 4, boxShadow: '0 2px 8px rgba(0,0,0,0.15)', zIndex: 10000, minWidth: 150, overflow: 'hidden' }}>
-                    <style>{`
-                        @keyframes slideIn {
-                            from { transform: translateX(100%); opacity: 0; }
-                            to { transform: translateX(0); opacity: 1; }
-                        }
-                    `}</style>
-                    <button onClick={() => { 
-                        const poly = polygons.find(p => p.id === polygonContextMenu.polygonId);
-                        closePolygonContextMenu(); 
-                        setRenamingId(polygonContextMenu.polygonId); 
-                        setRenameValue(poly?.name || ''); 
-                    }} style={{ width: '100%', padding: '0.5rem 1rem', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', fontSize: '0.9rem', color: '#333', display: 'flex', alignItems: 'center', gap: '0.5rem', transition: 'background 0.2s' }} onMouseEnter={e => e.currentTarget.style.background = '#f0f0f0'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                        <span>✏️</span> {t('map.polygonMenu.rename')}
-                    </button>
-                    <button onClick={() => { closePolygonContextMenu(); startEdit(polygonContextMenu.polygonId); }} style={{ width: '100%', padding: '0.5rem 1rem', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', fontSize: '0.9rem', color: '#333', display: 'flex', alignItems: 'center', gap: '0.5rem', transition: 'background 0.2s' }} onMouseEnter={e => e.currentTarget.style.background = '#f0f0f0'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                        <span>🔧</span> {t('map.polygonMenu.edit')}
-                    </button>
-                    {!showColorPicker ? (
-                        <button onClick={() => setShowColorPicker(true)} style={{ width: '100%', padding: '0.5rem 1rem', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', fontSize: '0.9rem', color: '#333', display: 'flex', alignItems: 'center', gap: '0.5rem', transition: 'background 0.2s' }} onMouseEnter={e => e.currentTarget.style.background = '#f0f0f0'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                            <span>🎨</span> {t('map.polygonMenu.color')}
-                        </button>
-                    ) : (
-                        <div style={{ padding: '0.5rem 1rem', animation: 'slideIn 0.3s ease-out' }}>
-                            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                                {['#3388ff', '#ff6b6b', '#4ecdc4', '#ffe66d', '#a8e6cf', '#ff8b94', '#b4a7d6', '#ffa07a'].map(color => {
-                                    return (
-                                        <button
-                                            key={color}
-                                            onClick={async () => {
-                                                setPolygons(prev => prev.map(p => p.id === polygonContextMenu.polygonId ? { ...p, color } : p));
-                                                originalColorRef.current = null;
-                                                closePolygonContextMenu();
-
-                                                // Send PUT request to backend to update the color
-                                                try {
-                                                    const payload = {
-                                                        color: color,
-                                                    };
-
-                                                    const response = await apiPut(`/farm/${props.farm_id}/parcels/${polygonContextMenu.polygonId}`, payload);
-                                                    if (response.ok) {
-                                                        console.log("Polygon color updated successfully on backend");
-                                                    } else {
-                                                        console.error("Failed to update parcel color:", response.statusText);
-                                                    }
-                                                } catch (err) {
-                                                    console.error("Failed to update parcel color:", err);
-                                                }
-                                            }}
-                                            onMouseEnter={(e) => {
-                                                e.currentTarget.style.transform = 'scale(1.2)';
-                                                if (!originalColorRef.current) {
-                                                    const currentPoly = polygons.find(p => p.id === polygonContextMenu.polygonId);
-                                                    originalColorRef.current = currentPoly?.color || '#3388ff';
-                                                }
-                                                setPolygons(prev => prev.map(p => p.id === polygonContextMenu.polygonId ? { ...p, color } : p));
-                                            }}
-                                            onMouseLeave={(e) => {
-                                                e.currentTarget.style.transform = 'scale(1)';
-                                                if (originalColorRef.current) {
-                                                    setPolygons(prev => prev.map(p => p.id === polygonContextMenu.polygonId ? { ...p, color: originalColorRef.current! } : p));
-                                                }
-                                            }}
-                                            style={{
-                                                width: '24px',
-                                                height: '24px',
-                                                border: '2px solid #fff',
-                                                borderRadius: '50%',
-                                                background: color,
-                                                cursor: 'pointer',
-                                                boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
-                                                transition: 'transform 0.2s'
-                                            }}
-                                        />
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    )}
-                    <button 
-                        onClick={() => { 
-                            if (pendingDeleteId) {
-                                deletePolygon(pendingDeleteId);
+                <div
+                    className={`${floatingMenuClasses} overflow-hidden`}
+                    style={{ left: polygonContextMenu.x, top: polygonContextMenu.y }}
+                >
+                    <div className="flex flex-col gap-1 p-1">
+                        <button
+                            type="button"
+                            onClick={() => {
+                                const poly = polygons.find(p => p.id === polygonContextMenu.polygonId);
                                 closePolygonContextMenu();
-                            } else {
-                                setPendingDeleteId(polygonContextMenu.polygonId);
-                            }
-                        }} 
-                        style={{ 
-                            width: '100%', 
-                            padding: '0.5rem 1rem', 
-                            border: 'none', 
-                            background: pendingDeleteId ? '#ef5350' : 'transparent', 
-                            textAlign: 'left', 
-                            cursor: 'pointer', 
-                            fontSize: '0.9rem', 
-                            color: pendingDeleteId ? 'white' : '#d32f2f', 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            gap: '0.5rem', 
-                            transition: 'all 0.3s ease-out',
-                            fontWeight: pendingDeleteId ? 500 : 'normal',
-                            animation: pendingDeleteId ? 'slideIn 0.3s ease-out' : 'none'
-                        }} 
-                        onMouseEnter={e => e.currentTarget.style.background = pendingDeleteId ? '#e53935' : '#ffebee'} 
-                        onMouseLeave={e => e.currentTarget.style.background = pendingDeleteId ? '#ef5350' : 'transparent'}
-                    >
-                        <span>🗑️</span> {pendingDeleteId ? t('common.confirm') : t('common.delete')}
-                    </button>
+                                setRenamingId(polygonContextMenu.polygonId);
+                                setRenameValue(poly?.name || "");
+                            }}
+                            className={`${floatingButtonClasses} text-slate-800`}
+                        >
+                            <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-50 text-base text-indigo-600">✏️</span>
+                            {t('map.polygonMenu.rename')}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => { closePolygonContextMenu(); startEdit(polygonContextMenu.polygonId); }}
+                            className={`${floatingButtonClasses} text-slate-800`}
+                        >
+                            <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-50 text-base text-indigo-600">🔧</span>
+                            {t('map.polygonMenu.edit')}
+                        </button>
+                        {!showColorPicker ? (
+                            <button
+                                type="button"
+                                onClick={() => setShowColorPicker(true)}
+                                className={`${floatingButtonClasses} text-slate-800`}
+                            >
+                                <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-50 text-base text-indigo-600">🎨</span>
+                                {t('map.polygonMenu.color')}
+                            </button>
+                        ) : (
+                            <div className="rounded-2xl bg-slate-50/80 p-3">
+                                <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                    {t('map.polygonMenu.color')}
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                    {['#3388ff', '#ff6b6b', '#4ecdc4', '#ffe66d', '#a8e6cf', '#ff8b94', '#b4a7d6', '#ffa07a'].map(color => {
+                                        const isCurrent = polygons.find(p => p.id === polygonContextMenu.polygonId)?.color === color;
+                                        return (
+                                            <button
+                                                key={color}
+                                                type="button"
+                                                onClick={async () => {
+                                                    setPolygons(prev => prev.map(p => p.id === polygonContextMenu.polygonId ? { ...p, color } : p));
+                                                    originalColorRef.current = null;
+                                                    closePolygonContextMenu();
+
+                                                    try {
+                                                        const payload = { color };
+                                                        const response = await apiPut(`/farm/${props.farm_id}/parcels/${polygonContextMenu.polygonId}`, payload);
+                                                        if (!response.ok) {
+                                                            console.error("Failed to update parcel color:", response.statusText);
+                                                        }
+                                                    } catch (err) {
+                                                        console.error("Failed to update parcel color:", err);
+                                                    }
+                                                }}
+                                                onMouseEnter={() => {
+                                                    if (!originalColorRef.current) {
+                                                        const currentPoly = polygons.find(p => p.id === polygonContextMenu.polygonId);
+                                                        originalColorRef.current = currentPoly?.color || '#3388ff';
+                                                    }
+                                                    setPolygons(prev => prev.map(p => p.id === polygonContextMenu.polygonId ? { ...p, color } : p));
+                                                }}
+                                                onMouseLeave={() => {
+                                                    if (originalColorRef.current) {
+                                                        setPolygons(prev => prev.map(p => p.id === polygonContextMenu.polygonId ? { ...p, color: originalColorRef.current! } : p));
+                                                    }
+                                                }}
+                                                className={`h-7 w-7 rounded-full border-2 border-white shadow-md transition hover:scale-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-200 ${isCurrent ? 'ring-2 ring-indigo-400' : ''}`}
+                                                style={{ background: color }}
+                                            />
+                                        );
+                                    })}
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowColorPicker(false)}
+                                    className="mt-3 w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500 transition hover:bg-white"
+                                >
+                                    {t('common.cancel')}
+                                </button>
+                            </div>
+                        )}
+                        <button
+                            type="button"
+                            onClick={() => {
+                                if (pendingDeleteId === polygonContextMenu.polygonId) {
+                                    deletePolygon(pendingDeleteId);
+                                    closePolygonContextMenu();
+                                } else {
+                                    setPendingDeleteId(polygonContextMenu.polygonId);
+                                }
+                            }}
+                            className={`${floatingButtonClasses} ${pendingDeleteId === polygonContextMenu.polygonId ? 'bg-rose-500 text-white hover:!bg-rose-600 hover:!text-white' : 'text-rose-600 hover:bg-rose-50'}`}
+                        >
+                            <span className={`inline-flex h-8 w-8 items-center justify-center rounded-xl text-base ${pendingDeleteId === polygonContextMenu.polygonId ? 'bg-white/20 text-white' : 'bg-rose-50 text-rose-600'}`}>🗑️</span>
+                            {pendingDeleteId === polygonContextMenu.polygonId ? t('common.confirm') : t('common.delete')}
+                        </button>
+                    </div>
                 </div>
             )}
 
             {pendingDeleteId && !polygonContextMenu && (
-                <div style={{ position: "fixed", top: "20px", left: "50%", transform: "translateX(-50%)", background: "#ef5350", color: "white", padding: "1rem 2rem", borderRadius: 8, boxShadow: "0 4px 12px rgba(0,0,0,0.3)", zIndex: 10000, display: "flex", alignItems: "center", gap: "1rem", animation: "slideIn 0.3s ease-out" }}>
-                    <span style={{ fontSize: "1.1rem", fontWeight: 500 }}>{t('map.deletePrompt', { name: polygons.find(p => p.id === pendingDeleteId)?.name ?? '' })}</span>
-                    <div style={{ display: "flex", gap: "0.5rem" }}>
-                        <button onClick={() => { deletePolygon(pendingDeleteId); setPendingDeleteId(null); }} style={{ padding: "0.5rem 1rem", borderRadius: 4, border: "none", background: "white", color: "#ef5350", cursor: "pointer", fontWeight: 600 }}>{t('common.confirm')}</button>
-                        <button onClick={() => setPendingDeleteId(null)} style={{ padding: "0.5rem 1rem", borderRadius: 4, border: "1px solid white", background: "transparent", color: "white", cursor: "pointer" }}>{t('common.cancel')}</button>
+                <div className="fixed left-1/2 top-5 z-[10000] flex -translate-x-1/2 items-center gap-4 rounded-3xl bg-rose-500/95 px-6 py-4 text-white shadow-2xl shadow-rose-500/40 backdrop-blur">
+                    <span className="text-sm font-semibold leading-snug">
+                        {t('map.deletePrompt', { name: polygons.find(p => p.id === pendingDeleteId)?.name ?? '' })}
+                    </span>
+                    <div className="flex gap-2">
+                        <button
+                            type="button"
+                            onClick={() => { deletePolygon(pendingDeleteId); setPendingDeleteId(null); }}
+                            className="rounded-2xl bg-white/95 px-4 py-2 text-sm font-semibold text-rose-600 shadow-md transition hover:-translate-y-0.5"
+                        >
+                            {t('common.confirm')}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setPendingDeleteId(null)}
+                            className="rounded-2xl border border-white/60 px-4 py-2 text-sm font-semibold text-white/90 transition hover:bg-white/10"
+                        >
+                            {t('common.cancel')}
+                        </button>
                     </div>
                 </div>
             )}
@@ -1400,78 +1421,94 @@ export default function MapWithPolygons(props: { farm_id: string }) {
                     </MapContainer>
                 </div>
 
-                <div data-tour-id="map-toolbar" style={{ position: 'absolute', top: 16, right: 16, zIndex: 2000, display: 'flex', gap: 8 }}>
+                <div data-tour-id="map-toolbar" className="pointer-events-auto absolute top-4 right-4 z-[2000] flex flex-wrap justify-end gap-2">
                     {overlapWarning && showPreview ? (
                         <>
                             <button
+                                type="button"
                                 onClick={() => setShowPreview(false)}
                                 title={t('map.preview.back')}
-                                style={{
-                                    background: '#007bff',
-                                    color: 'white',
-                                    border: 'none',
-                                    padding: '0.5rem 0.75rem',
-                                    borderRadius: 4,
-                                    fontWeight: 600,
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '0.35rem'
-                                }}
+                                className={`${toolbarButtonBase} border-indigo-500 bg-indigo-600 text-white hover:-translate-y-0.5 hover:bg-indigo-500`}
                             >
-                                <span>👁️</span>
+                                <span className="text-base">👁️</span>
                                 {t('map.preview.back')}
                             </button>
-                            <div style={{ display: 'flex', gap: 6, background: 'rgba(0,0,0,0.45)', padding: '0.35rem', borderRadius: 999, boxShadow: '0 2px 6px rgba(0,0,0,0.2)' }}>
+                            <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-900/80 px-2 py-1 text-xs font-semibold uppercase tracking-wide text-slate-100 shadow-2xl shadow-slate-900/30 backdrop-blur">
                                 <button
+                                    type="button"
                                     onClick={() => setPreviewVisibility(prev => ({ ...prev, original: !prev.original }))}
                                     disabled={!overlapWarning.originalCoords?.length}
-                                    style={{
-                                        border: 'none',
-                                        borderRadius: 999,
-                                        padding: '0.35rem 0.85rem',
-                                        fontSize: '0.8rem',
-                                        cursor: overlapWarning.originalCoords?.length ? 'pointer' : 'not-allowed',
-                                        background: previewVisibility.original ? '#ff5252' : 'transparent',
-                                        color: '#fff',
-                                        opacity: overlapWarning.originalCoords?.length ? 1 : 0.4,
-                                        transition: 'background 0.2s, opacity 0.2s'
-                                    }}
+                                    className={`rounded-2xl px-3 py-1 transition ${previewVisibility.original ? 'bg-rose-500 text-white' : 'text-slate-100 hover:text-white'} ${overlapWarning.originalCoords?.length ? '' : 'cursor-not-allowed opacity-40'}`}
                                 >
                                     {t('map.preview.original')}
                                 </button>
                                 <button
+                                    type="button"
                                     onClick={() => setPreviewVisibility(prev => ({ ...prev, fixed: !prev.fixed }))}
                                     disabled={!overlapWarning.fixedCoords?.length}
-                                    style={{
-                                        border: 'none',
-                                        borderRadius: 999,
-                                        padding: '0.35rem 0.85rem',
-                                        fontSize: '0.8rem',
-                                        cursor: overlapWarning.fixedCoords?.length ? 'pointer' : 'not-allowed',
-                                        background: previewVisibility.fixed ? '#4caf50' : 'transparent',
-                                        color: '#fff',
-                                        opacity: overlapWarning.fixedCoords?.length ? 1 : 0.4,
-                                        transition: 'background 0.2s, opacity 0.2s'
-                                    }}
+                                    className={`rounded-2xl px-3 py-1 transition ${previewVisibility.fixed ? 'bg-emerald-500 text-white' : 'text-slate-100 hover:text-white'} ${overlapWarning.fixedCoords?.length ? '' : 'cursor-not-allowed opacity-40'}`}
                                 >
                                     {t('map.preview.fixed')}
                                 </button>
                             </div>
                         </>
                     ) : (!editingId && !isCreating && (
-                        <button onClick={startCreate} title={t('map.toolbar.addTitle')} style={{ background: '#007bff', color: 'white', border: 'none', padding: '0.5rem', borderRadius: 4 }}>+</button>
+                        <button
+                            type="button"
+                            onClick={startCreate}
+                            title={t('map.toolbar.addTitle')}
+                            className={`${toolbarButtonBase} border-indigo-500 bg-indigo-600 text-lg text-white hover:-translate-y-0.5 hover:bg-indigo-500`}
+                        >
+                            +
+                        </button>
                     ))}
                     {isCreating && (
                         <>
-                            <button onClick={finishCreate} title={t('map.toolbar.finishDrawing')} disabled={createPointCount < 3} style={{ background: createPointCount >= 3 ? 'green' : '#9fc59f', color: 'white', border: 'none', padding: '0.5rem', borderRadius: 4, cursor: createPointCount >= 3 ? 'pointer' : 'not-allowed', opacity: createPointCount >= 3 ? 1 : 0.6 }}>✓</button>
-                            <button onClick={cancelCreate} title={t('map.toolbar.cancelDrawing')} style={{ background: 'red', color: 'white', border: 'none', padding: '0.5rem', borderRadius: 4 }}>✕</button>
-                            <button onClick={() => createHandlerRef.current?.deleteLastVertex?.()} title={t('map.toolbar.removeLastPoint')} style={{ background: '#ddd', color: '#333', border: 'none', padding: '0.5rem', borderRadius: 4 }}>-</button>
+                            <button
+                                type="button"
+                                onClick={finishCreate}
+                                title={t('map.toolbar.finishDrawing')}
+                                disabled={createPointCount < 3}
+                                className={`${toolbarButtonBase} border-emerald-500 bg-emerald-500 text-white ${createPointCount < 3 ? 'cursor-not-allowed opacity-60' : 'hover:-translate-y-0.5 hover:bg-emerald-400'}`}
+                            >
+                                ✓
+                            </button>
+                            <button
+                                type="button"
+                                onClick={cancelCreate}
+                                title={t('map.toolbar.cancelDrawing')}
+                                className={`${toolbarButtonBase} border-rose-500 bg-rose-500 text-white hover:-translate-y-0.5 hover:bg-rose-400`}
+                            >
+                                ✕
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => createHandlerRef.current?.deleteLastVertex?.()}
+                                title={t('map.toolbar.removeLastPoint')}
+                                className={`${toolbarButtonBase} border-slate-300 bg-white text-slate-600 hover:-translate-y-0.5 hover:bg-slate-50`}
+                            >
+                                -
+                            </button>
                         </>
                     )}
                     {editingId && (
                         <>
-                            <button onClick={finishEdit} title={t('map.toolbar.saveEdit')} style={{ background: 'green', color: 'white', border: 'none', padding: '0.5rem', borderRadius: 4 }}>✓</button>
-                            <button onClick={cancelEdit} title={t('map.toolbar.cancelEdit')} style={{ background: 'red', color: 'white', border: 'none', padding: '0.5rem', borderRadius: 4 }}>✕</button>
+                            <button
+                                type="button"
+                                onClick={finishEdit}
+                                title={t('map.toolbar.saveEdit')}
+                                className={`${toolbarButtonBase} border-emerald-500 bg-emerald-500 text-white hover:-translate-y-0.5 hover:bg-emerald-400`}
+                            >
+                                ✓
+                            </button>
+                            <button
+                                type="button"
+                                onClick={cancelEdit}
+                                title={t('map.toolbar.cancelEdit')}
+                                className={`${toolbarButtonBase} border-rose-500 bg-rose-500 text-white hover:-translate-y-0.5 hover:bg-rose-400`}
+                            >
+                                ✕
+                            </button>
                         </>
                     )}
                 </div>
