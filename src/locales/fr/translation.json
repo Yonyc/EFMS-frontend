@@ -16,8 +16,62 @@
     "fr": "Français"
   },
   "home": {
-    "title": "Bienvenue sur EFMS",
-    "description": "Ceci est une plateforme de gestion de parcelles."
+    "title": "Experimental Farms Management System",
+    "description": "Plateforme web open-source qui aide la ferme expérimentale de Louvain-la-Neuve à rester conforme tout en suivant chaque parcelle et sous-parcelle dans le temps.",
+    "hero": {
+      "badge": "Mémoire de master · 2025-2026",
+      "title": "Planifiez, documentez et déclarez chaque mètre carré en toute sérénité.",
+      "subtitle": "EFMS centralise historiques de champs, expériences et exports réglementaires pour que agronomes, chercheurs et équipes collaborent sans tableurs.",
+      "primaryCta": "Ouvrir la carte interactive",
+      "secondaryCta": "Créer une exploitation",
+      "stats": [
+        { "value": "Alexandre & Arnaud Wery", "label": "étudiants" },
+        { "value": "Hélène Verhaeghe", "label": "promotrice" },
+        { "value": "LLN", "label": "ferme expérimentale" }
+      ]
+    },
+    "context": {
+      "title": "Contexte",
+      "description": "Les exploitations belges doivent déclarer chaque année les cultures plantées sur chaque surface. La ferme expérimentale de LLN subdivise encore ses champs en micro-parcelles, ce qui alourdit la paperasse et augmente les risques d'erreur."
+    },
+    "project": {
+      "title": "Projet",
+      "description": "Ce mémoire livre une application web open-source de type SIG, co-conçue avec l'équipe de la ferme, pour enregistrer, visualiser et retrouver les opérations tout en restant compatible avec les outils officiels."
+    },
+    "features": {
+      "title": "Ce qu'apporte EFMS",
+      "items": [
+        { "title": "Éditeur de parcelles précis", "description": "Dessinez, scindez et codez par couleur les champs principaux et les sous-parcelles expérimentales avec détection de chevauchement." },
+        { "title": "Carnet agronomique complet", "description": "Consignez cultures, traitements, expériences et opérations annuelles par zone avec une traçabilité totale." },
+        { "title": "Exports prêts pour l'administration", "description": "Générez des rapports compatibles avec les systèmes belges et les workflows de recherche." },
+        { "title": "Chronologie historique", "description": "Remontez les saisons pour comprendre en quelques secondes ce qui s'est passé sur n'importe quel mètre carré." },
+        { "title": "Interface pensée pour la collaboration", "description": "Une interface adaptée aux rôles qui reste fluide sur le terrain comme au bureau." }
+      ]
+    },
+    "timeline": {
+      "title": "Exemple d'usage",
+      "lead": "La ferme expérimentale de LLN imbrique ses opérations, des parcelles officielles jusqu'aux zones d'essai, comme sur l'illustration du poster.",
+      "items": [
+        {
+          "title": "Parcelles principales",
+          "description": "Deux déclarations officielles (Bleu et Noir) définissent le périmètre de conformité."
+        },
+        {
+          "title": "Zones imbriquées",
+          "description": "Dans la parcelle Noire, des sous-parcelles Violet/Bleu/Rouge hébergent essais culturaux et traitements localisés."
+        },
+        {
+          "title": "Actions traçables",
+          "description": "Chaque zone conserve son historique d'opérations, garantissant des déclarations exactes au mètre près."
+        }
+      ]
+    },
+    "cta": {
+      "title": "Envie d'essayer ?",
+      "description": "Commencez par dessiner votre ferme ou rejoignez directement la carte interactive pour explorer les parcelles existantes.",
+      "primary": "Aller sur la carte",
+      "secondary": "Créer ma première ferme"
+    }
   },
   "common": {
     "cancel": "Annuler",

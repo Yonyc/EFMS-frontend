@@ -16,8 +16,62 @@
     "fr": "Français"
   },
   "home": {
-    "title": "Welcome to EFMS",
-    "description": "This is a platform for managing plots."
+    "title": "Experimental Farms Management System",
+    "description": "Open-source web platform helping the Louvain-la-Neuve experimental farm stay compliant while tracking every parcel and sub-plot over time.",
+    "hero": {
+      "badge": "Master Thesis · 2025-2026",
+      "title": "Plan, document and report every square meter with confidence.",
+      "subtitle": "EFMS centralizes field histories, experiments and regulatory exports so agronomists, researchers and staff can collaborate without spreadsheets.",
+      "primaryCta": "Open interactive map",
+      "secondaryCta": "Create a farm",
+      "stats": [
+        { "value": "Alexandre & Arnaud Wery", "label": "students" },
+        { "value": "Hélène Verhaeghe", "label": "supervisor" },
+        { "value": "LLN", "label": "experimental farm" }
+      ]
+    },
+    "context": {
+      "title": "Context",
+      "description": "Belgian farms must provide a yearly declaration for each cultivated surface. The LLN experimental farm further subdivides fields into small research parcels, multiplying the paperwork and the risk of inconsistencies."
+    },
+    "project": {
+      "title": "Project",
+      "description": "This thesis delivers a maintainable, open-source GIS-like web application co-designed with the farm's team to record, visualize and retrieve operations while remaining compatible with official tools."
+    },
+    "features": {
+      "title": "What EFMS brings",
+      "items": [
+        { "title": "Precise parcel editor", "description": "Draw, split and color-code main fields plus experimental sub-parcels with overlap detection." },
+        { "title": "Complete agronomic logbook", "description": "Record crops, treatments, experiments and yearly operations per zone with a full audit trail." },
+        { "title": "Regulation-ready exports", "description": "Generate reports compatible with Belgian administrative systems and research workflows." },
+        { "title": "Historical timeline", "description": "Travel through seasons to understand what happened on any square meter in seconds." },
+        { "title": "Collaboration-first UI", "description": "Role-friendly interface that stays fast on the field and intuitive in the office." }
+      ]
+    },
+    "timeline": {
+      "title": "Example usage",
+      "lead": "The LLN experimental farm nests operations from official parcels down to experiment-specific zones, mirroring the poster screenshot.",
+      "items": [
+        {
+          "title": "Main parcels",
+          "description": "Two official declarations (Blue and Black) frame the compliance perimeter."
+        },
+        {
+          "title": "Nested zones",
+          "description": "Within the Black parcel, specific Purple/Blue/Red sub-plots capture crop tests and localized treatments."
+        },
+        {
+          "title": "Traceable actions",
+          "description": "Each zone stores its own operations history, ensuring declarations remain accurate down to the meter."
+        }
+      ]
+    },
+    "cta": {
+      "title": "Ready to try it?",
+      "description": "Start by drawing your farm or jump straight to the interactive map to explore existing parcels.",
+      "primary": "Go to the map",
+      "secondary": "Create my first farm"
+    }
   },
   "common": {
     "cancel": "Cancel",
