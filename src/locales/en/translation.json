@@ -51,24 +51,6 @@
         { "title": "Collaboration-first UI", "description": "Role-friendly interface that stays fast on the field and intuitive in the office." }
       ]
     },
-    "timeline": {
-      "title": "Example usage",
-      "lead": "The LLN experimental farm nests operations from official parcels down to experiment-specific zones so compliance data always reflects on-field work.",
-      "items": [
-        {
-          "title": "Main parcels",
-          "description": "Two official declarations (Blue and Black) frame the compliance perimeter."
-        },
-        {
-          "title": "Nested zones",
-          "description": "Within the Black parcel, specific Purple/Blue/Red sub-plots capture crop tests and localized treatments."
-        },
-        {
-          "title": "Traceable actions",
-          "description": "Each zone stores its own operations history, ensuring declarations remain accurate down to the meter."
-        }
-      ]
-    },
     "cta": {
       "title": "Ready to try it?",
       "description": "Start by drawing your farm or jump straight to the interactive map to explore existing parcels.",
