@@ -51,24 +51,6 @@
         { "title": "Interface pensée pour la collaboration", "description": "Une interface adaptée aux rôles qui reste fluide sur le terrain comme au bureau." }
       ]
     },
-    "timeline": {
-      "title": "Exemple d'usage",
-      "lead": "La ferme expérimentale de LLN imbrique ses opérations, des parcelles officielles jusqu'aux zones d'essai, afin d'aligner les déclarations avec le travail réalisé sur le terrain.",
-      "items": [
-        {
-          "title": "Parcelles principales",
-          "description": "Deux déclarations officielles (Bleu et Noir) définissent le périmètre de conformité."
-        },
-        {
-          "title": "Zones imbriquées",
-          "description": "Dans la parcelle Noire, des sous-parcelles Violet/Bleu/Rouge hébergent essais culturaux et traitements localisés."
-        },
-        {
-          "title": "Actions traçables",
-          "description": "Chaque zone conserve son historique d'opérations, garantissant des déclarations exactes au mètre près."
-        }
-      ]
-    },
     "cta": {
       "title": "Envie d'essayer ?",
       "description": "Commencez par dessiner votre ferme ou rejoignez directement la carte interactive pour explorer les parcelles existantes.",
