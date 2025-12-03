@@ -15,7 +15,7 @@ interface FarmContextType {
   selectFarm: (farmId: string) => void;
   isLoading: boolean;
   error: string | null;
-  refreshFarms: () => Promise<void>;
+  refreshFarms: (preferredFarmId?: string) => Promise<Farm[]>;
 }
 
 const FarmContext = createContext<FarmContextType | undefined>(undefined);
@@ -27,11 +27,20 @@ export function FarmProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const { isAuthenticated, token } = useAuth();
 
-  const fetchFarms = async () => {
+  const setAndPersistSelectedFarm = (farm: Farm | null) => {
+    setSelectedFarm(farm);
+    if (farm) {
+      localStorage.setItem('selectedFarmId', farm.id);
+    } else {
+      localStorage.removeItem('selectedFarmId');
+    }
+  };
+
+  const fetchFarms = async (preferredFarmId?: string) => {
     if (!isAuthenticated) {
       setFarms([]);
-      setSelectedFarm(null);
-      return;
+      setAndPersistSelectedFarm(null);
+      return [];
     }
 
     setIsLoading(true);
@@ -47,23 +56,30 @@ export function FarmProvider({ children }: { children: ReactNode }) {
       const data = await response.json();
       setFarms(data);
 
-      // Auto-select first farm if none selected
-      if (data.length > 0 && !selectedFarm) {
-        setSelectedFarm(data[0]);
-        // Store selected farm in localStorage
-        localStorage.setItem('selectedFarmId', data[0].id);
+      const preferredFarm = preferredFarmId
+        ? data.find((farm: Farm) => farm.id === preferredFarmId)
+        : undefined;
+
+      if (preferredFarm) {
+        setAndPersistSelectedFarm(preferredFarm);
+      } else if (data.length > 0 && !selectedFarm) {
+        setAndPersistSelectedFarm(data[0]);
       } else if (selectedFarm) {
-        // Ensure selected farm still exists
         const stillExists = data.find((f: Farm) => f.id === selectedFarm.id);
         if (!stillExists && data.length > 0) {
-          setSelectedFarm(data[0]);
-          localStorage.setItem('selectedFarmId', data[0].id);
+          setAndPersistSelectedFarm(data[0]);
+        } else if (!stillExists) {
+          setAndPersistSelectedFarm(null);
         }
       }
+
+      return data;
     } catch (err) {
       console.error('Error fetching farms:', err);
       setError('Failed to load farms');
       setFarms([]);
+      setAndPersistSelectedFarm(null);
+      return [];
     } finally {
       setIsLoading(false);
     }
@@ -75,7 +91,7 @@ export function FarmProvider({ children }: { children: ReactNode }) {
       fetchFarms();
     } else {
       setFarms([]);
-      setSelectedFarm(null);
+      setAndPersistSelectedFarm(null);
     }
   }, [isAuthenticated, token]);
 
@@ -93,8 +109,7 @@ export function FarmProvider({ children }: { children: ReactNode }) {
   const selectFarm = (farmId: string) => {
     const farm = farms.find(f => f.id === farmId);
     if (farm) {
-      setSelectedFarm(farm);
-      localStorage.setItem('selectedFarmId', farmId);
+        setAndPersistSelectedFarm(farm);
     }
   };
 

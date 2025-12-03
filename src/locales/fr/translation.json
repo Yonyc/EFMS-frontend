@@ -81,6 +81,17 @@
   "map": {
     "defaultPolygonName": "Parcelle",
     "unnamedParcel": "Parcelle sans nom",
+    "farmSelection": {
+      "chooseLabel": "Étape 1 · Choisir une exploitation",
+      "title": "Quelle exploitation souhaitez-vous gérer ?",
+      "description": "Sélectionnez une exploitation pour charger ses parcelles sur la carte.",
+      "availableBadge": "Disponible",
+      "selectButton": "Utiliser cette exploitation",
+      "stepLabel": "Pour commencer",
+      "emptyTitle": "Vous n'avez pas encore d'exploitation",
+      "emptyDescription": "Créez votre première exploitation pour démarrer la cartographie.",
+      "createButton": "Créer une exploitation"
+    },
     "polygonList": {
       "title": "Parcelles",
       "empty": "Aucune parcelle pour le moment",

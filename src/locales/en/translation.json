@@ -81,6 +81,17 @@
   "map": {
     "defaultPolygonName": "Polygon",
     "unnamedParcel": "Unnamed Parcel",
+    "farmSelection": {
+      "chooseLabel": "Step 1 · Choose a farm",
+      "title": "Which farm do you want to manage?",
+      "description": "Select a farm to load its parcels on the map.",
+      "availableBadge": "Available",
+      "selectButton": "Use this farm",
+      "stepLabel": "Get started",
+      "emptyTitle": "You don't have any farms yet",
+      "emptyDescription": "Create your first farm to start mapping parcels.",
+      "createButton": "Create a farm"
+    },
     "polygonList": {
       "title": "Polygons",
       "empty": "No polygons yet",

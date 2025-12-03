@@ -3,6 +3,7 @@ import type { FormEvent } from 'react';
 import { useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
+import { useFarm } from '../contexts/FarmContext';
 import { apiPost } from '~/utils/api';
 import ProtectedRoute from '~/components/ProtectedRoute';
 import { useCurrentLocale } from '../hooks/useCurrentLocale';
@@ -21,6 +22,7 @@ export default function CreateFarm() {
     const [isLoading, setIsLoading] = useState(false);
 
     const { isAuthenticated } = useAuth();
+    const { refreshFarms } = useFarm();
     const navigate = useNavigate();
     const locale = useCurrentLocale();
     const { t } = useTranslation();
@@ -49,9 +51,8 @@ export default function CreateFarm() {
 
             if (response.ok) {
                 const createdFarm = await response.json();
-                console.log('Farm created successfully:', createdFarm);
-                // Redirect to home or map page after creation
-                navigate(buildLocalizedPath(locale, '/'));
+                await refreshFarms(createdFarm.id);
+                navigate(buildLocalizedPath(locale, '/map'));
             } else {
                 const data = await response.json().catch(() => ({}));
                 setError(data.message || t('createFarm.errors.generic'));
