@@ -7,6 +7,7 @@ import {
     FeatureGroup,
     useMapEvents,
     Tooltip,
+    ZoomControl,
 } from "react-leaflet";
 import { EditControl } from "react-leaflet-draw";
 import L from "leaflet";
@@ -1264,8 +1265,9 @@ export default function MapWithPolygons(props: { farm_id: string }) {
                     </div>
                 </div>
                 <div data-tour-id="map-canvas" style={{ height: '100%', width: '100%' }}>
-                    <MapContainer style={{ height: "100%", width: "100%" }} center={center} zoom={15}>
+                    <MapContainer style={{ height: "100%", width: "100%" }} center={center} zoom={15} zoomControl={false}>
                     <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; <a href="https://osm.org/copyright">OpenStreetMap</a>' />
+                    <ZoomControl position="bottomright" />
                     <MapEvents />
                     <style>{`
                         .leaflet-control-container .leaflet-draw, .leaflet-draw-toolbar { display: none !important; }

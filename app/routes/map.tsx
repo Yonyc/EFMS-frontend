@@ -118,7 +118,8 @@ export default function MapPage() {
         );
     } else {
         content = (
-            <div className="relative flex h-screen w-full">
+            // Use flex-1 so the map area fills remaining viewport height (navbar + content = 100vh)
+            <div className="relative flex flex-1 w-full min-h-0">
                 {MapComponent ? (
                     <>
                         <MapComponent farm_id={selectedFarm.id} key={selectedFarm.id} />
