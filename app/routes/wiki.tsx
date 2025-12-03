@@ -1,5 +1,7 @@
 import { Link } from "react-router";
 import { useTranslation } from "react-i18next";
+import { useMemo } from "react";
+import { useAuth } from "../contexts/AuthContext";
 import { useCurrentLocale } from "../hooks/useCurrentLocale";
 import { buildLocalizedPath } from "../utils/locale";
 
@@ -17,12 +19,21 @@ type Shortcut = {
 export default function WikiPage() {
     const { t } = useTranslation();
     const locale = useCurrentLocale();
+    const { user } = useAuth();
 
     const sections = t("wiki.mapTutorial.sections", { returnObjects: true }) as TutorialSection[];
     const tips = t("wiki.mapTutorial.tips.items", { returnObjects: true }) as string[];
     const shortcuts = t("wiki.mapTutorial.shortcuts.items", { returnObjects: true }) as Shortcut[];
 
     const mapPath = buildLocalizedPath(locale, "/map");
+    const tourStorageKey = useMemo(() => user ? `efms:tour:map:${user.id}` : "efms:tour:map:guest", [user]);
+
+    const handleRestartTour = () => {
+        if (typeof window === "undefined") {
+            return;
+        }
+        localStorage.removeItem(tourStorageKey);
+    };
 
     return (
         <div className="min-h-screen bg-slate-50 py-16">
@@ -31,13 +42,20 @@ export default function WikiPage() {
                     <p className="text-sm font-semibold uppercase tracking-wide text-indigo-200">{t("wiki.title")}</p>
                     <h1 className="mt-3 text-3xl font-semibold sm:text-4xl">{t("wiki.mapTutorial.title")}</h1>
                     <p className="mt-4 max-w-3xl text-base text-indigo-100">{t("wiki.mapTutorial.intro")}</p>
-                    <div className="mt-6">
+                    <div className="mt-6 flex flex-wrap gap-3">
                         <Link
                             to={mapPath}
                             className="inline-flex items-center rounded-xl bg-white px-5 py-2.5 text-sm font-semibold text-slate-900 shadow-lg shadow-indigo-900/30 transition hover:-translate-y-0.5"
                         >
-                            {t("home.hero.primaryCta")}
+                            {t("wiki.mapTutorial.cta.openMap")}
                         </Link>
+                        <button
+                            type="button"
+                            onClick={handleRestartTour}
+                            className="inline-flex items-center rounded-xl border border-white/70 px-5 py-2.5 text-sm font-semibold text-white/90 transition hover:bg-white/10"
+                        >
+                            {t("wiki.mapTutorial.cta.restartTour")}
+                        </button>
                     </div>
                 </header>
 

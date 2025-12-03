@@ -1114,6 +1114,7 @@ export default function MapWithPolygons(props: { farm_id: string }) {
                             pointerEvents: 'auto',
                             transition: 'width 0.25s ease',
                         }}
+                        data-tour-id="map-polygon-list"
                     >
                         <div
                             style={{
@@ -1262,7 +1263,8 @@ export default function MapWithPolygons(props: { farm_id: string }) {
                         )}
                     </div>
                 </div>
-                <MapContainer style={{ height: "100%", width: "100%" }} center={center} zoom={15}>
+                <div data-tour-id="map-canvas" style={{ height: '100%', width: '100%' }}>
+                    <MapContainer style={{ height: "100%", width: "100%" }} center={center} zoom={15}>
                     <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; <a href="https://osm.org/copyright">OpenStreetMap</a>' />
                     <MapEvents />
                     <style>{`
@@ -1393,9 +1395,10 @@ export default function MapWithPolygons(props: { farm_id: string }) {
                             </>
                         )}
                     </FeatureGroup>
-                </MapContainer>
+                    </MapContainer>
+                </div>
 
-                <div style={{ position: 'absolute', top: 16, right: 16, zIndex: 2000, display: 'flex', gap: 8 }}>
+                <div data-tour-id="map-toolbar" style={{ position: 'absolute', top: 16, right: 16, zIndex: 2000, display: 'flex', gap: 8 }}>
                     {overlapWarning && showPreview ? (
                         <>
                             <button

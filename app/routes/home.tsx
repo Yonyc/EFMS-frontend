@@ -30,8 +30,8 @@ export default function Home() {
 
   return (
     <div className="space-y-16 bg-slate-50 pb-20">
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-indigo-900 to-indigo-700 text-white">
-        <div className="absolute inset-0 opacity-40" style={{ backgroundImage: "radial-gradient(circle at top, rgba(255,255,255,0.35), transparent 50%)" }} />
+      <section className="relative overflow-hidden rounded-b-3xl bg-gradient-to-br from-slate-900 via-indigo-900 to-indigo-700 text-white">
+        <div className="absolute inset-0 opacity-40" style={{ backgroundImage: "linear-gradient(120deg, rgba(255,255,255,0.25), transparent 55%)" }} />
         <div className="relative mx-auto max-w-6xl px-6 py-20 lg:px-10 lg:py-28">
           <span className="inline-flex items-center rounded-full bg-white/10 px-4 py-1 text-sm font-semibold uppercase tracking-wide text-indigo-100">
             {t("home.hero.badge")}

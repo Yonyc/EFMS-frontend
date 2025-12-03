@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router";
 import { useTranslation } from "react-i18next";
 import { useFarm } from "../contexts/FarmContext";
@@ -6,14 +6,48 @@ import { useAuth } from "../contexts/AuthContext";
 import ProtectedRoute from "~/components/ProtectedRoute";
 import { useCurrentLocale } from "../hooks/useCurrentLocale";
 import { buildLocalizedPath } from "../utils/locale";
+import MapTourOverlay from "~/components/map/MapTourOverlay";
 
 export default function MapPage() {
     const [MapComponent, setMapComponent] = useState<React.ComponentType<any> | null>(null);
     const { farms, selectedFarm, selectFarm, isLoading: farmsLoading } = useFarm();
-    const { isAuthenticated } = useAuth();
+    const { isAuthenticated, user } = useAuth();
     const locale = useCurrentLocale();
     const { t } = useTranslation();
     const createFarmPath = useMemo(() => buildLocalizedPath(locale, "/create-farm"), [locale]);
+    const [isTourOpen, setIsTourOpen] = useState(false);
+    const [tourStep, setTourStep] = useState(0);
+
+    const tourSteps = useMemo(() => (
+        [
+            {
+                id: "farm-selector",
+                title: t("map.tour.steps.farmSelector.title"),
+                description: t("map.tour.steps.farmSelector.description"),
+                selector: '[data-tour-id="map-farm-selector"]',
+            },
+            {
+                id: "toolbar",
+                title: t("map.tour.steps.toolbar.title"),
+                description: t("map.tour.steps.toolbar.description"),
+                selector: '[data-tour-id="map-toolbar"]',
+            },
+            {
+                id: "canvas",
+                title: t("map.tour.steps.canvas.title"),
+                description: t("map.tour.steps.canvas.description"),
+                selector: '[data-tour-id="map-canvas"]',
+            },
+            {
+                id: "list",
+                title: t("map.tour.steps.list.title"),
+                description: t("map.tour.steps.list.description"),
+                selector: '[data-tour-id="map-polygon-list"]',
+            },
+        ].filter(step => step.title && step.description)
+    ), [t]);
+
+    const tourStorageKey = useMemo(() => user ? `efms:tour:map:${user.id}` : "efms:tour:map:guest", [user]);
 
     useEffect(() => {
         if (!isAuthenticated) {
@@ -32,6 +66,35 @@ export default function MapPage() {
             isMounted = false;
         };
     }, [isAuthenticated]);
+
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+        if (!isAuthenticated || !selectedFarm || !MapComponent) return;
+        if (localStorage.getItem(tourStorageKey)) return;
+
+        const timer = window.setTimeout(() => {
+            setTourStep(0);
+            setIsTourOpen(true);
+        }, 400);
+
+        return () => window.clearTimeout(timer);
+    }, [isAuthenticated, selectedFarm, MapComponent, tourStorageKey]);
+
+    const closeTour = useCallback(() => {
+        if (typeof window !== "undefined") {
+            localStorage.setItem(tourStorageKey, "done");
+        }
+        setIsTourOpen(false);
+        setTourStep(0);
+    }, [tourStorageKey]);
+
+    const handleNextStep = useCallback(() => {
+        setTourStep((prev) => Math.min(prev + 1, Math.max(tourSteps.length - 1, 0)));
+    }, [tourSteps.length]);
+
+    const handlePrevStep = useCallback(() => {
+        setTourStep((prev) => Math.max(prev - 1, 0));
+    }, []);
 
     let content: React.ReactNode = null;
 
@@ -55,9 +118,29 @@ export default function MapPage() {
         );
     } else {
         content = (
-            <div className="flex h-screen w-full">
+            <div className="relative flex h-screen w-full">
                 {MapComponent ? (
-                    <MapComponent farm_id={selectedFarm.id} key={selectedFarm.id} />
+                    <>
+                        <MapComponent farm_id={selectedFarm.id} key={selectedFarm.id} />
+                        {isTourOpen && tourSteps.length > 0 && (
+                            <MapTourOverlay
+                                isOpen={isTourOpen}
+                                steps={tourSteps}
+                                currentStep={tourStep}
+                                onNext={handleNextStep}
+                                onPrev={handlePrevStep}
+                                onSkip={closeTour}
+                                onFinish={closeTour}
+                                labels={{
+                                    step: t("map.tour.controls.step", { current: tourStep + 1, total: tourSteps.length }),
+                                    skip: t("map.tour.controls.skip"),
+                                    back: t("map.tour.controls.back"),
+                                    next: t("map.tour.controls.next"),
+                                    finish: t("map.tour.controls.finish"),
+                                }}
+                            />
+                        )}
+                    </>
                 ) : (
                     <FullScreenCenter>
                         <p className="text-gray-600">{t("common.loading")}</p>

@@ -25,8 +25,8 @@
       "primaryCta": "Open interactive map",
       "secondaryCta": "Create a farm",
       "stats": [
-        { "value": "Alexandre & Arnaud Wery", "label": "students" },
         { "value": "Hélène Verhaeghe", "label": "supervisor" },
+        { "value": "Alexandre & Arnaud Wery", "label": "students" },
         { "value": "LLN", "label": "experimental farm" }
       ]
     },
@@ -81,6 +81,10 @@
       "mapTutorial": {
         "title": "Interactive map tutorial",
         "intro": "Use this guided workflow to draw experimental parcels, edit them safely and keep your data organized.",
+        "cta": {
+          "openMap": "Open map",
+          "restartTour": "Replay in-app tutorial"
+        },
         "sections": [
           {
             "title": "1. Prepare the workspace",
@@ -221,6 +225,34 @@
       "emptyTitle": "You don't have any farms yet",
       "emptyDescription": "Create your first farm to start mapping parcels.",
       "createButton": "Create a farm"
+    },
+    "tour": {
+      "title": "Interactive tour",
+      "controls": {
+        "step": "Step {{current}} / {{total}}",
+        "skip": "Skip tutorial",
+        "back": "Back",
+        "next": "Next",
+        "finish": "Start mapping"
+      },
+      "steps": {
+        "farmSelector": {
+          "title": "Pick the right farm",
+          "description": "Use the selector near your avatar to switch between farms and load their parcels."
+        },
+        "toolbar": {
+          "title": "Drawing toolbar",
+          "description": "Create, finish or cancel polygons with these floating controls. They change automatically when you edit an existing parcel."
+        },
+        "canvas": {
+          "title": "Interactive map",
+          "description": "Click to select parcels, right-click for quick actions and zoom in to digitize sub-plots with centimeter precision."
+        },
+        "list": {
+          "title": "Polygon list",
+          "description": "Search, rename, recolor or hide parcels from this drawer. Collapse it when you need extra space."
+        }
+      }
     },
     "polygonList": {
       "title": "Polygons",

@@ -31,7 +31,7 @@ export default function FarmSelector() {
   }
 
   return (
-    <Menu as="div" className="relative">
+    <Menu as="div" className="relative" data-tour-id="map-farm-selector">
       <MenuButton className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-300 hover:bg-white/5 hover:text-white rounded-md transition-colors">
         <span>🏛️</span>
         <span>{selectedFarm?.name || t('farmSelector.selectFarm')}</span>

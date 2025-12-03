@@ -25,8 +25,8 @@
       "primaryCta": "Ouvrir la carte interactive",
       "secondaryCta": "Créer une exploitation",
       "stats": [
-        { "value": "Alexandre & Arnaud Wery", "label": "étudiants" },
         { "value": "Hélène Verhaeghe", "label": "promotrice" },
+        { "value": "Alexandre & Arnaud Wery", "label": "étudiants" },
         { "value": "LLN", "label": "ferme expérimentale" }
       ]
     },
@@ -81,6 +81,10 @@
       "mapTutorial": {
         "title": "Tutoriel de la carte interactive",
         "intro": "Suivez ce parcours guidé pour dessiner des parcelles expérimentales, les modifier en toute sécurité et garder vos données organisées.",
+        "cta": {
+          "openMap": "Ouvrir la carte",
+          "restartTour": "Relancer le tutoriel"
+        },
         "sections": [
           {
             "title": "1. Préparer l'espace de travail",
@@ -221,6 +225,34 @@
       "emptyTitle": "Vous n'avez pas encore d'exploitation",
       "emptyDescription": "Créez votre première exploitation pour démarrer la cartographie.",
       "createButton": "Créer une exploitation"
+    },
+    "tour": {
+      "title": "Visite interactive",
+      "controls": {
+        "step": "Étape {{current}} / {{total}}",
+        "skip": "Passer le tutoriel",
+        "back": "Précédent",
+        "next": "Suivant",
+        "finish": "Commencer la carto"
+      },
+      "steps": {
+        "farmSelector": {
+          "title": "Choisir la bonne exploitation",
+          "description": "Utilisez le sélecteur près de votre avatar pour passer d'une exploitation à l'autre et charger leurs parcelles."
+        },
+        "toolbar": {
+          "title": "Barre d'outils de dessin",
+          "description": "Créez, terminez ou annulez un polygone avec ces commandes flottantes. Elles s'adaptent automatiquement lorsque vous modifiez une parcelle."
+        },
+        "canvas": {
+          "title": "Carte interactive",
+          "description": "Cliquez pour sélectionner des parcelles, clic droit pour les actions rapides et zoomez pour numériser vos sous-parcelles avec précision."
+        },
+        "list": {
+          "title": "Liste des polygones",
+          "description": "Recherchez, renommez, recolorez ou masquez des parcelles depuis ce panneau. Repliez-le quand vous avez besoin d'espace."
+        }
+      }
     },
     "polygonList": {
       "title": "Parcelles",
