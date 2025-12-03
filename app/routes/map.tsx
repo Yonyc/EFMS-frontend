@@ -228,8 +228,10 @@ function EmptyFarmState({ createFarmPath }: { createFarmPath: string }) {
 }
 
 function FullScreenCenter({ children }: { children: React.ReactNode }) {
+    // Use flex-1 and min-h-0 so this component fits inside the layout's flex column without forcing
+    // the page to exceed the viewport height (prevents double 100vh when Navbar is present).
     return (
-        <div className="flex h-screen w-full items-center justify-center bg-slate-50 px-4">
+        <div className="flex flex-1 w-full min-h-0 items-center justify-center bg-slate-50 px-4">
             {children}
         </div>
     );

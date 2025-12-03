@@ -16,15 +16,9 @@ body {
     color-scheme: dark;
   }
 }
-
-/* Page layout: make body fill the viewport and use column flex so Navbar + content can share 100% height */
-html, body {
-  height: 100%;
-}
-
 body {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  overflow: hidden; /* prevent page-level scrollbars */
+  overflow-x: hidden;
 }
