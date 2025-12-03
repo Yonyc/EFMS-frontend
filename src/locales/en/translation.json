@@ -32,14 +32,17 @@
     },
     "context": {
       "title": "Context",
+      "heading": "Why the farm needed EFMS",
       "description": "Belgian farms must provide a yearly declaration for each cultivated surface. The LLN experimental farm further subdivides fields into small research parcels, multiplying the paperwork and the risk of inconsistencies."
     },
     "project": {
       "title": "Project",
+      "heading": "Co-designed with LLN teams",
       "description": "This thesis delivers a maintainable, open-source GIS-like web application co-designed with the farm's team to record, visualize and retrieve operations while remaining compatible with official tools."
     },
     "features": {
       "title": "What EFMS brings",
+      "tagline": "Platform capabilities",
       "items": [
         { "title": "Precise parcel editor", "description": "Draw, split and color-code main fields plus experimental sub-parcels with overlap detection." },
         { "title": "Complete agronomic logbook", "description": "Record crops, treatments, experiments and yearly operations per zone with a full audit trail." },
@@ -50,7 +53,7 @@
     },
     "timeline": {
       "title": "Example usage",
-      "lead": "The LLN experimental farm nests operations from official parcels down to experiment-specific zones, mirroring the poster screenshot.",
+      "lead": "The LLN experimental farm nests operations from official parcels down to experiment-specific zones so compliance data always reflects on-field work.",
       "items": [
         {
           "title": "Main parcels",
@@ -73,6 +76,79 @@
       "secondary": "Create my first farm"
     }
   },
+    "wiki": {
+      "title": "EFMS Wiki",
+      "mapTutorial": {
+        "title": "Interactive map tutorial",
+        "intro": "Use this guided workflow to draw experimental parcels, edit them safely and keep your data organized.",
+        "sections": [
+          {
+            "title": "1. Prepare the workspace",
+            "body": "Before drawing, make sure you are authenticated and that the right farm is selected in the navigation bar.",
+            "actions": [
+              "Choose a farm with the selector next to your profile picture. This loads its polygons and color palette.",
+              "Press the map link in the navbar to open the editor.",
+              "Wait for the base map to finish loading (spinner in the right panel)."
+            ]
+          },
+          {
+            "title": "2. Create a polygon",
+            "body": "Draw experimental parcels by placing vertices on the imagery layer.",
+            "actions": [
+              "Click the \"Add\" button in the left toolbar, then select \"Polygon\".",
+              "Left-click on the map to drop each vertex. Use scroll to zoom for higher precision.",
+              "Close the polygon by clicking on the first vertex or by pressing Enter to auto-complete.",
+              "Give the parcel a name in the modal that appears and confirm to save it."
+            ]
+          },
+          {
+            "title": "3. Edit an existing polygon",
+            "body": "Adjust shapes whenever trials evolve.",
+            "actions": [
+              "Select the polygon either from the list or by clicking it on the map.",
+              "Use the toolbar action \"Edit\" to expose draggable vertices.",
+              "Drag handles to new positions; double-click to insert a new vertex, press Delete to remove one.",
+              "Hit \"Save\" when you are satisfied or \"Cancel\" to revert changes."
+            ]
+          },
+          {
+            "title": "4. Manage visibility & colors",
+            "body": "Keep the view readable by toggling polygons on and off and applying semantic colors.",
+            "actions": [
+              "Open the polygon list on the right and use the checkbox to show or hide a parcel.",
+              "Click the colored dot to choose a new hue that matches crops or experiment types.",
+              "Group related sub-parcels by assigning the same color family."
+            ]
+          },
+          {
+            "title": "5. Delete or duplicate",
+            "body": "Clean up prototypes or reuse shapes for faster data entry.",
+            "actions": [
+              "Use the three-dot menu on a polygon to duplicate it and tweak the copy.",
+              "Select \"Delete\" to remove a parcel. You will be asked to confirm to avoid accidental loss.",
+              "When deleting, EFMS keeps the historical log but removes it from the live map."
+            ]
+          }
+        ],
+        "tips": {
+          "title": "Field-tested tips",
+          "items": [
+            "Combine satellite imagery with cadastral overlays (layer button) for centimeter-level accuracy.",
+            "Name polygons with a consistent convention such as FIELD-PLOT-SUBPLOT (e.g., B1-Red-2025).",
+            "Refresh the map after long editing sessions by pressing R to ensure overlapping checks rerun."
+          ]
+        },
+        "shortcuts": {
+          "title": "Keyboard shortcuts",
+          "items": [
+            { "keys": "Esc", "description": "Cancel the current drawing or exit edit mode." },
+            { "keys": "Enter", "description": "Finish drawing and open the naming modal." },
+            { "keys": "Ctrl + Z", "description": "Undo the last vertex while drawing." },
+            { "keys": "Ctrl + D", "description": "Duplicate the selected polygon." }
+          ]
+        }
+      }
+    },
   "common": {
     "cancel": "Cancel",
     "confirm": "Confirm",

@@ -21,7 +21,7 @@
     "hero": {
       "badge": "Mémoire de master · 2025-2026",
       "title": "Planifiez, documentez et déclarez chaque mètre carré en toute sérénité.",
-      "subtitle": "EFMS centralise historiques de champs, expériences et exports réglementaires pour que agronomes, chercheurs et équipes collaborent sans tableurs.",
+      "subtitle": "EFMS centralise historiques de champs, expériences et exports réglementaires pour que agronomes, chercheurs et équipes collaborent plus facilement.",
       "primaryCta": "Ouvrir la carte interactive",
       "secondaryCta": "Créer une exploitation",
       "stats": [
@@ -32,14 +32,17 @@
     },
     "context": {
       "title": "Contexte",
+      "heading": "Pourquoi la ferme avait besoin d'EFMS",
       "description": "Les exploitations belges doivent déclarer chaque année les cultures plantées sur chaque surface. La ferme expérimentale de LLN subdivise encore ses champs en micro-parcelles, ce qui alourdit la paperasse et augmente les risques d'erreur."
     },
     "project": {
       "title": "Projet",
+      "heading": "Co-conçu avec l'équipe LLN",
       "description": "Ce mémoire livre une application web open-source de type SIG, co-conçue avec l'équipe de la ferme, pour enregistrer, visualiser et retrouver les opérations tout en restant compatible avec les outils officiels."
     },
     "features": {
       "title": "Ce qu'apporte EFMS",
+      "tagline": "Fonctionnalités clés",
       "items": [
         { "title": "Éditeur de parcelles précis", "description": "Dessinez, scindez et codez par couleur les champs principaux et les sous-parcelles expérimentales avec détection de chevauchement." },
         { "title": "Carnet agronomique complet", "description": "Consignez cultures, traitements, expériences et opérations annuelles par zone avec une traçabilité totale." },
@@ -50,7 +53,7 @@
     },
     "timeline": {
       "title": "Exemple d'usage",
-      "lead": "La ferme expérimentale de LLN imbrique ses opérations, des parcelles officielles jusqu'aux zones d'essai, comme sur l'illustration du poster.",
+      "lead": "La ferme expérimentale de LLN imbrique ses opérations, des parcelles officielles jusqu'aux zones d'essai, afin d'aligner les déclarations avec le travail réalisé sur le terrain.",
       "items": [
         {
           "title": "Parcelles principales",
@@ -73,6 +76,79 @@
       "secondary": "Créer ma première ferme"
     }
   },
+    "wiki": {
+      "title": "Wiki EFMS",
+      "mapTutorial": {
+        "title": "Tutoriel de la carte interactive",
+        "intro": "Suivez ce parcours guidé pour dessiner des parcelles expérimentales, les modifier en toute sécurité et garder vos données organisées.",
+        "sections": [
+          {
+            "title": "1. Préparer l'espace de travail",
+            "body": "Avant de dessiner, assurez-vous d'être connecté et d'avoir sélectionné la bonne exploitation dans la barre de navigation.",
+            "actions": [
+              "Choisissez une exploitation avec le sélecteur près de votre photo de profil. Les polygones et la palette de couleurs se chargent alors.",
+              "Cliquez sur le lien \"Carte\" dans la navigation pour ouvrir l'éditeur.",
+              "Patientez jusqu'à la fin du chargement de la carte de base (indicateur dans le panneau droit)."
+            ]
+          },
+          {
+            "title": "2. Créer un polygone",
+            "body": "Dessinez des parcelles expérimentales en déposant des sommets sur l'imagerie.",
+            "actions": [
+              "Cliquez sur le bouton \"Ajouter\" dans la barre latérale, puis sélectionnez \"Polygone\".",
+              "Cliquez gauche sur la carte pour poser chaque sommet. Utilisez la molette pour zoomer avec précision.",
+              "Fermez la forme en cliquant sur le premier sommet ou appuyez sur Entrée pour auto-terminer.",
+              "Donnez un nom à la parcelle dans la fenêtre qui s'affiche puis validez pour l'enregistrer."
+            ]
+          },
+          {
+            "title": "3. Modifier un polygone",
+            "body": "Ajustez les formes lorsque les essais évoluent.",
+            "actions": [
+              "Sélectionnez le polygone depuis la liste ou directement sur la carte.",
+              "Utilisez l'action \"Modifier\" de la barre d'outils pour afficher les sommets déplaçables.",
+              "Faites glisser les poignées, double-cliquez pour insérer un sommet, appuyez sur Suppr pour en retirer un.",
+              "Cliquez sur \"Enregistrer\" une fois satisfait ou \"Annuler\" pour revenir à l'état initial."
+            ]
+          },
+          {
+            "title": "4. Gérer visibilité et couleurs",
+            "body": "Gardez une vue lisible en affichant/masquant les polygones et en appliquant des couleurs parlantes.",
+            "actions": [
+              "Ouvrez la liste des polygones à droite et utilisez la case à cocher pour afficher ou masquer une parcelle.",
+              "Cliquez sur le point coloré pour choisir une nouvelle teinte associée à une culture ou un type d'essai.",
+              "Regroupez les sous-parcelles liées en leur attribuant la même palette."
+            ]
+          },
+          {
+            "title": "5. Supprimer ou dupliquer",
+            "body": "Nettoyez vos prototypes ou réutilisez des formes pour accélérer la saisie.",
+            "actions": [
+              "Utilisez le menu trois points d'un polygone pour le dupliquer puis ajuster la copie.",
+              "Choisissez \"Supprimer\" pour retirer une parcelle. Une confirmation évite les suppressions accidentelles.",
+              "Lors d'une suppression, EFMS conserve l'historique mais retire la parcelle de la carte active."
+            ]
+          }
+        ],
+        "tips": {
+          "title": "Astuces de terrain",
+          "items": [
+            "Combinez imagerie satellite et couches cadastrales (bouton des calques) pour une précision centimétrique.",
+            "Nommez les polygones avec une convention cohérente comme CHAMP-PARCELLE-SOUSPARCELLE (ex : B1-Rouge-2025).",
+            "Après de longues sessions d'édition, appuyez sur R pour relancer les vérifications de chevauchement."
+          ]
+        },
+        "shortcuts": {
+          "title": "Raccourcis clavier",
+          "items": [
+            { "keys": "Échap", "description": "Annule le dessin en cours ou quitte le mode édition." },
+            { "keys": "Entrée", "description": "Termine le dessin et ouvre la fenêtre de nommage." },
+            { "keys": "Ctrl + Z", "description": "Annule le dernier sommet pendant le dessin." },
+            { "keys": "Ctrl + D", "description": "Duplique le polygone sélectionné." }
+          ]
+        }
+      }
+    },
   "common": {
     "cancel": "Annuler",
     "confirm": "Confirmer",

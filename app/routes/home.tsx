@@ -71,12 +71,12 @@ export default function Home() {
         <div className="grid gap-8 rounded-3xl bg-white p-6 shadow-xl shadow-slate-200/60 md:grid-cols-2">
           <article className="rounded-2xl border border-slate-100 p-6">
             <p className="text-sm font-semibold uppercase tracking-wide text-indigo-600">{t("home.context.title")}</p>
-            <h2 className="mt-3 text-2xl font-semibold text-slate-900">{t("home.title")}</h2>
+            <h2 className="mt-3 text-2xl font-semibold text-slate-900">{t("home.context.heading")}</h2>
             <p className="mt-4 text-slate-600">{t("home.context.description")}</p>
           </article>
           <article className="rounded-2xl border border-slate-100 p-6">
             <p className="text-sm font-semibold uppercase tracking-wide text-indigo-600">{t("home.project.title")}</p>
-            <h3 className="mt-3 text-2xl font-semibold text-slate-900">{t("home.project.title")}</h3>
+            <h3 className="mt-3 text-2xl font-semibold text-slate-900">{t("home.project.heading")}</h3>
             <p className="mt-4 text-slate-600">{t("home.project.description")}</p>
           </article>
         </div>
@@ -85,7 +85,7 @@ export default function Home() {
       <section className="bg-white/80 py-16">
         <div className="mx-auto max-w-6xl px-6 lg:px-10">
           <div className="mb-10 flex flex-col gap-4 text-center">
-            <p className="text-sm font-semibold uppercase tracking-wide text-indigo-600">EFMS</p>
+            <p className="text-sm font-semibold uppercase tracking-wide text-indigo-600">{t("home.features.tagline")}</p>
             <h2 className="text-3xl font-semibold text-slate-900">{t("home.features.title")}</h2>
             <p className="text-slate-600">{t("home.description")}</p>
           </div>
@@ -104,37 +104,23 @@ export default function Home() {
       </section>
 
       <section className="mx-auto max-w-6xl px-6 lg:px-10">
-        <div className="grid gap-8 rounded-3xl border border-slate-100 bg-white p-8 shadow-xl shadow-slate-200/70 lg:grid-cols-2">
-          <div>
-            <p className="text-sm font-semibold uppercase tracking-wide text-indigo-600">{t("home.timeline.title")}</p>
-            <h2 className="mt-3 text-3xl font-semibold text-slate-900">{t("home.timeline.title")}</h2>
-            <p className="mt-4 text-slate-600">{t("home.timeline.lead")}</p>
-            <ol className="mt-8 space-y-6 border-l border-slate-200 pl-6">
-              {timeline.map((item, index) => (
-                <li key={item.title} className="relative">
-                  <span className="absolute -left-3 flex h-6 w-6 items-center justify-center rounded-full border border-indigo-100 bg-white text-sm font-semibold text-indigo-600">
-                    {index + 1}
-                  </span>
+        <div className="rounded-3xl border border-slate-100 bg-white p-8 shadow-xl shadow-slate-200/70">
+          <p className="text-sm font-semibold uppercase tracking-wide text-indigo-600">{t("home.timeline.title")}</p>
+          <h2 className="mt-3 text-3xl font-semibold text-slate-900">{t("home.timeline.title")}</h2>
+          <p className="mt-4 text-slate-600">{t("home.timeline.lead")}</p>
+          <ol className="mt-8 space-y-4">
+            {timeline.map((item, index) => (
+              <li key={item.title} className="flex gap-4 rounded-2xl border border-slate-100 bg-slate-50 p-5 shadow-sm">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-lg font-semibold text-indigo-700">
+                  {index + 1}
+                </div>
+                <div>
                   <h3 className="text-lg font-semibold text-slate-900">{item.title}</h3>
                   <p className="mt-1 text-sm text-slate-600">{item.description}</p>
-                </li>
-              ))}
-            </ol>
-          </div>
-          <div className="flex flex-col justify-between space-y-6 rounded-2xl bg-slate-900 p-6 text-white">
-            <div>
-              <p className="text-sm uppercase tracking-wide text-indigo-200">Map preview</p>
-              <h3 className="mt-3 text-2xl font-semibold">Hierarchy-first visualization</h3>
-              <p className="mt-2 text-indigo-100">
-                Stack colors, outlines and metadata to instantly understand how each experimental zone relates to compliance reporting.
-              </p>
-            </div>
-            <div className="flex flex-1 items-center justify-center rounded-xl border border-white/20 bg-gradient-to-br from-indigo-500/30 to-indigo-300/30 text-center">
-              <p className="px-6 py-8 text-sm text-indigo-50">
-                Imagine the poster screenshot here – interactive polygons, bold colors and tooltips following your cursor.
-              </p>
-            </div>
-          </div>
+                </div>
+              </li>
+            ))}
+          </ol>
         </div>
       </section>
 
