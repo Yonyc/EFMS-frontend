@@ -11,6 +11,8 @@ import type { Locale } from '../utils/locale';
 const NAV_ITEMS = [
     { translationId: 'nav.home', slug: '', end: true },
     { translationId: 'nav.map', slug: 'map', end: false },
+    { translationId: 'nav.operations', slug: 'operations', end: false },
+    { translationId: 'nav.assets', slug: 'assets', end: false },
     { translationId: 'nav.wiki', slug: 'wiki', end: false }
 ] as const;
 

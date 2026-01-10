@@ -2,6 +2,8 @@
   "nav": {
     "home": "Accueil",
     "map": "Carte",
+    "assets": "Ressources",
+    "operations": "Opérations",
     "wiki": "Wiki",
     "language_switcher": "Sélecteur de langue",
     "user_menu": "Menu utilisateur",
@@ -191,6 +193,26 @@
         "generic": "Échec de l'inscription. Veuillez réessayer."
       }
     }
+  },
+  "operations": {
+    "title": "Opérations sur les parcelles",
+    "subtitle": "Enregistrez les interventions sur vos parcelles et consultez leur historique.",
+    "selectParcel": "Choisissez une parcelle",
+    "selectType": "Type d'opération",
+    "selectTypePlaceholder": "Sélectionner un type (optionnel)",
+    "dateLabel": "Date",
+    "durationLabel": "Durée (minutes)",
+    "submit": "Ajouter l'opération",
+    "update": "Enregistrer les modifications",
+    "edit": "Modifier",
+    "editing": "Modification en cours",
+    "editingHint": "Ajustez les champs puis enregistrez ou annulez pour créer une nouvelle opération.",
+    "history": "Historique",
+    "emptyHistory": "Aucune opération enregistrée pour cette parcelle.",
+    "noParcel": "Sélectionnez une parcelle pour voir ou ajouter des opérations.",
+    "refreshFarms": "Actualiser les fermes",
+    "refreshParcels": "Recharger les parcelles",
+    "pinTopRight": "Ouvrir en haut à droite"
   },
   "map": {
     "defaultPolygonName": "Parcelle",

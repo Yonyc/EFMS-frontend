@@ -1,6 +1,5 @@
 import { Link } from "react-router";
 import { useTranslation } from "react-i18next";
-import { useMemo } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { useCurrentLocale } from "../hooks/useCurrentLocale";
 import { buildLocalizedPath } from "../utils/locale";
@@ -19,20 +18,20 @@ type Shortcut = {
 export default function WikiPage() {
     const { t } = useTranslation();
     const locale = useCurrentLocale();
-    const { user } = useAuth();
+    const { user, updateTutorialState } = useAuth();
 
     const sections = t("wiki.mapTutorial.sections", { returnObjects: true }) as TutorialSection[];
     const tips = t("wiki.mapTutorial.tips.items", { returnObjects: true }) as string[];
     const shortcuts = t("wiki.mapTutorial.shortcuts.items", { returnObjects: true }) as Shortcut[];
 
     const mapPath = buildLocalizedPath(locale, "/map");
-    const tourStorageKey = useMemo(() => user ? `efms:tour:map:${user.id}` : "efms:tour:map:guest", [user]);
-
-    const handleRestartTour = () => {
-        if (typeof window === "undefined") {
-            return;
+    const handleRestartTour = async () => {
+        if (!user) return;
+        try {
+            await updateTutorialState("NOT_STARTED");
+        } catch (error) {
+            console.error("Failed to reset tutorial state", error);
         }
-        localStorage.removeItem(tourStorageKey);
     };
 
     return (

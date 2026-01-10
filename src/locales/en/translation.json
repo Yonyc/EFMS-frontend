@@ -2,6 +2,8 @@
   "nav": {
     "home": "Home",
     "map": "Map",
+    "assets": "Assets",
+    "operations": "Operations",
     "wiki": "Wiki",
     "language_switcher": "Language Switcher",
     "user_menu": "User Menu",
@@ -191,6 +193,26 @@
         "generic": "Registration failed. Please try again."
       }
     }
+  },
+  "operations": {
+    "title": "Parcel operations",
+    "subtitle": "Log interventions on your parcels and review their history.",
+    "selectParcel": "Choose a parcel",
+    "selectType": "Operation type",
+    "selectTypePlaceholder": "Select a type (optional)",
+    "dateLabel": "Date",
+    "durationLabel": "Duration (minutes)",
+    "submit": "Add operation",
+    "update": "Save changes",
+    "edit": "Edit",
+    "editing": "Editing operation",
+    "editingHint": "Update the fields and save or cancel to start a new operation.",
+    "history": "History",
+    "emptyHistory": "No operations recorded for this parcel yet.",
+    "noParcel": "Select a parcel to view or add operations.",
+    "refreshFarms": "Refresh farms",
+    "refreshParcels": "Reload parcels",
+    "pinTopRight": "Open top-right"
   },
   "map": {
     "defaultPolygonName": "Polygon",

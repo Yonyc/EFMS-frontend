@@ -14,6 +14,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "leaflet-draw/dist/leaflet.draw.css";
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 import PolygonList from "./PolygonList";
@@ -21,10 +22,39 @@ import OverlapModal from "./components/OverlapModal";
 import { checkOverlap, fixOverlap } from "./utils/geometry";
 import type { EditState, ManualEditContext, OverlapWarning, PolygonData } from "./types";
 import { apiGet, apiPost, apiPut } from "~/utils/api";
+import { useAuth } from "~/contexts/AuthContext";
+
+interface OperationTypeDto { id: number; name: string; }
+interface UnitDto { id: number; value: string; }
+interface ProductDto { id: number; name: string; }
+interface ToolDto { id: number; name: string; }
+interface OperationProductInputState { productId: string; quantity: string; unitId: string; toolId: string; }
+interface OperationProductDto {
+    id: number;
+    quantity?: number;
+    productId?: number;
+    productName?: string;
+    unitId?: number;
+    unitValue?: string;
+    toolId?: number;
+    toolName?: string;
+}
+interface ParcelOperationDto {
+    id: number;
+    date?: string;
+    durationSeconds?: number;
+    typeId?: number;
+    typeName?: string;
+    products?: OperationProductDto[];
+}
 
 export default function MapWithPolygons(props: { farm_id: string }) {
     const { t } = useTranslation();
+    const { user } = useAuth();
     const center: [number, number] = [50.668333, 4.621278];
+    const POPUP_WIDTH = 420;
+    const POPUP_HEIGHT = 520;
+    const POPUP_PADDING = 12;
     
     // State
     const [polygons, setPolygons] = useState<PolygonData[]>([]);
@@ -48,7 +78,25 @@ export default function MapWithPolygons(props: { farm_id: string }) {
     const [isListCollapsed, setIsListCollapsed] = useState(false);
     const [listFilter, setListFilter] = useState<'all' | 'visible' | 'hidden'>('all');
     const [searchQuery, setSearchQuery] = useState('');
+    const [operationPopup, setOperationPopup] = useState<{ x: number; y: number; polygonId: string } | null>(null);
+    const [popupCoords, setPopupCoords] = useState<{ left: number; top: number } | null>(null);
+    const [currentParcelId, setCurrentParcelId] = useState<string | null>(null);
+    const [operationTypes, setOperationTypes] = useState<OperationTypeDto[]>([]);
+    const [units, setUnits] = useState<UnitDto[]>([]);
+    const [products, setProducts] = useState<ProductDto[]>([]);
+    const [tools, setTools] = useState<ToolDto[]>([]);
+    const [operationTypeId, setOperationTypeId] = useState<string>("");
+    const [operationDate, setOperationDate] = useState<string>("");
+    const [operationDurationMinutes, setOperationDurationMinutes] = useState<string>("");
+    const [operationLines, setOperationLines] = useState<OperationProductInputState[]>([{ productId: "", quantity: "", unitId: "", toolId: "" }]);
+    const [operationError, setOperationError] = useState<string | null>(null);
+    const [operationLoading, setOperationLoading] = useState(false);
+    const [parcelOperations, setParcelOperations] = useState<ParcelOperationDto[]>([]);
+    const [preferTopRight, setPreferTopRight] = useState<boolean>(!!user?.operationsPopupTopRight);
+    const [isMobile, setIsMobile] = useState(false);
+    const [dragState, setDragState] = useState<{ active: boolean; offsetX: number; offsetY: number }>({ active: false, offsetX: 0, offsetY: 0 });
     const originalColorRef = useRef<string | null>(null);
+    const listBarRef = useRef<HTMLDivElement>(null);
     
     // Refs
     const featureGroupRef = useRef<L.FeatureGroup>(null);
@@ -64,6 +112,20 @@ export default function MapWithPolygons(props: { farm_id: string }) {
     const toolbarButtonBase = "inline-flex items-center justify-center rounded-2xl border px-3 py-2 text-sm font-semibold shadow-lg shadow-slate-900/10 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-200";
 
     const getMap = () => (featureGroupRef.current as any)?._map || (featureGroupRef.current as any)?.getMap?.();
+
+    const clampToViewport = useCallback((left: number, top: number, width: number, height: number) => {
+        const vw = typeof window !== 'undefined' ? window.innerWidth : width;
+        const vh = typeof window !== 'undefined' ? window.innerHeight : height;
+        const x = Math.max(POPUP_PADDING, Math.min(left, vw - width - POPUP_PADDING));
+        const y = Math.max(POPUP_PADDING, Math.min(top, vh - height - POPUP_PADDING));
+        return { x, y };
+    }, [POPUP_PADDING]);
+
+    const clampToRect = useCallback((left: number, top: number, width: number, height: number, rect: DOMRect) => {
+        const x = Math.max(rect.left + POPUP_PADDING, Math.min(left, rect.right - width - POPUP_PADDING));
+        const y = Math.max(rect.top + POPUP_PADDING, Math.min(top, rect.bottom - height - POPUP_PADDING));
+        return { x, y };
+    }, [POPUP_PADDING]);
 
     const togglePolygonVisibility = useCallback((id: string) => {
         setPolygons(prev => prev.map(p => p.id === id ? { ...p, visible: !p.visible } : p));
@@ -298,6 +360,100 @@ export default function MapWithPolygons(props: { farm_id: string }) {
         originalColorRef.current = null;
     }, []);
 
+    const resetOperationForm = useCallback(() => {
+        setOperationTypeId("");
+        setOperationDate("");
+        setOperationDurationMinutes("");
+        setOperationLines([{ productId: "", quantity: "", unitId: "", toolId: "" }]);
+        setOperationError(null);
+    }, []);
+
+    const closeOperationPopup = useCallback(() => {
+        setOperationPopup(null);
+        setCurrentParcelId(null);
+        resetOperationForm();
+    }, [resetOperationForm]);
+
+    const loadOperationReferences = useCallback(async () => {
+        try {
+            const [typesRes, unitsRes, productsRes, toolsRes] = await Promise.all([
+                apiGet(`/operations/types`),
+                apiGet(`/units`),
+                apiGet(`/farm/${props.farm_id}/products`),
+                apiGet(`/farm/${props.farm_id}/tools`),
+            ]);
+
+            if (typesRes.ok) setOperationTypes(await typesRes.json());
+            if (unitsRes.ok) setUnits(await unitsRes.json());
+            if (productsRes.ok) setProducts(await productsRes.json());
+            if (toolsRes.ok) setTools(await toolsRes.json());
+        } catch (err) {
+            console.error("Failed to load operation references", err);
+        }
+    }, [props.farm_id]);
+
+    const loadParcelOperations = useCallback(async (parcelId: string) => {
+        setOperationLoading(true);
+        setOperationError(null);
+        try {
+            const res = await apiGet(`/farm/${props.farm_id}/parcels/${parcelId}/operations`);
+            if (!res.ok) throw new Error("failed");
+            const data = await res.json();
+            setParcelOperations(data);
+        } catch (err) {
+            console.error(err);
+            setOperationError(t('operations.errorLoad', { defaultValue: 'Unable to load operations' }));
+        } finally {
+            setOperationLoading(false);
+        }
+    }, [props.farm_id, t]);
+
+    const handleAddOperationLine = useCallback(() => {
+        setOperationLines(prev => [...prev, { productId: "", quantity: "", unitId: "", toolId: "" }]);
+    }, []);
+
+    const handleRemoveOperationLine = useCallback((index: number) => {
+        setOperationLines(prev => prev.filter((_, i) => i !== index));
+    }, []);
+
+    const updateOperationLine = useCallback((index: number, key: keyof OperationProductInputState, value: string) => {
+        setOperationLines(prev => prev.map((line, i) => i === index ? { ...line, [key]: value } : line));
+    }, []);
+
+    const handleSaveOperation = useCallback(async () => {
+        if (!currentParcelId) return;
+        setOperationLoading(true);
+        setOperationError(null);
+        try {
+            const productsPayload = operationLines
+                .filter(line => line.productId)
+                .map(line => ({
+                    productId: Number(line.productId),
+                    quantity: line.quantity ? Number(line.quantity) : undefined,
+                    unitId: line.unitId ? Number(line.unitId) : undefined,
+                    toolId: line.toolId ? Number(line.toolId) : undefined,
+                }));
+
+            const payload: any = {
+                typeId: operationTypeId ? Number(operationTypeId) : undefined,
+                date: operationDate ? new Date(operationDate).toISOString() : undefined,
+                durationSeconds: operationDurationMinutes ? Number(operationDurationMinutes) * 60 : undefined,
+                products: productsPayload,
+            };
+
+            const res = await apiPost(`/farm/${props.farm_id}/parcels/${currentParcelId}/operations`, payload);
+            if (!res.ok) throw new Error("failed");
+
+            resetOperationForm();
+            await loadParcelOperations(currentParcelId);
+        } catch (err) {
+            console.error(err);
+            setOperationError(t('operations.errorCreate', { defaultValue: 'Failed to save operation' }));
+        } finally {
+            setOperationLoading(false);
+        }
+    }, [currentParcelId, operationLines, operationTypeId, operationDate, operationDurationMinutes, props.farm_id, loadParcelOperations, resetOperationForm, t]);
+
     const handleOverlapIgnore = useCallback(async () => {
         if (!overlapWarning) return;
         
@@ -528,6 +684,97 @@ export default function MapWithPolygons(props: { farm_id: string }) {
         setOverlapWarning(null);
         setShowPreview(false);
     }, [overlapWarning, areaName, t]);
+
+    useEffect(() => {
+        loadOperationReferences();
+    }, [loadOperationReferences]);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        const mq = window.matchMedia('(max-width: 768px)');
+        const handler = (e: MediaQueryListEvent | MediaQueryList) => setIsMobile(e.matches);
+        handler(mq);
+        mq.addEventListener ? mq.addEventListener('change', handler) : mq.addListener(handler as any);
+        return () => {
+            mq.removeEventListener ? mq.removeEventListener('change', handler) : mq.removeListener(handler as any);
+        };
+    }, []);
+
+    const prefKey = useMemo(() => user ? `opsTopRight:${user.id}` : 'opsTopRight:anon', [user]);
+
+    const persistPreferenceRemote = useCallback(async (next: boolean) => {
+        try {
+            await apiPut('/users/me/preferences', { operationsPopupTopRight: next });
+        } catch (err) {
+            console.error('Failed to persist operations popup preference remotely', err);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (user?.operationsPopupTopRight === undefined) return;
+        setPreferTopRight(user.operationsPopupTopRight);
+        try {
+            localStorage.setItem(prefKey, user.operationsPopupTopRight ? '1' : '0');
+        } catch (err) {
+            console.error('Failed to sync operations popup preference from profile', err);
+        }
+    }, [user?.operationsPopupTopRight, prefKey]);
+
+    useEffect(() => {
+        try {
+            const stored = localStorage.getItem(prefKey);
+            if (stored) setPreferTopRight(stored === '1');
+        } catch (err) {
+            console.error('Failed to read operations popup preference', err);
+        }
+    }, [prefKey]);
+
+    useEffect(() => {
+        try {
+            localStorage.setItem(prefKey, preferTopRight ? '1' : '0');
+        } catch (err) {
+            console.error('Failed to persist operations popup preference', err);
+        }
+        persistPreferenceRemote(preferTopRight);
+    }, [prefKey, preferTopRight, persistPreferenceRemote]);
+
+    useEffect(() => {
+        if (!operationPopup) {
+            setPopupCoords(null);
+            return;
+        }
+        const mapRect = getMap()?.getContainer?.()?.getBoundingClientRect?.();
+        if (preferTopRight && mapRect) {
+            const pos = clampToRect(mapRect.right - POPUP_WIDTH - POPUP_PADDING, mapRect.top + POPUP_PADDING, POPUP_WIDTH, POPUP_HEIGHT, mapRect);
+            setPopupCoords({ left: pos.x, top: pos.y });
+            return;
+        }
+        const fallbackPos = clampToRect(operationPopup.x, operationPopup.y, POPUP_WIDTH, POPUP_HEIGHT, mapRect ?? new DOMRect(0, 0, window.innerWidth, window.innerHeight));
+        setPopupCoords({ left: fallbackPos.x, top: fallbackPos.y });
+    }, [operationPopup, preferTopRight, clampToRect, POPUP_WIDTH, POPUP_HEIGHT, POPUP_PADDING]);
+
+    const startDrag = useCallback((e: React.MouseEvent) => {
+        if (!popupCoords || isMobile) return;
+        e.preventDefault();
+        setDragState({ active: true, offsetX: e.clientX - popupCoords.left, offsetY: e.clientY - popupCoords.top });
+    }, [popupCoords, isMobile]);
+
+    useEffect(() => {
+        if (!dragState.active) return;
+        const handleMove = (e: MouseEvent) => {
+            const nextLeft = e.clientX - dragState.offsetX;
+            const nextTop = e.clientY - dragState.offsetY;
+            const pos = clampToViewport(nextLeft, nextTop, POPUP_WIDTH, POPUP_HEIGHT);
+            setPopupCoords({ left: pos.x, top: pos.y });
+        };
+        const handleUp = () => setDragState(prev => ({ ...prev, active: false }));
+        window.addEventListener('mousemove', handleMove);
+        window.addEventListener('mouseup', handleUp);
+        return () => {
+            window.removeEventListener('mousemove', handleMove);
+            window.removeEventListener('mouseup', handleUp);
+        };
+    }, [dragState.active, dragState.offsetX, dragState.offsetY, clampToViewport, POPUP_WIDTH, POPUP_HEIGHT]);
 
     // Creation
     const getPointCount = (handler: any) => {
@@ -793,7 +1040,8 @@ export default function MapWithPolygons(props: { farm_id: string }) {
             contextmenu: e => {
                 if (!editingId && !isCreating) {
                     e.originalEvent.preventDefault();
-                    setContextMenu({ x: e.originalEvent.clientX, y: e.originalEvent.clientY });
+                    const { x, y } = clampToViewport(e.originalEvent.clientX, e.originalEvent.clientY, 240, 200);
+                    setContextMenu({ x, y });
                 }
             },
             click: () => {
@@ -935,6 +1183,21 @@ export default function MapWithPolygons(props: { farm_id: string }) {
                         </button>
                         <button
                             type="button"
+                            onClick={async () => {
+                                const { x, y, polygonId } = polygonContextMenu;
+                                closePolygonContextMenu();
+                                setSelectedId(polygonId);
+                                setCurrentParcelId(polygonId);
+                                await loadParcelOperations(polygonId);
+                                setOperationPopup({ x: x + 10, y: y + 10, polygonId });
+                            }}
+                            className={`${floatingButtonClasses} text-slate-800`}
+                        >
+                            <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-50 text-base text-indigo-600">📋</span>
+                            {t('operations.title', { defaultValue: 'Parcel operations' })}
+                        </button>
+                        <button
+                            type="button"
                             onClick={() => { closePolygonContextMenu(); startEdit(polygonContextMenu.polygonId); }}
                             className={`${floatingButtonClasses} text-slate-800`}
                         >
@@ -1047,6 +1310,227 @@ export default function MapWithPolygons(props: { farm_id: string }) {
                 </div>
             )}
 
+            {operationPopup && popupCoords && (() => {
+                const listRect = listBarRef.current?.getBoundingClientRect();
+                const mobileTop = (listRect?.bottom ?? 0) + 12;
+                const viewportH = typeof window !== 'undefined' ? window.innerHeight : undefined;
+                const mobileHeight = viewportH ? Math.max(180, viewportH - mobileTop - 12) : undefined;
+                const popupStyle = isMobile
+                    ? {
+                        left: 0,
+                        top: mobileTop,
+                        width: '100vw',
+                        maxWidth: '100vw',
+                        height: mobileHeight ? `${mobileHeight}px` : undefined,
+                        maxHeight: mobileHeight ? `${mobileHeight}px` : undefined,
+                    }
+                    : { left: popupCoords.left, top: popupCoords.top };
+
+                return createPortal(
+                    <div
+                        className="fixed z-[120000] w-[420px] max-w-[94vw] max-h-[82vh] overflow-y-auto rounded-2xl border border-white/10 bg-slate-900/95 p-4 text-white shadow-2xl shadow-black/40 backdrop-blur"
+                        style={popupStyle}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="mb-3 flex items-start justify-between gap-3">
+                            <div className="cursor-move" onMouseDown={startDrag}>
+                                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-indigo-200">{t('operations.title', { defaultValue: 'Parcel operations' })}</p>
+                                <h3 className="text-lg font-semibold text-white">{polygons.find(p => p.id === operationPopup.polygonId)?.name || t('map.unnamedParcel')}</h3>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <label className="flex items-center gap-1 text-xs font-semibold text-slate-200">
+                                    <input
+                                        type="checkbox"
+                                        checked={preferTopRight}
+                                        onChange={(e) => setPreferTopRight(e.target.checked)}
+                                        className="h-4 w-4 rounded border-white/30 bg-white/10 text-indigo-500"
+                                    />
+                                    {t('operations.pinTopRight', { defaultValue: 'Open top-right' })}
+                                </label>
+                                <button
+                                    type="button"
+                                    onClick={closeOperationPopup}
+                                    className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/15 bg-white/5 text-slate-200 transition hover:bg-white/10"
+                                >
+                                    ×
+                                </button>
+                            </div>
+                        </div>
+
+                        {operationError && (
+                            <div className="mb-3 rounded-lg border border-rose-500/40 bg-rose-500/15 px-3 py-2 text-sm text-rose-100">
+                                {operationError}
+                            </div>
+                        )}
+
+                        {operationLoading && (
+                            <div className="mb-3 flex items-center gap-2 rounded-xl border border-indigo-300/30 bg-indigo-500/10 px-3 py-2 text-sm text-indigo-50">
+                                <span className="inline-block h-3 w-3 animate-pulse rounded-full bg-indigo-200" aria-hidden="true" />
+                                {t('common.loading', { defaultValue: 'Loading...' })}
+                            </div>
+                        )}
+
+                        <div className="space-y-3">
+                            <select
+                                value={operationTypeId}
+                                onChange={(e) => setOperationTypeId(e.target.value)}
+                                className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-indigo-300"
+                            >
+                                <option value="">{t('operations.selectTypePlaceholder', { defaultValue: 'Select operation type' })}</option>
+                                {operationTypes.map(type => (
+                                    <option key={type.id} value={type.id}>{type.name}</option>
+                                ))}
+                            </select>
+
+                            <div className="grid grid-cols-2 gap-3">
+                                <input
+                                    type="datetime-local"
+                                    value={operationDate}
+                                    onChange={(e) => setOperationDate(e.target.value)}
+                                    className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-indigo-300"
+                                />
+                                <input
+                                    type="number"
+                                    min="0"
+                                    placeholder={t('operations.durationLabel', { defaultValue: 'Duration (minutes)' })}
+                                    value={operationDurationMinutes}
+                                    onChange={(e) => setOperationDurationMinutes(e.target.value)}
+                                    className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-indigo-300"
+                                />
+                            </div>
+
+                            <div className="flex items-center justify-between text-sm text-slate-100">
+                                <span>{t('operations.productsTools', { defaultValue: 'Products & Tools' })}</span>
+                                <button
+                                    type="button"
+                                    onClick={handleAddOperationLine}
+                                    className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-white hover:bg-white/10"
+                                >
+                                    + {t('common.add', { defaultValue: 'Add' })}
+                                </button>
+                            </div>
+
+                            <div className="flex flex-col gap-2">
+                                {operationLines.map((line, index) => (
+                                    <div key={index} className="grid grid-cols-5 gap-2 text-sm">
+                                        <select
+                                            value={line.productId}
+                                            onChange={(e) => updateOperationLine(index, 'productId', e.target.value)}
+                                            className="rounded-md border border-white/10 bg-white/5 px-2 py-2 text-white outline-none focus:border-indigo-300"
+                                        >
+                                            <option value="">{t('common.select', { defaultValue: 'Select' })}</option>
+                                            {products.map(p => (
+                                                <option key={p.id} value={p.id}>{p.name}</option>
+                                            ))}
+                                        </select>
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            placeholder={t('common.quantity', { defaultValue: 'Qty' })}
+                                            value={line.quantity}
+                                            onChange={(e) => updateOperationLine(index, 'quantity', e.target.value)}
+                                            className="rounded-md border border-white/10 bg-white/5 px-2 py-2 text-white outline-none focus:border-indigo-300"
+                                        />
+                                        <select
+                                            value={line.unitId}
+                                            onChange={(e) => updateOperationLine(index, 'unitId', e.target.value)}
+                                            className="rounded-md border border-white/10 bg-white/5 px-2 py-2 text-white outline-none focus:border-indigo-300"
+                                        >
+                                            <option value="">{t('operations.unit', { defaultValue: 'Unit' })}</option>
+                                            {units.map(u => (
+                                                <option key={u.id} value={u.id}>{u.value}</option>
+                                            ))}
+                                        </select>
+                                        <select
+                                            value={line.toolId}
+                                            onChange={(e) => updateOperationLine(index, 'toolId', e.target.value)}
+                                            className="rounded-md border border-white/10 bg-white/5 px-2 py-2 text-white outline-none focus:border-indigo-300"
+                                        >
+                                            <option value="">{t('operations.tool', { defaultValue: 'Tool' })}</option>
+                                            {tools.map(tl => (
+                                                <option key={tl.id} value={tl.id}>{tl.name}</option>
+                                            ))}
+                                        </select>
+                                        <div className="flex items-center justify-end">
+                                            {operationLines.length > 1 && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleRemoveOperationLine(index)}
+                                                    className="text-xs font-semibold text-rose-200 hover:text-rose-100"
+                                                >
+                                                    {t('common.delete', { defaultValue: 'Remove' })}
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <div className="flex justify-end gap-2">
+                                <button
+                                    type="button"
+                                    onClick={resetOperationForm}
+                                    disabled={operationLoading}
+                                    className="rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-60"
+                                >
+                                    {t('common.cancel', { defaultValue: 'Cancel' })}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleSaveOperation}
+                                    disabled={!currentParcelId || operationLoading}
+                                    className="rounded-xl border border-indigo-400/70 bg-gradient-to-r from-indigo-500 to-indigo-600 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-indigo-500/25 transition hover:from-indigo-500 hover:to-indigo-500 disabled:opacity-60"
+                                >
+                                    {operationLoading ? t('common.loading', { defaultValue: 'Loading...' }) : t('operations.submit', { defaultValue: 'Save operation' })}
+                                </button>
+                            </div>
+
+                            <div>
+                                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-200">{t('operations.history', { defaultValue: 'History' })}</p>
+                                <div className="mt-2 flex max-h-56 flex-col gap-2 overflow-y-auto">
+                                    {parcelOperations.length === 0 && (
+                                        <div className="text-sm text-slate-200/80">{t('operations.emptyHistory', { defaultValue: 'No operations yet' })}</div>
+                                    )}
+                                    {parcelOperations.map(op => (
+                                        <div key={op.id} className="rounded-xl border border-white/10 bg-white/5 p-3">
+                                            <div className="flex items-center justify-between gap-3">
+                                                <div>
+                                                    <div className="font-semibold text-white">{op.typeName || t('operations.selectTypePlaceholder', { defaultValue: 'Operation' })}</div>
+                                                    <div className="text-xs text-slate-200/80">{op.date ? new Date(op.date).toLocaleString() : ''}</div>
+                                                </div>
+                                                {op.durationSeconds != null && (
+                                                    <span className="rounded-full bg-white/10 px-2 py-1 text-[11px] font-semibold text-white">
+                                                        {(op.durationSeconds / 60).toFixed(0)} min
+                                                    </span>
+                                                )}
+                                            </div>
+                                            {op.products && op.products.length > 0 && (
+                                                <div className="mt-2 border-t border-white/10 pt-2 text-sm text-white">
+                                                    {op.products.map(p => (
+                                                        <div key={p.id || `${p.productId}-${p.toolId}`} className="flex items-center justify-between">
+                                                            <span>
+                                                                <strong>{p.productName || t('operations.product', { defaultValue: 'Product' })}</strong>
+                                                                {p.quantity != null && (
+                                                                    <span className="text-slate-200/80"> {p.quantity}{p.unitValue ? ` ${p.unitValue}` : ''}</span>
+                                                                )}
+                                                            </span>
+                                                            {p.toolName && (
+                                                                <span className="rounded-full bg-indigo-500/20 px-2 py-1 text-[11px] font-semibold text-indigo-100">{p.toolName}</span>
+                                                            )}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    </div>,
+                    document.body
+                );
+            })()}
             {renamingId && (
                 <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 10001 }}>
                     <div style={{ background: "#fff", padding: "2rem", borderRadius: 8, boxShadow: "0 4px 24px rgba(0,0,0,0.3)", minWidth: 400, display: "flex", flexDirection: "column", gap: "1.5rem" }}>
@@ -1151,6 +1635,7 @@ export default function MapWithPolygons(props: { farm_id: string }) {
                                 boxShadow: '0 18px 35px rgba(15,23,42,0.35)',
                                 backdropFilter: 'blur(6px)',
                             }}
+                            ref={listBarRef}
                         >
                             <div
                                 style={{
@@ -1353,9 +1838,10 @@ export default function MapWithPolygons(props: { farm_id: string }) {
                                             L.DomEvent.stopPropagation(e as any); 
                                             if (!editingId) {
                                                 e.originalEvent.preventDefault();
+                                                const { x, y } = clampToViewport(e.originalEvent.clientX, e.originalEvent.clientY, 260, 260);
                                                 setPolygonContextMenu({ 
-                                                    x: e.originalEvent.clientX, 
-                                                    y: e.originalEvent.clientY, 
+                                                    x, 
+                                                    y, 
                                                     polygonId: poly.id 
                                                 });
                                                 setSelectedId(poly.id);

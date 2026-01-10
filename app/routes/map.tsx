@@ -3,6 +3,7 @@ import { Link } from "react-router";
 import { useTranslation } from "react-i18next";
 import { useFarm } from "../contexts/FarmContext";
 import { useAuth } from "../contexts/AuthContext";
+import type { TutorialState } from "../contexts/AuthContext";
 import ProtectedRoute from "~/components/ProtectedRoute";
 import { useCurrentLocale } from "../hooks/useCurrentLocale";
 import { buildLocalizedPath } from "../utils/locale";
@@ -11,12 +12,13 @@ import MapTourOverlay from "~/components/map/MapTourOverlay";
 export default function MapPage() {
     const [MapComponent, setMapComponent] = useState<React.ComponentType<any> | null>(null);
     const { farms, selectedFarm, selectFarm, isLoading: farmsLoading } = useFarm();
-    const { isAuthenticated, user } = useAuth();
+    const { isAuthenticated, user, updateTutorialState } = useAuth();
     const locale = useCurrentLocale();
     const { t } = useTranslation();
     const createFarmPath = useMemo(() => buildLocalizedPath(locale, "/create-farm"), [locale]);
     const [isTourOpen, setIsTourOpen] = useState(false);
     const [tourStep, setTourStep] = useState(0);
+    const tutorialState = user?.tutorialState ?? "NOT_STARTED";
 
     const tourSteps = useMemo(() => (
         [
@@ -47,8 +49,6 @@ export default function MapPage() {
         ].filter(step => step.title && step.description)
     ), [t]);
 
-    const tourStorageKey = useMemo(() => user ? `efms:tour:map:${user.id}` : "efms:tour:map:guest", [user]);
-
     useEffect(() => {
         if (!isAuthenticated) {
             setMapComponent(null);
@@ -70,23 +70,24 @@ export default function MapPage() {
     useEffect(() => {
         if (typeof window === "undefined") return;
         if (!isAuthenticated || !selectedFarm || !MapComponent) return;
-        if (localStorage.getItem(tourStorageKey)) return;
+        if (tutorialState === "COMPLETED") return;
 
         const timer = window.setTimeout(() => {
             setTourStep(0);
             setIsTourOpen(true);
+            if (tutorialState === "NOT_STARTED") {
+                updateTutorialState("IN_PROGRESS").catch((err) => console.error("Failed to mark tutorial in progress", err));
+            }
         }, 400);
 
         return () => window.clearTimeout(timer);
-    }, [isAuthenticated, selectedFarm, MapComponent, tourStorageKey]);
+    }, [MapComponent, isAuthenticated, selectedFarm, tutorialState, updateTutorialState]);
 
-    const closeTour = useCallback(() => {
-        if (typeof window !== "undefined") {
-            localStorage.setItem(tourStorageKey, "done");
-        }
+    const closeTour = useCallback((finalState: TutorialState = "COMPLETED") => {
+        updateTutorialState(finalState).catch((err) => console.error("Failed to persist tutorial state", err));
         setIsTourOpen(false);
         setTourStep(0);
-    }, [tourStorageKey]);
+    }, [updateTutorialState]);
 
     const handleNextStep = useCallback(() => {
         setTourStep((prev) => Math.min(prev + 1, Math.max(tourSteps.length - 1, 0)));
@@ -130,8 +131,8 @@ export default function MapPage() {
                                 currentStep={tourStep}
                                 onNext={handleNextStep}
                                 onPrev={handlePrevStep}
-                                onSkip={closeTour}
-                                onFinish={closeTour}
+                                onSkip={() => closeTour("COMPLETED")}
+                                onFinish={() => closeTour("COMPLETED")}
                                 labels={{
                                     step: t("map.tour.controls.step", { current: tourStep + 1, total: tourSteps.length }),
                                     skip: t("map.tour.controls.skip"),
