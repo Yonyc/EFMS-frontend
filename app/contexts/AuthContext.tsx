@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { ReactNode } from 'react';
 import { apiRequest } from '~/utils/api';
+import { apiUrl } from '~/config';
 
 export type TutorialState = 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED';
 
@@ -10,6 +11,7 @@ interface User {
   email?: string;
   tutorialState?: TutorialState;
   operationsPopupTopRight?: boolean;
+  avatarUrl?: string;
 }
 
 interface AuthContextType {
@@ -24,6 +26,13 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+const absolutizeAvatar = (url?: string): string | undefined => {
+  if (!url) return url;
+  const absolute = url.startsWith('http://') || url.startsWith('https://') ? url : `${apiUrl}${url}`;
+  const cacheBust = `v=${Date.now()}`;
+  return absolute.includes('?') ? `${absolute}&${cacheBust}` : `${absolute}?${cacheBust}`;
+};
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -61,8 +70,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const refreshedUser: User = {
         id: String(data.id),
         username: data.username,
+        email: data.email,
         tutorialState: data.tutorialState as TutorialState,
         operationsPopupTopRight: data.operationsPopupTopRight,
+        avatarUrl: absolutizeAvatar(data.avatarUrl),
       };
       persistSession(activeToken, refreshedUser);
       return refreshedUser;
@@ -110,13 +121,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       const data = await response.json();
-      const { token: newToken, user_id, tutorialState, operationsPopupTopRight } = data;
+      const { token: newToken, user_id, tutorialState, operationsPopupTopRight, email: userEmail, avatarUrl } = data;
 
       const newUser: User = {
         id: String(user_id),
         username,
+        email: userEmail,
         tutorialState: tutorialState as TutorialState,
         operationsPopupTopRight,
+        avatarUrl: absolutizeAvatar(avatarUrl),
       };
       persistSession(newToken, newUser);
     } catch (error) {
@@ -142,7 +155,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const updatedUser: User = {
         id: String(data.id),
         username: data.username,
+        email: data.email,
         tutorialState: data.tutorialState as TutorialState,
+        operationsPopupTopRight: data.operationsPopupTopRight,
+        avatarUrl: absolutizeAvatar(data.avatarUrl),
       };
       persistSession(token, updatedUser);
       return updatedUser;
