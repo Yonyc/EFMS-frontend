@@ -7,6 +7,11 @@ interface Farm {
   id: string;
   name: string;
   location?: string;
+  description?: string;
+  isPublic?: boolean;
+  showName?: boolean;
+  showDescription?: boolean;
+  showLocation?: boolean;
 }
 
 interface FarmContextType {

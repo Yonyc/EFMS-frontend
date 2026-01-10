@@ -7,6 +7,7 @@ export default [
 	route(":locale/login", "routes/login.tsx"),
 	route(":locale/register", "routes/register.tsx"),
 	route(":locale/create-farm", "routes/create-farm.tsx"),
+	route(":locale/public-farms", "routes/public-farms.tsx"),
 	route(":locale/map", "routes/map.tsx"),
 	route(":locale/profile", "routes/profile.tsx"),
 	route(":locale/operations", "routes/operations.tsx"),

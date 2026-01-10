@@ -2,6 +2,7 @@
   "nav": {
     "home": "Accueil",
     "map": "Carte",
+    "public_farms": "Exploitations publiques",
     "assets": "Ressources",
     "operations": "Opérations",
     "wiki": "Wiki",
@@ -11,7 +12,7 @@
     "settings": "Paramètres",
     "sign_out": "Se déconnecter",
     "sign_in": "Se connecter",
-    "create_farm": "Créer une exploitation"
+    "create_farm": "Gérer les exploitations"
   },
   "languages": {
     "en": "English",
@@ -148,19 +149,52 @@
     "error": "Échec du chargement des exploitations",
     "selectFarm": "Sélectionner une exploitation"
   },
-  "createFarm": {
-    "title": "Créer une nouvelle exploitation",
-    "description": "Saisissez les détails de votre nouvelle exploitation",
+  "manageFarms": {
+    "title": "Gérer les exploitations",
+    "description": "Renommez une exploitation existante ou ajoutez-en une nouvelle.",
+    "currentTitle": "Exploitation actuelle",
+    "currentDescription": "Sélectionnez une exploitation pour modifier ses paramètres.",
     "nameLabel": "Nom de l'exploitation",
     "namePlaceholder": "Saisir le nom de l'exploitation",
     "nameHelp": "Minimum 3 caractères",
     "errors": {
       "required": "Le nom de l'exploitation est obligatoire",
       "minLength": "Le nom de l'exploitation doit contenir au moins 3 caractères",
-      "generic": "Échec de la création de l'exploitation. Veuillez réessayer."
+      "generic": "La requête a échoué. Veuillez réessayer.",
+      "noSelection": "Sélectionnez d'abord une exploitation"
     },
+    "update": "Enregistrer",
+    "updating": "Enregistrement...",
+    "updated": "Exploitation mise à jour",
+    "newTitle": "Ajouter une nouvelle exploitation",
+    "newDescription": "Créez une autre exploitation et commencez la cartographie.",
+    "descriptionLabel": "Description",
+    "locationLabel": "Localisation",
+    "visibility": "Visibilité",
+    "public": "Listing public",
+    "showName": "Afficher le nom",
+    "showDescription": "Afficher la description",
+    "showLocation": "Afficher la localisation",
     "submit": "Créer l'exploitation",
-    "submitting": "Création..."
+    "submitting": "Création...",
+    "created": "Exploitation créée"
+  },
+  "publicFarms": {
+    "title": "Exploitations publiques",
+    "subtitle": "Exploitations ayant choisi le listing public. Seuls les champs marqués visibles par les propriétaires apparaissent ici.",
+    "refresh": "Actualiser",
+    "loading": "Chargement des exploitations publiques...",
+    "error": "Impossible de charger les exploitations publiques.",
+    "empty": "Aucune exploitation publique pour l'instant.",
+    "emptyHint": "Réessayez plus tard ou actualisez.",
+    "countLabel": "Exploitations publiques : {{count}}",
+    "nameHidden": "Nom masqué",
+    "descriptionHidden": "Description masquée",
+    "descriptionMissing": "Aucune description partagée",
+    "locationHidden": "Localisation masquée",
+    "locationMissing": "Aucune localisation partagée",
+    "publicBadge": "Public",
+    "note": "Les propriétaires décident quoi afficher. Les champs masqués restent privés."
   },
   "auth": {
     "shared": {

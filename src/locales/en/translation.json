@@ -2,6 +2,7 @@
   "nav": {
     "home": "Home",
     "map": "Map",
+    "public_farms": "Public farms",
     "assets": "Assets",
     "operations": "Operations",
     "wiki": "Wiki",
@@ -11,7 +12,7 @@
     "settings": "Settings",
     "sign_out": "Sign out",
     "sign_in": "Sign In",
-    "create_farm": "Create Farm"
+    "create_farm": "Manage Farms"
   },
   "languages": {
     "en": "English",
@@ -148,19 +149,52 @@
     "error": "Failed to load farms",
     "selectFarm": "Select Farm"
   },
-  "createFarm": {
-    "title": "Create a New Farm",
-    "description": "Enter the details for your new farm",
-    "nameLabel": "Farm Name",
+  "manageFarms": {
+    "title": "Manage Farms",
+    "description": "Rename an existing farm or add a new one.",
+    "currentTitle": "Current farm",
+    "currentDescription": "Select a farm to edit its settings.",
+    "nameLabel": "Farm name",
     "namePlaceholder": "Enter farm name",
     "nameHelp": "Minimum 3 characters",
     "errors": {
       "required": "Farm name is required",
       "minLength": "Farm name must be at least 3 characters long",
-      "generic": "Failed to create farm. Please try again."
+      "generic": "Request failed. Please try again.",
+      "noSelection": "Select a farm first"
     },
+    "update": "Save changes",
+    "updating": "Saving...",
+    "updated": "Farm updated",
+    "newTitle": "Add a new farm",
+    "newDescription": "Create another farm and start mapping it.",
+    "descriptionLabel": "Description",
+    "locationLabel": "Location",
+    "visibility": "Visibility",
+    "public": "Public listing",
+    "showName": "Show name",
+    "showDescription": "Show description",
+    "showLocation": "Show location",
     "submit": "Create Farm",
-    "submitting": "Creating..."
+    "submitting": "Creating...",
+    "created": "Farm created"
+  },
+  "publicFarms": {
+    "title": "Public farms",
+    "subtitle": "Farms that opted into public listing. Only fields their owners marked visible appear here.",
+    "refresh": "Refresh",
+    "loading": "Loading public farms...",
+    "error": "Unable to load public farms.",
+    "empty": "No public farms are listed yet.",
+    "emptyHint": "Check back later or refresh.",
+    "countLabel": "Public farms: {{count}}",
+    "nameHidden": "Name hidden",
+    "descriptionHidden": "Description hidden",
+    "descriptionMissing": "No description shared",
+    "locationHidden": "Location hidden",
+    "locationMissing": "No location shared",
+    "publicBadge": "Public",
+    "note": "Owners choose what to show. Hidden fields stay private."
   },
   "auth": {
     "shared": {
