@@ -9,6 +9,8 @@ export interface PolygonData {
     startValidity?: string;
     endValidity?: string;
     farmId?: number;
+    validationStatus?: string;
+    convertedParcelId?: number | null;
 }
 
 export interface EditState {

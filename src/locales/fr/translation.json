@@ -3,6 +3,7 @@
     "home": "Accueil",
     "map": "Carte",
     "wiki": "Wiki",
+    "imports": "Importations",
     "language_switcher": "Sélecteur de langue",
     "user_menu": "Menu utilisateur",
     "profile": "Votre profil",
@@ -10,6 +11,51 @@
     "sign_out": "Se déconnecter",
     "sign_in": "Se connecter",
     "create_farm": "Créer une exploitation"
+  },
+  "imports": {
+    "title": "Listes d'import",
+    "subtitle": "Validez vos prochaines importations",
+    "description": "Sélectionnez un lot pour vérifier ses polygones avant de l'appliquer à votre exploitation.",
+    "status": {
+      "pending": "En attente",
+      "approved": "Approuvée",
+      "rejected": "Rejetée"
+    },
+    "list": {
+      "loading": "Chargement des importations...",
+      "error": "Impossible de charger les listes d'importation",
+      "empty": "Aucun lot d'importation pour le moment.",
+      "createdAt": "Créé le {{date}}",
+      "untitled": "Lot sans nom",
+      "polygons": "Polygones",
+      "source": "Source",
+      "open": "Ouvrir pour validation"
+    },
+    "map": {
+      "title": "Validation d'import",
+      "loadingMap": "Chargement de la carte...",
+      "loadingDetails": "Chargement des détails du lot...",
+      "polygonsCount": "{{count}} polygones à valider",
+      "instructions": "Ajustez les polygones puis approuvez la liste pour l'importer.",
+      "noSelectionTitle": "Sélectionnez un lot d'importation",
+      "noSelectionDescription": "Choisissez un lot dans la liste des importations pour commencer la validation.",
+      "returnToList": "Retour aux importations",
+      "approveButton": "Approuver la liste d'importation",
+      "approveOne": "Approuver",
+      "reapproveOne": "Réapprouver",
+      "approveOneSuccess": "Parcelle approuvée",
+      "approveFarmRequired": "Sélectionnez une exploitation avant d'approuver.",
+      "approveSuccess": "Liste d'importation approuvée avec succès.",
+      "approveError": "Impossible d'approuver la liste d'importation.",
+      "loadError": "Échec du chargement des détails de l'importation"
+    },
+    "upload": {
+      "button": "Téléverser un ZIP",
+      "uploading": "Téléversement…",
+      "helper": "Importez un fichier ZIP pour créer une nouvelle liste d'importation.",
+      "success": "Téléversement terminé. Traitement en cours…",
+      "error": "Échec du téléversement. Veuillez réessayer."
+    }
   },
   "languages": {
     "en": "English",
@@ -89,13 +135,18 @@
       "hidden": "Masquée sur la carte",
       "toggle": "Afficher/masquer la liste des parcelles",
       "helper": "Cliquez sur le nom pour renommer",
+      "center": "Centrer sur la carte",
       "emptyFiltered": "Aucune parcelle ne correspond à ce filtre",
       "searchPlaceholder": "Rechercher une parcelle",
       "clearSearch": "Effacer la recherche",
       "filters": {
+        "label": "Filtres",
         "all": "Toutes",
         "visible": "Visibles",
-        "hidden": "Masquées"
+        "hidden": "Masquées",
+        "approved": "Approuvées",
+        "unapproved": "Non approuvées",
+        "selected": "{{count}} sélectionnées"
       }
     },
     "contextMenu": {

@@ -149,6 +149,14 @@ export default function Navbar({ currentLocale }: NavbarProps) {
                                     </MenuItem>
                                     <MenuItem>
                                         <Link
+                                            to={localizedPath('imports')}
+                                            className="block px-4 py-2 text-sm text-gray-300 data-focus:bg-white/5 data-focus:outline-hidden"
+                                        >
+                                            {t('nav.imports')}
+                                        </Link>
+                                    </MenuItem>
+                                    <MenuItem>
+                                        <Link
                                             to={localizedPath('create-farm')}
                                             className="block px-4 py-2 text-sm text-gray-300 data-focus:bg-white/5 data-focus:outline-hidden"
                                         >

@@ -12,10 +12,12 @@ export async function apiRequest(
   endpoint: string,
   options: ApiRequestOptions = {}
 ): Promise<Response> {
-  const { requireAuth = true, headers = {}, ...restOptions } = options;
+  const { requireAuth = true, headers = {}, body, ...restOptions } = options;
+
+  const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
 
   const requestHeaders: Record<string, string> = {
-    'Content-Type': 'application/json',
+    ...(!isFormData ? { 'Content-Type': 'application/json' } : {}),
     ...(headers as Record<string, string>),
   };
 
@@ -31,6 +33,7 @@ export async function apiRequest(
 
   const response = await fetch(url, {
     ...restOptions,
+    body,
     headers: requestHeaders,
   });
 

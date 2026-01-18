@@ -3,6 +3,7 @@
     "home": "Home",
     "map": "Map",
     "wiki": "Wiki",
+    "imports": "Imports",
     "language_switcher": "Language Switcher",
     "user_menu": "User Menu",
     "profile": "Your profile",
@@ -10,6 +11,51 @@
     "sign_out": "Sign out",
     "sign_in": "Sign In",
     "create_farm": "Create Farm"
+  },
+  "imports": {
+    "title": "Import lists",
+    "subtitle": "Validate your upcoming imports",
+    "description": "Select a batch to review its polygons before applying it to your farm.",
+    "status": {
+      "pending": "Pending",
+      "approved": "Approved",
+      "rejected": "Rejected"
+    },
+    "list": {
+      "loading": "Loading imports...",
+      "error": "Unable to load import lists",
+      "empty": "No import batches found yet.",
+      "createdAt": "Created on {{date}}",
+      "untitled": "Untitled batch",
+      "polygons": "Polygons",
+      "source": "Source",
+      "open": "Open for validation"
+    },
+    "map": {
+      "title": "Import validation",
+      "loadingMap": "Loading map...",
+      "loadingDetails": "Loading batch details...",
+      "polygonsCount": "{{count}} polygons ready for review",
+      "instructions": "Adjust polygons, then approve the list to import it.",
+      "noSelectionTitle": "Select an import batch",
+      "noSelectionDescription": "Choose a batch from the imports list to start validating polygons.",
+      "returnToList": "Back to imports",
+      "approveButton": "Approve import list",
+      "approveOne": "Approve",
+      "reapproveOne": "Re-approve",
+      "approveOneSuccess": "Parcel approved",
+      "approveFarmRequired": "Select a farm before approving.",
+      "approveSuccess": "Import list approved successfully.",
+      "approveError": "Unable to approve import list.",
+      "loadError": "Failed to load import details"
+    },
+    "upload": {
+      "button": "Upload ZIP",
+      "uploading": "Uploading…",
+      "helper": "Upload a ZIP export to create a new import list.",
+      "success": "Upload complete. Processing import…",
+      "error": "Upload failed. Please try again."
+    }
   },
   "languages": {
     "en": "English",
@@ -89,13 +135,18 @@
       "hidden": "Hidden on map",
       "toggle": "Toggle polygon list",
       "helper": "Click name to rename",
+      "center": "Center on map",
       "emptyFiltered": "No polygons match this filter",
       "searchPlaceholder": "Search polygons",
       "clearSearch": "Clear search",
       "filters": {
+        "label": "Filters",
         "all": "All",
         "visible": "Visible",
-        "hidden": "Hidden"
+        "hidden": "Hidden",
+        "approved": "Approved",
+        "unapproved": "Unapproved",
+        "selected": "{{count}} selected"
       }
     },
     "contextMenu": {

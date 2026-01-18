@@ -19,11 +19,34 @@ import PolygonList from "./PolygonList";
 import OverlapModal from "./components/OverlapModal";
 import { checkOverlap, fixOverlap } from "./utils/geometry";
 import type { EditState, ManualEditContext, OverlapWarning, PolygonData } from "./types";
-import { apiGet, apiPost, apiPut } from "~/utils/api";
+import { apiDelete, apiGet, apiPost, apiPut, apiRequest } from "~/utils/api";
+import { useFarm } from "~/contexts/FarmContext";
 
-export default function MapWithPolygons(props: { farm_id: string }) {
+type MapContextType = 'farm' | 'import';
+
+interface MapWithPolygonsProps {
+    farm_id?: string;
+    contextId?: string;
+    contextType?: MapContextType;
+    allowCreate?: boolean;
+    onApproveAll?: () => Promise<void>;
+    approveLabel?: string;
+    importMode?: boolean; // when true, show statuses and allow single approval
+}
+
+export default function MapWithPolygons(props: MapWithPolygonsProps) {
     const { t } = useTranslation();
+    const { selectedFarm } = useFarm();
     const center: [number, number] = [50.668333, 4.621278];
+    const resolvedContextId = props.contextId ?? props.farm_id;
+    if (!resolvedContextId) {
+        throw new Error("MapWithPolygons requires either contextId or farm_id");
+    }
+    const contextType: MapContextType = props.contextType ?? 'farm';
+    const allowCreate = props.allowCreate ?? true;
+    const isImportMode = props.importMode ?? (contextType === 'import');
+    const basePath = isImportMode ? `/imports/${resolvedContextId}` : `/farm/${resolvedContextId}`;
+    const parcelsEndpoint = `${basePath}/parcels`;
     
     // State
     const [polygons, setPolygons] = useState<PolygonData[]>([]);
@@ -45,9 +68,13 @@ export default function MapWithPolygons(props: { farm_id: string }) {
     const [manualEditContext, setManualEditContext] = useState<ManualEditContext | null>(null);
     const [previewVisibility, setPreviewVisibility] = useState<{ original: boolean; fixed: boolean }>({ original: false, fixed: true });
     const [isListCollapsed, setIsListCollapsed] = useState(false);
-    const [listFilter, setListFilter] = useState<'all' | 'visible' | 'hidden'>('all');
+    const [listFilter, setListFilter] = useState<Array<'visible' | 'hidden' | 'approved' | 'unapproved'>>([]);
+    const [showFilterMenu, setShowFilterMenu] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
+    const [isApproving, setIsApproving] = useState(false);
+    const [approveFeedback, setApproveFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
     const originalColorRef = useRef<string | null>(null);
+    const polygonLayersRef = useRef<Map<string, L.Polygon>>(new Map());
     
     // Refs
     const featureGroupRef = useRef<L.FeatureGroup>(null);
@@ -68,12 +95,57 @@ export default function MapWithPolygons(props: { farm_id: string }) {
         setPolygons(prev => prev.map(p => p.id === id ? { ...p, name } : p));
     }, []);
 
+    const focusPolygon = useCallback((id: string) => {
+        const polygon = polygons.find(p => p.id === id);
+        const map = getMap();
+        if (!polygon || !map || !polygon.coords?.length) return;
+
+        setPolygons(prev => prev.map(p => p.id === id ? { ...p, visible: true } : p));
+        setSelectedId(id);
+
+        const bounds = L.latLngBounds(polygon.coords.map(([lat, lng]) => [lat, lng] as [number, number]));
+        if (bounds.isValid()) {
+            map.flyToBounds(bounds, { maxZoom: 18, padding: [80, 80] });
+        } else if (polygon.coords.length) {
+            map.flyTo(polygon.coords[0], 17);
+        }
+    }, [polygons]);
+
+    const filterOptions = useMemo(() => {
+        const base = [
+            { key: 'all', label: t('map.polygonList.filters.all', { defaultValue: 'All' }) },
+            { key: 'visible', label: t('map.polygonList.filters.visible', { defaultValue: 'Visible' }) },
+            { key: 'hidden', label: t('map.polygonList.filters.hidden', { defaultValue: 'Hidden' }) },
+        ];
+        if (isImportMode) {
+            base.push({ key: 'approved', label: t('map.polygonList.filters.approved', { defaultValue: 'Approved' }) });
+            base.push({ key: 'unapproved', label: t('map.polygonList.filters.unapproved', { defaultValue: 'Unapproved' }) });
+        }
+        return base;
+    }, [isImportMode, t]);
+
+    const activeFilterLabel = useMemo(() => {
+        if (!listFilter.length) {
+            return t('map.polygonList.filters.all', { defaultValue: 'All' });
+        }
+        return t('map.polygonList.filters.selected', { defaultValue: '{{count}} selected', count: listFilter.length });
+    }, [listFilter, t]);
+
     const filteredPolygons = useMemo(() => {
         let next = polygons;
-        if (listFilter === 'visible') {
-            next = next.filter(p => p.visible);
-        } else if (listFilter === 'hidden') {
-            next = next.filter(p => !p.visible);
+        const visibilityFilters = listFilter.filter(filter => filter === 'visible' || filter === 'hidden');
+        const statusFilters = listFilter.filter(filter => filter === 'approved' || filter === 'unapproved');
+
+        if (visibilityFilters.length === 1) {
+            next = next.filter(p => visibilityFilters[0] === 'visible' ? p.visible : !p.visible);
+        }
+
+        if (statusFilters.length === 1) {
+            next = next.filter(p => {
+                const status = (p.validationStatus || '').toUpperCase();
+                const isApproved = status === 'APPROVED' || status === 'CONVERTED';
+                return statusFilters[0] === 'approved' ? isApproved : !isApproved;
+            });
         }
 
         if (searchQuery.trim()) {
@@ -83,6 +155,50 @@ export default function MapWithPolygons(props: { farm_id: string }) {
 
         return next;
     }, [polygons, listFilter, searchQuery]);
+
+    useEffect(() => {
+        if (!approveFeedback) return;
+        const timer = setTimeout(() => setApproveFeedback(null), 4000);
+        return () => clearTimeout(timer);
+    }, [approveFeedback]);
+
+    const handleApproveAll = useCallback(async () => {
+        if (!props.onApproveAll) return;
+        setIsApproving(true);
+        setApproveFeedback(null);
+        try {
+            await props.onApproveAll();
+            setApproveFeedback({ type: 'success', message: props.approveLabel || t('imports.map.approveSuccess', { defaultValue: 'Import list approved' }) });
+        } catch (err) {
+            console.error('Failed to approve import list:', err);
+            setApproveFeedback({ type: 'error', message: t('imports.map.approveError', { defaultValue: 'Unable to approve import list' }) });
+        } finally {
+            setIsApproving(false);
+        }
+    }, [props.onApproveAll, props.approveLabel, t]);
+
+    const approveSingleParcel = useCallback(async (id: string) => {
+        if (!isImportMode) return;
+        if (!selectedFarm?.id) {
+            setApproveFeedback({ type: 'error', message: t('imports.map.approveFarmRequired', { defaultValue: 'Select a farm before approving.' }) });
+            return;
+        }
+        try {
+            const response = await apiRequest(`/imported-parcels/${id}/validate`, {
+                method: 'PATCH',
+                body: JSON.stringify({ validationStatus: 'APPROVED', farmId: Number(selectedFarm.id) }),
+            });
+            if (!response.ok) {
+                throw new Error(`Approve failed: ${response.status}`);
+            }
+            const updated = await response.json();
+            setPolygons(prev => prev.map(p => p.id === String(id) ? { ...p, validationStatus: updated?.validationStatus || 'APPROVED', convertedParcelId: updated?.convertedParcelId ?? p.convertedParcelId } : p));
+            setApproveFeedback({ type: 'success', message: t('imports.map.approveOneSuccess', { defaultValue: 'Parcel approved' }) });
+        } catch (err) {
+            console.error('Failed to approve parcel', err);
+            setApproveFeedback({ type: 'error', message: t('imports.map.approveError', { defaultValue: 'Unable to approve parcel' }) });
+        }
+    }, [isImportMode, t]);
 
     const extractCoords = (layer: any): [number, number][] => {
         const raw = layer?.getLatLngs?.();
@@ -100,6 +216,30 @@ export default function MapWithPolygons(props: { farm_id: string }) {
         const needsClosing = firstCoord[0] !== lastCoord[0] || firstCoord[1] !== lastCoord[1];
         const closedWktCoords = needsClosing ? `${wktCoords}, ${firstCoord[1]} ${firstCoord[0]}` : wktCoords;
         return `POLYGON((${closedWktCoords}))`;
+    };
+
+    const parseWktCoords = (wktInput?: string | null): [number, number][] => {
+        if (!wktInput) return [];
+        const wkt = wktInput.trim();
+        const polygonMatch = wkt.match(/POLYGON\s*\(\s*\(\s*([^)]*?)\s*\)\s*/i);
+        const multiPolygonMatch = wkt.match(/MULTIPOLYGON\s*\(\s*\(\s*\(\s*([^)]*?)\s*\)\s*/i);
+        const coordsSource = polygonMatch?.[1] ?? multiPolygonMatch?.[1];
+        
+        if (!coordsSource) return [];
+
+        return coordsSource
+            .split(',')
+            .map((pair) => pair.replace(/[()]/g, '').trim())
+            .map((pair) => {
+                const [lngStr, latStr] = pair.split(/\s+/).filter(Boolean);
+                const lng = Number(lngStr);
+                const lat = Number(latStr);
+                if (Number.isFinite(lat) && Number.isFinite(lng)) {
+                    return [lat, lng] as [number, number];
+                }
+                return null;
+            })
+            .filter((val): val is [number, number] => Array.isArray(val));
     };
 
     const detectOverlaps = (id: string, coords: [number, number][]): { id: string; name: string }[] => {
@@ -227,7 +367,7 @@ export default function MapWithPolygons(props: { farm_id: string }) {
                 geodata: coordsToWKT(newCoords),
             };
 
-            const response = await apiPut(`/farm/${props.farm_id}/parcels/${editingId}`, payload);
+            const response = await apiPut(`${parcelsEndpoint}/${editingId}`, payload);
             if (response.ok) {
                 console.log("Polygon updated successfully on backend");
             } else {
@@ -246,7 +386,7 @@ export default function MapWithPolygons(props: { farm_id: string }) {
         if (manualContextActive) {
             setManualEditContext(null);
         }
-    }, [editingId, polygons, updatePolygon, cleanupEdit, manualEditContext, props.farm_id]);
+    }, [editingId, polygons, updatePolygon, cleanupEdit, manualEditContext, parcelsEndpoint]);
 
     const cancelEdit = useCallback(() => {
         const state = editStateRef.current;
@@ -278,13 +418,26 @@ export default function MapWithPolygons(props: { farm_id: string }) {
         getMap()?.closePopup?.();
     }, [editingId, manualEditContext, updatePolygon, cleanupEdit]);
 
-    const deletePolygon = useCallback((id: string) => {
+    const deletePolygon = useCallback(async (id: string) => {
+        if (contextType === 'farm') {
+            try {
+                const response = await apiDelete(`/parcels/${id}`);
+                if (!response.ok) {
+                    console.error("Failed to delete parcel:", response.statusText);
+                    return;
+                }
+            } catch (err) {
+                console.error("Failed to delete parcel:", err);
+                return;
+            }
+        }
+
         setPolygons(prev => prev.filter(p => p.id !== id));
         if (id === editingId) {
             cleanupEdit();
             setEditingId(null);
         }
-    }, [editingId, cleanupEdit]);
+    }, [contextType, editingId, cleanupEdit]);
 
     const closePolygonContextMenu = useCallback(() => {
         setPolygonContextMenu(null);
@@ -321,7 +474,7 @@ export default function MapWithPolygons(props: { farm_id: string }) {
                     color: newPoly.color,
                 };
 
-                const response = await apiPost(`/farm/${props.farm_id}/parcels`, payload);
+                const response = await apiPost(parcelsEndpoint, payload);
                 if (response.ok) {
                     const createdParcel = await response.json();
                     // Update the polygon with the backend-generated ID
@@ -351,7 +504,7 @@ export default function MapWithPolygons(props: { farm_id: string }) {
                     geodata: coordsToWKT(overlapWarning.originalCoords),
                 };
 
-                const response = await apiPut(`/farm/${props.farm_id}/parcels/${overlapWarning.polygonId}`, payload);
+                const response = await apiPut(`${parcelsEndpoint}/${overlapWarning.polygonId}`, payload);
                 if (response.ok) {
                     console.log("Polygon updated successfully on backend");
                 } else {
@@ -370,7 +523,7 @@ export default function MapWithPolygons(props: { farm_id: string }) {
         
         setOverlapWarning(null);
         setShowPreview(false);
-    }, [overlapWarning, areaName, updatePolygon, cleanupEdit, props.farm_id, t]);
+    }, [overlapWarning, areaName, updatePolygon, cleanupEdit, parcelsEndpoint, t]);
 
     const handleOverlapAccept = useCallback(async () => {
         if (!overlapWarning || !overlapWarning.fixedCoords) {
@@ -408,7 +561,7 @@ export default function MapWithPolygons(props: { farm_id: string }) {
                     color: newPoly.color,
                 };
 
-                const response = await apiPost(`/farm/${props.farm_id}/parcels`, payload);
+                const response = await apiPost(parcelsEndpoint, payload);
                 if (response.ok) {
                     const createdParcel = await response.json();
                     // Update the polygon with the backend-generated ID
@@ -446,7 +599,7 @@ export default function MapWithPolygons(props: { farm_id: string }) {
                     geodata: coordsToWKT(overlapWarning.fixedCoords),
                 };
 
-                const response = await apiPut(`/farm/${props.farm_id}/parcels/${overlapWarning.polygonId}`, payload);
+                const response = await apiPut(`${parcelsEndpoint}/${overlapWarning.polygonId}`, payload);
                 if (response.ok) {
                     console.log("Polygon updated successfully on backend");
                 } else {
@@ -467,7 +620,7 @@ export default function MapWithPolygons(props: { farm_id: string }) {
         setAreaName("");
         setOverlapWarning(null);
         setShowPreview(false);
-    }, [overlapWarning, areaName, updatePolygon, cleanupEdit, props.farm_id, t]);
+    }, [overlapWarning, areaName, updatePolygon, cleanupEdit, parcelsEndpoint, t]);
 
     const handleOverlapCancel = useCallback(() => {
         if (overlapWarning?.isNewPolygon) {
@@ -532,6 +685,7 @@ export default function MapWithPolygons(props: { farm_id: string }) {
     };
 
     const startCreate = useCallback(() => {
+        if (!allowCreate) return;
         const drawMode = editControlRef.current?._toolbars?.draw?._modes?.polygon?.handler;
         const handler = drawMode || (getMap() && (L as any).Draw?.Polygon ? new (L as any).Draw.Polygon(getMap(), {}) : null);
         if (!handler) return;
@@ -540,7 +694,7 @@ export default function MapWithPolygons(props: { farm_id: string }) {
         createHandlerRef.current = handler;
         setIsCreating(true);
         setCreatePointCount(0);
-    }, []);
+    }, [allowCreate]);
 
     const finishCreate = useCallback(() => {
         if (getPointCount(createHandlerRef.current) < 3) return;
@@ -610,7 +764,7 @@ export default function MapWithPolygons(props: { farm_id: string }) {
                 color: newPoly.color,
             };
 
-            const response = await apiPost(`/farm/${props.farm_id}/parcels`, payload);
+            const response = await apiPost(parcelsEndpoint, payload);
             if (response.ok) {
                 const createdParcel = await response.json();
                 // Update the polygon with the backend-generated ID
@@ -629,7 +783,7 @@ export default function MapWithPolygons(props: { farm_id: string }) {
 
         setModal({ open: false, coords: null });
         setAreaName("");
-    }, [modal.coords, areaName, polygons, props.farm_id, t]);
+    }, [modal.coords, areaName, polygons, parcelsEndpoint, t]);
 
     const cancelModal = useCallback(() => {
         createdLayerRef.current && getMap()?.removeLayer(createdLayerRef.current);
@@ -667,7 +821,7 @@ export default function MapWithPolygons(props: { farm_id: string }) {
     useEffect(() => {
         const fetchPolygons = async () => {
             try {
-                const response = await apiGet(`/farm/${props.farm_id}/parcels`);
+                const response = await apiGet(parcelsEndpoint);
                 if (response.ok) {
                     const data = await response.json();
                     setPolygons(data.map((p: any) => {
@@ -675,19 +829,9 @@ export default function MapWithPolygons(props: { farm_id: string }) {
                         let coords: [number, number][] = [];
                         try {
                             if (p.geodata) {
-                                // WKT format: POLYGON((lng lat, lng lat, ...)) or POLYGON ((lng lat, lng lat, ...))
-                                const wkt = typeof p.geodata === 'string' ? p.geodata : String(p.geodata);
-                                const polygonMatch = wkt.match(/POLYGON\s*\(\((.*?)\)\)/i);
-                                if (polygonMatch) {
-                                    const coordsStr = polygonMatch[1];
-                                    // Split by comma, then each pair by space
-                                    coords = coordsStr.split(',').map((pair: string) => {
-                                        const [lng, lat] = pair.trim().split(/\s+/).map(Number);
-                                        // Convert from WKT (lng, lat) to Leaflet (lat, lng)
-                                        return [lat, lng] as [number, number];
-                                    });
-                                } else {
-                                    console.warn('Invalid WKT format for parcel:', p.id, wkt);
+                                coords = parseWktCoords(typeof p.geodata === 'string' ? p.geodata : String(p.geodata));
+                                if (!coords.length) {
+                                    console.warn('Invalid WKT format for parcel:', p.id, p.geodata);
                                 }
                             }
                         } catch (e) {
@@ -706,6 +850,8 @@ export default function MapWithPolygons(props: { farm_id: string }) {
                             startValidity: p.startValidity,
                             endValidity: p.endValidity,
                             farmId: p.farmId,
+                            validationStatus: p.validationStatus,
+                            convertedParcelId: p.convertedParcelId ?? null,
                         };
                     }));
                 } else {
@@ -719,7 +865,7 @@ export default function MapWithPolygons(props: { farm_id: string }) {
         };
 
         fetchPolygons();
-    }, [props.farm_id, t]);
+    }, [parcelsEndpoint, t]);
 
     useEffect(() => {
         if (!isCreating) return;
@@ -809,71 +955,27 @@ export default function MapWithPolygons(props: { farm_id: string }) {
         return null;
     }
 
-    // Animate selected polygon
+    // Highlight selected polygon without scanning all layers each frame
     useEffect(() => {
         if (!selectedId) return;
-        
-        const map = getMap();
-        if (!map) return;
-        
-        let animationFrame: number;
-        let startTime = Date.now();
-        
-        const animate = () => {
-            const elapsed = Date.now() - startTime;
-            
-            // Continuous animation without rollback
-            const dashOffset = (elapsed / 100) % 15; // Smooth continuous movement
-            const glowProgress = (elapsed % 2500) / 2500;
-            const wave = Math.sin(glowProgress * Math.PI * 2);
-            const glowSize = 3 + wave * 1.5; // Gentle glow 1.5 to 4.5
-            
-            // Find the selected polygon layer
-            map.eachLayer((layer: any) => {
-                if (layer instanceof L.Polygon) {
-                    const customId = (layer.options as any).customId;
-                    if (customId === selectedId) {
-                        // Subtle animated dashed border for wave effect
-                        layer.setStyle({
-                            dashArray: '10, 5',
-                            dashOffset: `-${dashOffset}`
-                        });
-                        
-                        // Apply gentle glow effect
-                        const element = layer.getElement();
-                        if (element) {
-                            (element as HTMLElement).style.filter = `drop-shadow(0 0 ${glowSize}px currentColor)`;
-                        }
-                    }
-                }
-            });
-            
-            animationFrame = requestAnimationFrame(animate);
-        };
-        
-        animate();
-        
+
+        const layer = polygonLayersRef.current.get(selectedId);
+        if (!layer) return;
+
+        layer.setStyle({ dashArray: '10 5' });
+        const element = layer.getElement();
+        if (element) {
+            element.classList.add('polygon-glow');
+        }
+
         return () => {
-            if (animationFrame) {
-                cancelAnimationFrame(animationFrame);
+            const target = polygonLayersRef.current.get(selectedId);
+            if (!target) return;
+            target.setStyle({ dashArray: undefined, dashOffset: '0' });
+            const el = target.getElement();
+            if (el) {
+                el.classList.remove('polygon-glow');
             }
-            // Reset style when unselecting - smoothly with CSS transition
-            map.eachLayer((layer: any) => {
-                if (layer instanceof L.Polygon) {
-                    const customId = (layer.options as any).customId;
-                    if (customId === selectedId) {
-                        layer.setStyle({
-                            dashArray: undefined,
-                            dashOffset: '0'
-                        });
-                        const element = layer.getElement();
-                        if (element) {
-                            // The CSS transition will smoothly fade out the filter
-                            (element as HTMLElement).style.filter = '';
-                        }
-                    }
-                }
-            });
         };
     }, [selectedId]);
 
@@ -893,7 +995,7 @@ export default function MapWithPolygons(props: { farm_id: string }) {
                 />
             )}
 
-            {contextMenu && (
+            {allowCreate && contextMenu && (
                 <div style={{ position: 'fixed', left: contextMenu.x, top: contextMenu.y, background: 'white', border: '1px solid #ccc', borderRadius: 4, boxShadow: '0 2px 8px rgba(0,0,0,0.15)', zIndex: 10000, minWidth: 150 }}>
                     <button onClick={() => { setContextMenu(null); startCreate(); }} style={{ width: '100%', padding: '0.5rem 1rem', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', fontSize: '0.9rem', color: '#333' }} onMouseEnter={e => e.currentTarget.style.background = '#f0f0f0'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                         ➕ {t('map.contextMenu.addPolygon')}
@@ -920,6 +1022,11 @@ export default function MapWithPolygons(props: { farm_id: string }) {
                     <button onClick={() => { closePolygonContextMenu(); startEdit(polygonContextMenu.polygonId); }} style={{ width: '100%', padding: '0.5rem 1rem', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', fontSize: '0.9rem', color: '#333', display: 'flex', alignItems: 'center', gap: '0.5rem', transition: 'background 0.2s' }} onMouseEnter={e => e.currentTarget.style.background = '#f0f0f0'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                         <span>🔧</span> {t('map.polygonMenu.edit')}
                     </button>
+                    {isImportMode && (
+                        <button onClick={() => { closePolygonContextMenu(); approveSingleParcel(polygonContextMenu.polygonId); }} style={{ width: '100%', padding: '0.5rem 1rem', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', fontSize: '0.9rem', color: '#333', display: 'flex', alignItems: 'center', gap: '0.5rem', transition: 'background 0.2s' }} onMouseEnter={e => e.currentTarget.style.background = '#f0f0f0'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                            <span>✅</span> {t('imports.map.approveOne', { defaultValue: 'Approve parcel' })}
+                        </button>
+                    )}
                     {!showColorPicker ? (
                         <button onClick={() => setShowColorPicker(true)} style={{ width: '100%', padding: '0.5rem 1rem', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', fontSize: '0.9rem', color: '#333', display: 'flex', alignItems: 'center', gap: '0.5rem', transition: 'background 0.2s' }} onMouseEnter={e => e.currentTarget.style.background = '#f0f0f0'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                             <span>🎨</span> {t('map.polygonMenu.color')}
@@ -942,7 +1049,7 @@ export default function MapWithPolygons(props: { farm_id: string }) {
                                                         color: color,
                                                     };
 
-                                                    const response = await apiPut(`/farm/${props.farm_id}/parcels/${polygonContextMenu.polygonId}`, payload);
+                                                    const response = await apiPut(`${parcelsEndpoint}/${polygonContextMenu.polygonId}`, payload);
                                                     if (response.ok) {
                                                         console.log("Polygon color updated successfully on backend");
                                                     } else {
@@ -1039,7 +1146,7 @@ export default function MapWithPolygons(props: { farm_id: string }) {
                                         name: renameValue,
                                     };
 
-                                    const response = await apiPut(`/farm/${props.farm_id}/parcels/${renamingId}`, payload);
+                                    const response = await apiPut(`${parcelsEndpoint}/${renamingId}`, payload);
                                     if (response.ok) {
                                         console.log("Polygon name updated successfully on backend");
                                     } else {
@@ -1065,7 +1172,7 @@ export default function MapWithPolygons(props: { farm_id: string }) {
                                         name: renameValue,
                                     };
 
-                                    const response = await apiPut(`/farm/${props.farm_id}/parcels/${renamingId}`, payload);
+                                    const response = await apiPut(`${parcelsEndpoint}/${renamingId}`, payload);
                                     if (response.ok) {
                                         console.log("Polygon name updated successfully on backend");
                                     } else {
@@ -1094,7 +1201,7 @@ export default function MapWithPolygons(props: { farm_id: string }) {
                     </div>
                 </div>
             )}
-            <div style={{ flex: 1, position: 'relative' }}>
+            <div style={{ flex: 1, position: 'relative', height: '100%' }}>
                 <div
                     style={{
                         position: 'absolute',
@@ -1228,42 +1335,133 @@ export default function MapWithPolygons(props: { farm_id: string }) {
                                             </button>
                                         )}
                                     </div>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                                        {[{ key: 'all', label: t('map.polygonList.filters.all', { defaultValue: 'All' }) }, { key: 'visible', label: t('map.polygonList.filters.visible', { defaultValue: 'Visible' }) }, { key: 'hidden', label: t('map.polygonList.filters.hidden', { defaultValue: 'Hidden' }) }].map(filter => (
-                                            <button
-                                                key={filter.key}
-                                                type="button"
-                                                onClick={() => setListFilter(filter.key as 'all' | 'visible' | 'hidden')}
+                                    <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowFilterMenu(prev => !prev)}
+                                            aria-expanded={showFilterMenu}
+                                            style={{
+                                                border: 'none',
+                                                borderRadius: '999px',
+                                                padding: '0.35rem 0.85rem',
+                                                fontSize: '0.85rem',
+                                                fontWeight: 500,
+                                                cursor: 'pointer',
+                                                background: 'rgba(15,23,42,0.08)',
+                                                color: '#0f172a',
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                gap: '0.35rem',
+                                                transition: 'all 0.2s ease',
+                                            }}
+                                        >
+                                            {t('map.polygonList.filters.label', { defaultValue: 'Filters' })}:
+                                            <span style={{ fontWeight: 600 }}>{activeFilterLabel}</span>
+                                            <span aria-hidden>▾</span>
+                                        </button>
+                                        {showFilterMenu && (
+                                            <div
                                                 style={{
-                                                    border: 'none',
-                                                    borderRadius: '999px',
-                                                    padding: '0.35rem 0.85rem',
-                                                    fontSize: '0.85rem',
-                                                    fontWeight: 500,
-                                                    cursor: 'pointer',
-                                                    background: listFilter === filter.key ? '#0f172a' : 'rgba(15,23,42,0.08)',
-                                                    color: listFilter === filter.key ? '#fff' : '#0f172a',
-                                                    boxShadow: listFilter === filter.key ? '0 10px 20px rgba(15,23,42,0.35)' : 'none',
-                                                    transition: 'all 0.2s ease',
+                                                    position: 'absolute',
+                                                    top: '120%',
+                                                    left: 0,
+                                                    zIndex: 20,
+                                                    minWidth: '180px',
+                                                    borderRadius: '0.75rem',
+                                                    border: '1px solid rgba(15,23,42,0.12)',
+                                                    background: '#fff',
+                                                    boxShadow: '0 12px 30px rgba(15,23,42,0.15)',
+                                                    padding: '0.35rem',
+                                                    display: 'flex',
+                                                    flexDirection: 'column',
+                                                    gap: '0.15rem',
                                                 }}
                                             >
-                                                {filter.label}
-                                            </button>
-                                        ))}
+                                                {filterOptions.map(option => (
+                                                    <button
+                                                        key={option.key}
+                                                        type="button"
+                                                        onClick={() => {
+                                                            if (option.key === 'all') {
+                                                                setListFilter([]);
+                                                                setShowFilterMenu(false);
+                                                                return;
+                                                            }
+                                                            setListFilter(prev => {
+                                                                const exists = prev.includes(option.key as 'visible' | 'hidden' | 'approved' | 'unapproved');
+                                                                if (exists) {
+                                                                    return prev.filter(item => item !== option.key);
+                                                                }
+                                                                return [...prev, option.key as 'visible' | 'hidden' | 'approved' | 'unapproved'];
+                                                            });
+                                                        }}
+                                                        style={{
+                                                            border: 'none',
+                                                            borderRadius: '0.6rem',
+                                                            padding: '0.45rem 0.6rem',
+                                                            fontSize: '0.85rem',
+                                                            fontWeight: 500,
+                                                            cursor: 'pointer',
+                                                            textAlign: 'left',
+                                                            background: listFilter === option.key ? 'rgba(15,23,42,0.08)' : 'transparent',
+                                                            color: '#0f172a',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'space-between',
+                                                        }}
+                                                    >
+                                                        <span>{option.label}</span>
+                                                        {(option.key === 'all' && listFilter.length === 0) && <span aria-hidden>✓</span>}
+                                                        {option.key !== 'all' && listFilter.includes(option.key as 'visible' | 'hidden' | 'approved' | 'unapproved') && <span aria-hidden>✓</span>}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
+                                {props.onApproveAll && (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginBottom: '1rem' }}>
+                                        <button
+                                            type="button"
+                                            onClick={handleApproveAll}
+                                            disabled={isApproving}
+                                            style={{
+                                                border: 'none',
+                                                borderRadius: '1rem',
+                                                padding: '0.75rem 1rem',
+                                                fontWeight: 600,
+                                                fontSize: '0.95rem',
+                                                cursor: isApproving ? 'not-allowed' : 'pointer',
+                                                background: isApproving ? 'rgba(15,23,42,0.2)' : '#0f172a',
+                                                color: '#fff',
+                                                boxShadow: '0 20px 40px rgba(15,23,42,0.25)',
+                                                transition: 'background 0.2s ease, transform 0.2s ease',
+                                            }}
+                                        >
+                                            {props.approveLabel || t('imports.map.approveButton', { defaultValue: 'Approve import list' })}
+                                        </button>
+                                        {approveFeedback && (
+                                            <span style={{ fontSize: '0.85rem', color: approveFeedback.type === 'success' ? '#15803d' : '#dc2626' }}>
+                                                {approveFeedback.message}
+                                            </span>
+                                        )}
+                                    </div>
+                                )}
                                 <PolygonList
                                     polygons={filteredPolygons}
                                     onToggle={togglePolygonVisibility}
                                     onRename={renamePolygonInline}
+                                    onFocus={focusPolygon}
+                                    onApproveSingle={isImportMode ? approveSingleParcel : undefined}
+                                    showStatus={isImportMode}
                                     emptyLabel={polygons.length ? t('map.polygonList.emptyFiltered', { defaultValue: 'No polygons match this filter' }) : undefined}
                                 />
                             </div>
                         )}
                     </div>
                 </div>
-                <MapContainer style={{ height: "100%", width: "100%" }} center={center} zoom={15}>
-                    <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; <a href="https://osm.org/copyright">OpenStreetMap</a>' />
+                <MapContainer style={{ height: "100%", width: "100%" }} center={center} zoom={15} maxZoom={19}>
+                    <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" maxNativeZoom={20} attribution='&copy; <a href="https://osm.org/copyright">OpenStreetMap</a>' />
                     <MapEvents />
                     <style>{`
                         .leaflet-control-container .leaflet-draw, .leaflet-draw-toolbar { display: none !important; }
@@ -1286,6 +1484,21 @@ export default function MapWithPolygons(props: { farm_id: string }) {
                             background: transparent !important;
                             border: none !important;
                             box-shadow: none !important;
+                        }
+
+                        @keyframes polygonDash {
+                            to { stroke-dashoffset: -60; }
+                        }
+
+                        @keyframes polygonGlow {
+                            0% { filter: drop-shadow(0 0 2px currentColor); }
+                            50% { filter: drop-shadow(0 0 8px currentColor); }
+                            100% { filter: drop-shadow(0 0 2px currentColor); }
+                        }
+
+                        .leaflet-overlay-pane .polygon-glow {
+                            stroke-dasharray: 10 5;
+                            animation: polygonDash 1.2s linear infinite, polygonGlow 2.4s ease-in-out infinite;
                         }
                     `}</style>
                     
@@ -1317,7 +1530,15 @@ export default function MapWithPolygons(props: { farm_id: string }) {
                                         weight: isThisEditing ? 4 : (isSelected ? 3 : 2)
                                     }}
                                     eventHandlers={{
-                                        add: e => ((e.target as L.Polygon).options as any).customId = poly.id,
+                                        add: e => {
+                                            const layer = e.target as L.Polygon;
+                                            (layer.options as any).customId = poly.id;
+                                            polygonLayersRef.current.set(poly.id, layer);
+                                        },
+                                        remove: e => {
+                                            const id = (e.target as any)?.options?.customId;
+                                            if (id) polygonLayersRef.current.delete(id as string);
+                                        },
                                         click: e => {
                                             L.DomEvent.stopPropagation(e as any);
                                             if (!editingId && !isCreating && selectedId !== poly.id) {
@@ -1345,20 +1566,36 @@ export default function MapWithPolygons(props: { farm_id: string }) {
                                         permanent={showPermanentTooltip}
                                         className="polygon-tooltip"
                                     >
-                                        <span style={{ 
-                                            display: 'inline-block',
-                                            padding: '3px 8px',
-                                            fontSize: '0.8rem',
-                                            fontWeight: '600',
-                                            color: '#fff',
-                                            background: polyColor,
-                                            borderRadius: '4px',
-                                            boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
-                                            textTransform: 'uppercase',
-                                            letterSpacing: '0.5px'
-                                        }}>
-                                            {poly.name}
-                                        </span>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'center' }}>
+                                            <span style={{ 
+                                                display: 'inline-block',
+                                                padding: '3px 8px',
+                                                fontSize: '0.8rem',
+                                                fontWeight: '600',
+                                                color: '#fff',
+                                                background: polyColor,
+                                                borderRadius: '4px',
+                                                boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+                                                textTransform: 'uppercase',
+                                                letterSpacing: '0.5px'
+                                            }}>
+                                                {poly.name}
+                                            </span>
+                                            {isImportMode && poly.validationStatus && (
+                                                <span style={{
+                                                    display: 'inline-block',
+                                                    padding: '2px 6px',
+                                                    fontSize: '0.7rem',
+                                                    fontWeight: 600,
+                                                    color: '#0f172a',
+                                                    background: 'rgba(255,255,255,0.85)',
+                                                    borderRadius: '999px',
+                                                    boxShadow: '0 1px 2px rgba(0,0,0,0.2)'
+                                                }}>
+                                                    {poly.validationStatus}
+                                                </span>
+                                            )}
+                                        </div>
                                     </Tooltip>
                                 </Polygon>
                             );
@@ -1453,10 +1690,10 @@ export default function MapWithPolygons(props: { farm_id: string }) {
                                 </button>
                             </div>
                         </>
-                    ) : (!editingId && !isCreating && (
+                    ) : (allowCreate && !editingId && !isCreating && (
                         <button onClick={startCreate} title={t('map.toolbar.addTitle')} style={{ background: '#007bff', color: 'white', border: 'none', padding: '0.5rem', borderRadius: 4 }}>+</button>
                     ))}
-                    {isCreating && (
+                    {allowCreate && isCreating && (
                         <>
                             <button onClick={finishCreate} title={t('map.toolbar.finishDrawing')} disabled={createPointCount < 3} style={{ background: createPointCount >= 3 ? 'green' : '#9fc59f', color: 'white', border: 'none', padding: '0.5rem', borderRadius: 4, cursor: createPointCount >= 3 ? 'pointer' : 'not-allowed', opacity: createPointCount >= 3 ? 1 : 0.6 }}>✓</button>
                             <button onClick={cancelCreate} title={t('map.toolbar.cancelDrawing')} style={{ background: 'red', color: 'white', border: 'none', padding: '0.5rem', borderRadius: 4 }}>✕</button>

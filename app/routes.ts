@@ -9,6 +9,8 @@ export default [
 	route(":locale/create-farm", "routes/create-farm.tsx"),
 	route(":locale/map", "routes/map.tsx"),
 	route(":locale/wiki", "routes/wiki.tsx"),
+	route(":locale/imports", "routes/imports.tsx"),
+	route(":locale/imports/map", "routes/imports.map.tsx"),
 	route(":locale/protected-example", "routes/protected-example.tsx"),
 	route("*", "routes/locale-fallback.tsx"),
 ] satisfies RouteConfig;
