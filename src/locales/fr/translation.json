@@ -2,6 +2,9 @@
   "nav": {
     "home": "Accueil",
     "map": "Carte",
+    "public_farms": "Exploitations publiques",
+    "assets": "Ressources",
+    "operations": "Opérations",
     "wiki": "Wiki",
     "imports": "Importations",
     "language_switcher": "Sélecteur de langue",
@@ -10,7 +13,7 @@
     "settings": "Paramètres",
     "sign_out": "Se déconnecter",
     "sign_in": "Se connecter",
-    "create_farm": "Créer une exploitation"
+    "create_farm": "Gérer les exploitations"
   },
   "imports": {
     "title": "Listes d'import",
@@ -62,9 +65,123 @@
     "fr": "Français"
   },
   "home": {
-    "title": "Bienvenue sur EFMS",
-    "description": "Ceci est une plateforme de gestion de parcelles."
+    "title": "Experimental Farms Management System",
+    "description": "Plateforme web open-source qui aide la ferme expérimentale de Louvain-la-Neuve à rester conforme tout en suivant chaque parcelle et sous-parcelle dans le temps.",
+    "hero": {
+      "badge": "Mémoire de master · 2025-2026",
+      "title": "Planifiez, documentez et déclarez chaque mètre carré en toute sérénité.",
+      "subtitle": "EFMS centralise historiques de champs, expériences et exports réglementaires pour que agronomes, chercheurs et équipes collaborent plus facilement.",
+      "primaryCta": "Ouvrir la carte interactive",
+      "secondaryCta": "Créer une exploitation",
+      "stats": [
+        { "value": "Hélène Verhaeghe", "label": "promotrice" },
+        { "value": "Alexandre & Arnaud Wery", "label": "étudiants" },
+        { "value": "LLN", "label": "ferme expérimentale" }
+      ]
+    },
+    "context": {
+      "title": "Contexte",
+      "heading": "Pourquoi la ferme avait besoin d'EFMS",
+      "description": "Les exploitations belges doivent déclarer chaque année les cultures plantées sur chaque surface. La ferme expérimentale de LLN subdivise encore ses champs en micro-parcelles, ce qui alourdit la paperasse et augmente les risques d'erreur."
+    },
+    "project": {
+      "title": "Projet",
+      "heading": "Co-conçu avec l'équipe LLN",
+      "description": "Ce mémoire livre une application web open-source de type SIG, co-conçue avec l'équipe de la ferme, pour enregistrer, visualiser et retrouver les opérations tout en restant compatible avec les outils officiels."
+    },
+    "features": {
+      "title": "Ce qu'apporte EFMS",
+      "tagline": "Fonctionnalités clés",
+      "items": [
+        { "title": "Éditeur de parcelles précis", "description": "Dessinez, scindez et codez par couleur les champs principaux et les sous-parcelles expérimentales avec détection de chevauchement." },
+        { "title": "Carnet agronomique complet", "description": "Consignez cultures, traitements, expériences et opérations annuelles par zone avec une traçabilité totale." },
+        { "title": "Exports prêts pour l'administration", "description": "Générez des rapports compatibles avec les systèmes belges et les workflows de recherche." },
+        { "title": "Chronologie historique", "description": "Remontez les saisons pour comprendre en quelques secondes ce qui s'est passé sur n'importe quel mètre carré." },
+        { "title": "Interface pensée pour la collaboration", "description": "Une interface adaptée aux rôles qui reste fluide sur le terrain comme au bureau." }
+      ]
+    },
+    "cta": {
+      "title": "Envie d'essayer ?",
+      "description": "Commencez par dessiner votre ferme ou rejoignez directement la carte interactive pour explorer les parcelles existantes.",
+      "primary": "Aller sur la carte",
+      "secondary": "Créer ma première ferme"
+    }
   },
+    "wiki": {
+      "title": "Wiki EFMS",
+      "mapTutorial": {
+        "title": "Tutoriel de la carte interactive",
+        "intro": "Suivez ce parcours guidé pour dessiner des parcelles expérimentales, les modifier en toute sécurité et garder vos données organisées.",
+        "cta": {
+          "openMap": "Ouvrir la carte",
+          "restartTour": "Relancer le tutoriel"
+        },
+        "sections": [
+          {
+            "title": "1. Préparer l'espace de travail",
+            "body": "Avant de dessiner, assurez-vous d'être connecté et d'avoir sélectionné la bonne exploitation dans la barre de navigation.",
+            "actions": [
+              "Choisissez une exploitation avec le sélecteur près de votre photo de profil. Les polygones et la palette de couleurs se chargent alors.",
+              "Cliquez sur le lien \"Carte\" dans la navigation pour ouvrir l'éditeur.",
+              "Patientez jusqu'à la fin du chargement de la carte de base (indicateur dans le panneau droit)."
+            ]
+          },
+          {
+            "title": "2. Créer un polygone",
+            "body": "Dessinez des parcelles expérimentales en déposant des sommets sur l'imagerie.",
+            "actions": [
+              "Cliquez sur le bouton \"Ajouter\" dans la barre latérale, puis sélectionnez \"Polygone\".",
+              "Cliquez gauche sur la carte pour poser chaque sommet. Utilisez la molette pour zoomer avec précision.",
+              "Fermez la forme en cliquant sur le premier sommet ou appuyez sur Entrée pour auto-terminer.",
+              "Donnez un nom à la parcelle dans la fenêtre qui s'affiche puis validez pour l'enregistrer."
+            ]
+          },
+          {
+            "title": "3. Modifier un polygone",
+            "body": "Ajustez les formes lorsque les essais évoluent.",
+            "actions": [
+              "Sélectionnez le polygone depuis la liste ou directement sur la carte.",
+              "Utilisez l'action \"Modifier\" de la barre d'outils pour afficher les sommets déplaçables.",
+              "Faites glisser les poignées, double-cliquez pour insérer un sommet, appuyez sur Suppr pour en retirer un.",
+              "Cliquez sur \"Enregistrer\" une fois satisfait ou \"Annuler\" pour revenir à l'état initial."
+            ]
+          },
+          {
+            "title": "4. Gérer visibilité et couleurs",
+            "body": "Gardez une vue lisible en affichant/masquant les polygones et en appliquant des couleurs parlantes.",
+            "actions": [
+              "Ouvrez la liste des polygones à droite et utilisez la case à cocher pour afficher ou masquer une parcelle.",
+              "Cliquez sur le point coloré pour choisir une nouvelle teinte associée à une culture ou un type d'essai.",
+              "Regroupez les sous-parcelles liées en leur attribuant la même palette."
+            ]
+          },
+          {
+            "title": "5. Supprimer",
+            "body": "Nettoyez vos prototypes.",
+            "actions": [
+              "Utilisez le menu d'un polygone pour le supprimer.",
+              "Choisissez \"Supprimer\" pour retirer une parcelle. Une confirmation évite les suppressions accidentelles.",
+              "Lors d'une suppression, EFMS conserve l'historique mais retire la parcelle de la carte active."
+            ]
+          }
+        ],
+        "tips": {
+          "title": "Astuces de terrain",
+          "items": [
+            "Nommez les polygones avec une convention cohérente comme CHAMP-PARCELLE-SOUSPARCELLE (ex : B1-Rouge-2025)."
+          ]
+        },
+        "shortcuts": {
+          "title": "Raccourcis clavier",
+          "items": [
+            { "keys": "Échap", "description": "Annule le dessin en cours ou quitte le mode édition." },
+            { "keys": "Entrée", "description": "Termine le dessin et ouvre la fenêtre de nommage." },
+            { "keys": "Ctrl + Z", "description": "Annule le dernier sommet pendant le dessin." },
+            { "keys": "Ctrl + D", "description": "Duplique le polygone sélectionné." }
+          ]
+        }
+      }
+    },
   "common": {
     "cancel": "Annuler",
     "confirm": "Confirmer",
@@ -78,19 +195,52 @@
     "error": "Échec du chargement des exploitations",
     "selectFarm": "Sélectionner une exploitation"
   },
-  "createFarm": {
-    "title": "Créer une nouvelle exploitation",
-    "description": "Saisissez les détails de votre nouvelle exploitation",
+  "manageFarms": {
+    "title": "Gérer les exploitations",
+    "description": "Renommez une exploitation existante ou ajoutez-en une nouvelle.",
+    "currentTitle": "Exploitation actuelle",
+    "currentDescription": "Sélectionnez une exploitation pour modifier ses paramètres.",
     "nameLabel": "Nom de l'exploitation",
     "namePlaceholder": "Saisir le nom de l'exploitation",
     "nameHelp": "Minimum 3 caractères",
     "errors": {
       "required": "Le nom de l'exploitation est obligatoire",
       "minLength": "Le nom de l'exploitation doit contenir au moins 3 caractères",
-      "generic": "Échec de la création de l'exploitation. Veuillez réessayer."
+      "generic": "La requête a échoué. Veuillez réessayer.",
+      "noSelection": "Sélectionnez d'abord une exploitation"
     },
+    "update": "Enregistrer",
+    "updating": "Enregistrement...",
+    "updated": "Exploitation mise à jour",
+    "newTitle": "Ajouter une nouvelle exploitation",
+    "newDescription": "Créez une autre exploitation et commencez la cartographie.",
+    "descriptionLabel": "Description",
+    "locationLabel": "Localisation",
+    "visibility": "Visibilité",
+    "public": "Listing public",
+    "showName": "Afficher le nom",
+    "showDescription": "Afficher la description",
+    "showLocation": "Afficher la localisation",
     "submit": "Créer l'exploitation",
-    "submitting": "Création..."
+    "submitting": "Création...",
+    "created": "Exploitation créée"
+  },
+  "publicFarms": {
+    "title": "Exploitations publiques",
+    "subtitle": "Exploitations ayant choisi le listing public. Seuls les champs marqués visibles par les propriétaires apparaissent ici.",
+    "refresh": "Actualiser",
+    "loading": "Chargement des exploitations publiques...",
+    "error": "Impossible de charger les exploitations publiques.",
+    "empty": "Aucune exploitation publique pour l'instant.",
+    "emptyHint": "Réessayez plus tard ou actualisez.",
+    "countLabel": "Exploitations publiques : {{count}}",
+    "nameHidden": "Nom masqué",
+    "descriptionHidden": "Description masquée",
+    "descriptionMissing": "Aucune description partagée",
+    "locationHidden": "Localisation masquée",
+    "locationMissing": "Aucune localisation partagée",
+    "publicBadge": "Public",
+    "note": "Les propriétaires décident quoi afficher. Les champs masqués restent privés."
   },
   "auth": {
     "shared": {
@@ -124,9 +274,93 @@
       }
     }
   },
+  "operations": {
+    "title": "Opérations sur les parcelles",
+    "subtitle": "Enregistrez les interventions sur vos parcelles et consultez leur historique.",
+    "selectParcel": "Choisissez une parcelle",
+    "selectType": "Type d'opération",
+    "selectTypePlaceholder": "Sélectionner un type (optionnel)",
+    "dateLabel": "Date",
+    "durationLabel": "Durée (minutes)",
+    "submit": "Ajouter l'opération",
+    "update": "Enregistrer les modifications",
+    "edit": "Modifier",
+    "editing": "Modification en cours",
+    "editingHint": "Ajustez les champs puis enregistrez ou annulez pour créer une nouvelle opération.",
+    "history": "Historique",
+    "emptyHistory": "Aucune opération enregistrée pour cette parcelle.",
+    "noParcel": "Sélectionnez une parcelle pour voir ou ajouter des opérations.",
+    "refreshFarms": "Actualiser les fermes",
+    "refreshParcels": "Recharger les parcelles",
+    "pinTopRight": "Ouvrir en haut à droite"
+  },
+  "profile": {
+    "title": "Profil",
+    "subtitle": "Gérez votre compte",
+    "backToMap": "Retour à la carte",
+    "account": "Compte",
+    "unknown": "Utilisateur inconnu",
+    "reset": "Réinitialiser",
+    "reload": "Recharger",
+    "username": "Nom d'utilisateur",
+    "email": "Email",
+    "preferences": "Préférences",
+    "pinTopRight": "Ouvrir la fenêtre d'opérations en haut à droite",
+    "pinTopRightHint": "Utilisé aussi pour la fenêtre d'opérations sur la carte.",
+    "save": "Enregistrer",
+    "saving": "Enregistrement...",
+    "saved": "Profil mis à jour",
+    "errorSave": "Échec de la mise à jour du profil",
+    "errorLoad": "Impossible de recharger le profil",
+    "changeAvatar": "Changer l'avatar",
+    "cropTitle": "Recadrer l'avatar",
+    "saveAvatar": "Enregistrer l'avatar",
+    "uploading": "Téléversement...",
+    "avatarUpdated": "Avatar mis à jour",
+    "avatarError": "Échec de la mise à jour de l'avatar"
+  },
   "map": {
     "defaultPolygonName": "Parcelle",
     "unnamedParcel": "Parcelle sans nom",
+    "farmSelection": {
+      "chooseLabel": "Étape 1 · Choisir une exploitation",
+      "title": "Quelle exploitation souhaitez-vous gérer ?",
+      "description": "Sélectionnez une exploitation pour charger ses parcelles sur la carte.",
+      "availableBadge": "Disponible",
+      "selectButton": "Utiliser cette exploitation",
+      "stepLabel": "Pour commencer",
+      "emptyTitle": "Vous n'avez pas encore d'exploitation",
+      "emptyDescription": "Créez votre première exploitation pour démarrer la cartographie.",
+      "createButton": "Créer une exploitation"
+    },
+    "tour": {
+      "title": "Visite interactive",
+      "controls": {
+        "step": "Étape {{current}} / {{total}}",
+        "skip": "Passer le tutoriel",
+        "back": "Précédent",
+        "next": "Suivant",
+        "finish": "Commencer la carto"
+      },
+      "steps": {
+        "farmSelector": {
+          "title": "Choisir la bonne exploitation",
+          "description": "Utilisez le sélecteur près de votre avatar pour passer d'une exploitation à l'autre et charger leurs parcelles."
+        },
+        "toolbar": {
+          "title": "Barre d'outils de dessin",
+          "description": "Créez, terminez ou annulez un polygone avec ces commandes flottantes. Elles s'adaptent automatiquement lorsque vous modifiez une parcelle."
+        },
+        "canvas": {
+          "title": "Carte interactive",
+          "description": "Cliquez pour sélectionner des parcelles, clic droit pour les actions rapides et zoomez pour numériser vos sous-parcelles avec précision."
+        },
+        "list": {
+          "title": "Liste des polygones",
+          "description": "Recherchez, renommez, recolorez ou masquez des parcelles depuis ce panneau. Repliez-le quand vous avez besoin d'espace."
+        }
+      }
+    },
     "polygonList": {
       "title": "Parcelles",
       "empty": "Aucune parcelle pour le moment",

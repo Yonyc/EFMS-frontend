@@ -16,9 +16,14 @@ export async function apiRequest(
 
   const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
 
+  const providedHeaders = headers as Record<string, string>;
+  const hasContentType = Object.keys(providedHeaders).some(
+    (key) => key.toLowerCase() === 'content-type'
+  );
+
   const requestHeaders: Record<string, string> = {
-    ...(!isFormData ? { 'Content-Type': 'application/json' } : {}),
-    ...(headers as Record<string, string>),
+    ...(!isFormData && !hasContentType ? { 'Content-Type': 'application/json' } : {}),
+    ...providedHeaders,
   };
 
   // Add Bearer token if authentication is required

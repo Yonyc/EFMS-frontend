@@ -7,12 +7,14 @@ import {
     FeatureGroup,
     useMapEvents,
     Tooltip,
+    ZoomControl,
 } from "react-leaflet";
 import { EditControl } from "react-leaflet-draw";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "leaflet-draw/dist/leaflet.draw.css";
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 import PolygonList from "./PolygonList";
@@ -21,6 +23,31 @@ import { checkOverlap, fixOverlap } from "./utils/geometry";
 import type { EditState, ManualEditContext, OverlapWarning, PolygonData } from "./types";
 import { apiDelete, apiGet, apiPost, apiPut, apiRequest } from "~/utils/api";
 import { useFarm } from "~/contexts/FarmContext";
+import { useAuth } from "~/contexts/AuthContext";
+
+interface OperationTypeDto { id: number; name: string; }
+interface UnitDto { id: number; value: string; }
+interface ProductDto { id: number; name: string; }
+interface ToolDto { id: number; name: string; }
+interface OperationProductInputState { productId: string; quantity: string; unitId: string; toolId: string; }
+interface OperationProductDto {
+    id: number;
+    quantity?: number;
+    productId?: number;
+    productName?: string;
+    unitId?: number;
+    unitValue?: string;
+    toolId?: number;
+    toolName?: string;
+}
+interface ParcelOperationDto {
+    id: number;
+    date?: string;
+    durationSeconds?: number;
+    typeId?: number;
+    typeName?: string;
+    products?: OperationProductDto[];
+}
 
 type MapContextType = 'farm' | 'import';
 
@@ -37,7 +64,11 @@ interface MapWithPolygonsProps {
 export default function MapWithPolygons(props: MapWithPolygonsProps) {
     const { t } = useTranslation();
     const { selectedFarm } = useFarm();
+    const { user } = useAuth();
     const center: [number, number] = [50.668333, 4.621278];
+    const POPUP_WIDTH = 420;
+    const POPUP_HEIGHT = 520;
+    const POPUP_PADDING = 12;
     const resolvedContextId = props.contextId ?? props.farm_id;
     if (!resolvedContextId) {
         throw new Error("MapWithPolygons requires either contextId or farm_id");
@@ -73,7 +104,25 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
     const [searchQuery, setSearchQuery] = useState('');
     const [isApproving, setIsApproving] = useState(false);
     const [approveFeedback, setApproveFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+    const [operationPopup, setOperationPopup] = useState<{ x: number; y: number; polygonId: string } | null>(null);
+    const [popupCoords, setPopupCoords] = useState<{ left: number; top: number } | null>(null);
+    const [currentParcelId, setCurrentParcelId] = useState<string | null>(null);
+    const [operationTypes, setOperationTypes] = useState<OperationTypeDto[]>([]);
+    const [units, setUnits] = useState<UnitDto[]>([]);
+    const [products, setProducts] = useState<ProductDto[]>([]);
+    const [tools, setTools] = useState<ToolDto[]>([]);
+    const [operationTypeId, setOperationTypeId] = useState<string>("");
+    const [operationDate, setOperationDate] = useState<string>("");
+    const [operationDurationMinutes, setOperationDurationMinutes] = useState<string>("");
+    const [operationLines, setOperationLines] = useState<OperationProductInputState[]>([{ productId: "", quantity: "", unitId: "", toolId: "" }]);
+    const [operationError, setOperationError] = useState<string | null>(null);
+    const [operationLoading, setOperationLoading] = useState(false);
+    const [parcelOperations, setParcelOperations] = useState<ParcelOperationDto[]>([]);
+    const [preferTopRight, setPreferTopRight] = useState<boolean>(!!user?.operationsPopupTopRight);
+    const [isMobile, setIsMobile] = useState(false);
+    const [dragState, setDragState] = useState<{ active: boolean; offsetX: number; offsetY: number }>({ active: false, offsetX: 0, offsetY: 0 });
     const originalColorRef = useRef<string | null>(null);
+    const listBarRef = useRef<HTMLDivElement>(null);
     const polygonLayersRef = useRef<Map<string, L.Polygon>>(new Map());
     
     // Refs
@@ -85,7 +134,25 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
     const editStateRef = useRef<EditState | null>(null);
     const originalCoordsRef = useRef<Record<string, [number, number][]>>({});
 
+    const floatingMenuClasses = "fixed z-[10000] min-w-[14rem] rounded-2xl border border-slate-200 bg-white/95 p-1 shadow-2xl shadow-slate-900/15 backdrop-blur";
+    const floatingButtonClasses = "flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-200";
+    const toolbarButtonBase = "inline-flex items-center justify-center rounded-2xl border px-3 py-2 text-sm font-semibold shadow-lg shadow-slate-900/10 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-200";
+
     const getMap = () => (featureGroupRef.current as any)?._map || (featureGroupRef.current as any)?.getMap?.();
+
+    const clampToViewport = useCallback((left: number, top: number, width: number, height: number) => {
+        const vw = typeof window !== 'undefined' ? window.innerWidth : width;
+        const vh = typeof window !== 'undefined' ? window.innerHeight : height;
+        const x = Math.max(POPUP_PADDING, Math.min(left, vw - width - POPUP_PADDING));
+        const y = Math.max(POPUP_PADDING, Math.min(top, vh - height - POPUP_PADDING));
+        return { x, y };
+    }, [POPUP_PADDING]);
+
+    const clampToRect = useCallback((left: number, top: number, width: number, height: number, rect: DOMRect) => {
+        const x = Math.max(rect.left + POPUP_PADDING, Math.min(left, rect.right - width - POPUP_PADDING));
+        const y = Math.max(rect.top + POPUP_PADDING, Math.min(top, rect.bottom - height - POPUP_PADDING));
+        return { x, y };
+    }, [POPUP_PADDING]);
 
     const togglePolygonVisibility = useCallback((id: string) => {
         setPolygons(prev => prev.map(p => p.id === id ? { ...p, visible: !p.visible } : p));
@@ -446,6 +513,102 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
         originalColorRef.current = null;
     }, []);
 
+    const resetOperationForm = useCallback(() => {
+        setOperationTypeId("");
+        setOperationDate("");
+        setOperationDurationMinutes("");
+        setOperationLines([{ productId: "", quantity: "", unitId: "", toolId: "" }]);
+        setOperationError(null);
+    }, []);
+
+    const closeOperationPopup = useCallback(() => {
+        setOperationPopup(null);
+        setCurrentParcelId(null);
+        resetOperationForm();
+    }, [resetOperationForm]);
+
+    const loadOperationReferences = useCallback(async () => {
+        if (contextType !== 'farm' || !resolvedContextId) return;
+        try {
+            const [typesRes, unitsRes, productsRes, toolsRes] = await Promise.all([
+                apiGet(`/operations/types`),
+                apiGet(`/units`),
+                apiGet(`/farm/${resolvedContextId}/products`),
+                apiGet(`/farm/${resolvedContextId}/tools`),
+            ]);
+
+            if (typesRes.ok) setOperationTypes(await typesRes.json());
+            if (unitsRes.ok) setUnits(await unitsRes.json());
+            if (productsRes.ok) setProducts(await productsRes.json());
+            if (toolsRes.ok) setTools(await toolsRes.json());
+        } catch (err) {
+            console.error("Failed to load operation references", err);
+        }
+    }, [contextType, resolvedContextId]);
+
+    const loadParcelOperations = useCallback(async (parcelId: string) => {
+        if (contextType !== 'farm' || !resolvedContextId) return;
+        setOperationLoading(true);
+        setOperationError(null);
+        try {
+            const res = await apiGet(`/farm/${resolvedContextId}/parcels/${parcelId}/operations`);
+            if (!res.ok) throw new Error("failed");
+            const data = await res.json();
+            setParcelOperations(data);
+        } catch (err) {
+            console.error(err);
+            setOperationError(t('operations.errorLoad', { defaultValue: 'Unable to load operations' }));
+        } finally {
+            setOperationLoading(false);
+        }
+    }, [contextType, resolvedContextId, t]);
+
+    const handleAddOperationLine = useCallback(() => {
+        setOperationLines(prev => [...prev, { productId: "", quantity: "", unitId: "", toolId: "" }]);
+    }, []);
+
+    const handleRemoveOperationLine = useCallback((index: number) => {
+        setOperationLines(prev => prev.filter((_, i) => i !== index));
+    }, []);
+
+    const updateOperationLine = useCallback((index: number, key: keyof OperationProductInputState, value: string) => {
+        setOperationLines(prev => prev.map((line, i) => i === index ? { ...line, [key]: value } : line));
+    }, []);
+
+    const handleSaveOperation = useCallback(async () => {
+        if (!currentParcelId) return;
+        setOperationLoading(true);
+        setOperationError(null);
+        try {
+            const productsPayload = operationLines
+                .filter(line => line.productId)
+                .map(line => ({
+                    productId: Number(line.productId),
+                    quantity: line.quantity ? Number(line.quantity) : undefined,
+                    unitId: line.unitId ? Number(line.unitId) : undefined,
+                    toolId: line.toolId ? Number(line.toolId) : undefined,
+                }));
+
+            const payload: any = {
+                typeId: operationTypeId ? Number(operationTypeId) : undefined,
+                date: operationDate ? new Date(operationDate).toISOString() : undefined,
+                durationSeconds: operationDurationMinutes ? Number(operationDurationMinutes) * 60 : undefined,
+                products: productsPayload,
+            };
+
+            const res = await apiPost(`/farm/${props.farm_id}/parcels/${currentParcelId}/operations`, payload);
+            if (!res.ok) throw new Error("failed");
+
+            resetOperationForm();
+            await loadParcelOperations(currentParcelId);
+        } catch (err) {
+            console.error(err);
+            setOperationError(t('operations.errorCreate', { defaultValue: 'Failed to save operation' }));
+        } finally {
+            setOperationLoading(false);
+        }
+    }, [currentParcelId, operationLines, operationTypeId, operationDate, operationDurationMinutes, props.farm_id, loadParcelOperations, resetOperationForm, t]);
+
     const handleOverlapIgnore = useCallback(async () => {
         if (!overlapWarning) return;
         
@@ -676,6 +839,97 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
         setOverlapWarning(null);
         setShowPreview(false);
     }, [overlapWarning, areaName, t]);
+
+    useEffect(() => {
+        loadOperationReferences();
+    }, [loadOperationReferences]);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        const mq = window.matchMedia('(max-width: 768px)');
+        const handler = (e: MediaQueryListEvent | MediaQueryList) => setIsMobile(e.matches);
+        handler(mq);
+        mq.addEventListener ? mq.addEventListener('change', handler) : mq.addListener(handler as any);
+        return () => {
+            mq.removeEventListener ? mq.removeEventListener('change', handler) : mq.removeListener(handler as any);
+        };
+    }, []);
+
+    const prefKey = useMemo(() => user ? `opsTopRight:${user.id}` : 'opsTopRight:anon', [user]);
+
+    const persistPreferenceRemote = useCallback(async (next: boolean) => {
+        try {
+            await apiPut('/users/me/preferences', { operationsPopupTopRight: next });
+        } catch (err) {
+            console.error('Failed to persist operations popup preference remotely', err);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (user?.operationsPopupTopRight === undefined) return;
+        setPreferTopRight(user.operationsPopupTopRight);
+        try {
+            localStorage.setItem(prefKey, user.operationsPopupTopRight ? '1' : '0');
+        } catch (err) {
+            console.error('Failed to sync operations popup preference from profile', err);
+        }
+    }, [user?.operationsPopupTopRight, prefKey]);
+
+    useEffect(() => {
+        try {
+            const stored = localStorage.getItem(prefKey);
+            if (stored) setPreferTopRight(stored === '1');
+        } catch (err) {
+            console.error('Failed to read operations popup preference', err);
+        }
+    }, [prefKey]);
+
+    useEffect(() => {
+        try {
+            localStorage.setItem(prefKey, preferTopRight ? '1' : '0');
+        } catch (err) {
+            console.error('Failed to persist operations popup preference', err);
+        }
+        persistPreferenceRemote(preferTopRight);
+    }, [prefKey, preferTopRight, persistPreferenceRemote]);
+
+    useEffect(() => {
+        if (!operationPopup) {
+            setPopupCoords(null);
+            return;
+        }
+        const mapRect = getMap()?.getContainer?.()?.getBoundingClientRect?.();
+        if (preferTopRight && mapRect) {
+            const pos = clampToRect(mapRect.right - POPUP_WIDTH - POPUP_PADDING, mapRect.top + POPUP_PADDING, POPUP_WIDTH, POPUP_HEIGHT, mapRect);
+            setPopupCoords({ left: pos.x, top: pos.y });
+            return;
+        }
+        const fallbackPos = clampToRect(operationPopup.x, operationPopup.y, POPUP_WIDTH, POPUP_HEIGHT, mapRect ?? new DOMRect(0, 0, window.innerWidth, window.innerHeight));
+        setPopupCoords({ left: fallbackPos.x, top: fallbackPos.y });
+    }, [operationPopup, preferTopRight, clampToRect, POPUP_WIDTH, POPUP_HEIGHT, POPUP_PADDING]);
+
+    const startDrag = useCallback((e: React.MouseEvent) => {
+        if (!popupCoords || isMobile) return;
+        e.preventDefault();
+        setDragState({ active: true, offsetX: e.clientX - popupCoords.left, offsetY: e.clientY - popupCoords.top });
+    }, [popupCoords, isMobile]);
+
+    useEffect(() => {
+        if (!dragState.active) return;
+        const handleMove = (e: MouseEvent) => {
+            const nextLeft = e.clientX - dragState.offsetX;
+            const nextTop = e.clientY - dragState.offsetY;
+            const pos = clampToViewport(nextLeft, nextTop, POPUP_WIDTH, POPUP_HEIGHT);
+            setPopupCoords({ left: pos.x, top: pos.y });
+        };
+        const handleUp = () => setDragState(prev => ({ ...prev, active: false }));
+        window.addEventListener('mousemove', handleMove);
+        window.addEventListener('mouseup', handleUp);
+        return () => {
+            window.removeEventListener('mousemove', handleMove);
+            window.removeEventListener('mouseup', handleUp);
+        };
+    }, [dragState.active, dragState.offsetX, dragState.offsetY, clampToViewport, POPUP_WIDTH, POPUP_HEIGHT]);
 
     // Creation
     const getPointCount = (handler: any) => {
@@ -934,7 +1188,8 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
             contextmenu: e => {
                 if (!editingId && !isCreating) {
                     e.originalEvent.preventDefault();
-                    setContextMenu({ x: e.originalEvent.clientX, y: e.originalEvent.clientY });
+                    const { x, y } = clampToViewport(e.originalEvent.clientX, e.originalEvent.clientY, 240, 200);
+                    setContextMenu({ x, y });
                 }
             },
             click: () => {
@@ -980,7 +1235,7 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
     }, [selectedId]);
 
     return (
-        <>
+        <div className="relative h-full w-full">
             {overlapWarning && !showPreview && (
                 <OverlapModal
                     warning={overlapWarning}
@@ -996,142 +1251,402 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
             )}
 
             {allowCreate && contextMenu && (
-                <div style={{ position: 'fixed', left: contextMenu.x, top: contextMenu.y, background: 'white', border: '1px solid #ccc', borderRadius: 4, boxShadow: '0 2px 8px rgba(0,0,0,0.15)', zIndex: 10000, minWidth: 150 }}>
-                    <button onClick={() => { setContextMenu(null); startCreate(); }} style={{ width: '100%', padding: '0.5rem 1rem', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', fontSize: '0.9rem', color: '#333' }} onMouseEnter={e => e.currentTarget.style.background = '#f0f0f0'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                        ➕ {t('map.contextMenu.addPolygon')}
+                <div
+                    className={floatingMenuClasses}
+                    style={{ left: contextMenu.x, top: contextMenu.y }}
+                >
+                    <button
+                        type="button"
+                        onClick={() => { setContextMenu(null); startCreate(); }}
+                        className={`${floatingButtonClasses} text-indigo-700`}
+                    >
+                        <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-50 text-base text-indigo-600">+</span>
+                        {t('map.contextMenu.addPolygon')}
                     </button>
                 </div>
             )}
 
             {polygonContextMenu && (
-                <div style={{ position: 'fixed', left: polygonContextMenu.x, top: polygonContextMenu.y, background: 'white', border: '1px solid #ccc', borderRadius: 4, boxShadow: '0 2px 8px rgba(0,0,0,0.15)', zIndex: 10000, minWidth: 150, overflow: 'hidden' }}>
-                    <style>{`
-                        @keyframes slideIn {
-                            from { transform: translateX(100%); opacity: 0; }
-                            to { transform: translateX(0); opacity: 1; }
-                        }
-                    `}</style>
-                    <button onClick={() => { 
-                        const poly = polygons.find(p => p.id === polygonContextMenu.polygonId);
-                        closePolygonContextMenu(); 
-                        setRenamingId(polygonContextMenu.polygonId); 
-                        setRenameValue(poly?.name || ''); 
-                    }} style={{ width: '100%', padding: '0.5rem 1rem', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', fontSize: '0.9rem', color: '#333', display: 'flex', alignItems: 'center', gap: '0.5rem', transition: 'background 0.2s' }} onMouseEnter={e => e.currentTarget.style.background = '#f0f0f0'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                        <span>✏️</span> {t('map.polygonMenu.rename')}
-                    </button>
-                    <button onClick={() => { closePolygonContextMenu(); startEdit(polygonContextMenu.polygonId); }} style={{ width: '100%', padding: '0.5rem 1rem', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', fontSize: '0.9rem', color: '#333', display: 'flex', alignItems: 'center', gap: '0.5rem', transition: 'background 0.2s' }} onMouseEnter={e => e.currentTarget.style.background = '#f0f0f0'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                        <span>🔧</span> {t('map.polygonMenu.edit')}
-                    </button>
-                    {isImportMode && (
-                        <button onClick={() => { closePolygonContextMenu(); approveSingleParcel(polygonContextMenu.polygonId); }} style={{ width: '100%', padding: '0.5rem 1rem', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', fontSize: '0.9rem', color: '#333', display: 'flex', alignItems: 'center', gap: '0.5rem', transition: 'background 0.2s' }} onMouseEnter={e => e.currentTarget.style.background = '#f0f0f0'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                            <span>✅</span> {t('imports.map.approveOne', { defaultValue: 'Approve parcel' })}
-                        </button>
-                    )}
-                    {!showColorPicker ? (
-                        <button onClick={() => setShowColorPicker(true)} style={{ width: '100%', padding: '0.5rem 1rem', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', fontSize: '0.9rem', color: '#333', display: 'flex', alignItems: 'center', gap: '0.5rem', transition: 'background 0.2s' }} onMouseEnter={e => e.currentTarget.style.background = '#f0f0f0'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                            <span>🎨</span> {t('map.polygonMenu.color')}
-                        </button>
-                    ) : (
-                        <div style={{ padding: '0.5rem 1rem', animation: 'slideIn 0.3s ease-out' }}>
-                            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                                {['#3388ff', '#ff6b6b', '#4ecdc4', '#ffe66d', '#a8e6cf', '#ff8b94', '#b4a7d6', '#ffa07a'].map(color => {
-                                    return (
-                                        <button
-                                            key={color}
-                                            onClick={async () => {
-                                                setPolygons(prev => prev.map(p => p.id === polygonContextMenu.polygonId ? { ...p, color } : p));
-                                                originalColorRef.current = null;
-                                                closePolygonContextMenu();
-
-                                                // Send PUT request to backend to update the color
-                                                try {
-                                                    const payload = {
-                                                        color: color,
-                                                    };
-
-                                                    const response = await apiPut(`${parcelsEndpoint}/${polygonContextMenu.polygonId}`, payload);
-                                                    if (response.ok) {
-                                                        console.log("Polygon color updated successfully on backend");
-                                                    } else {
-                                                        console.error("Failed to update parcel color:", response.statusText);
-                                                    }
-                                                } catch (err) {
-                                                    console.error("Failed to update parcel color:", err);
-                                                }
-                                            }}
-                                            onMouseEnter={(e) => {
-                                                e.currentTarget.style.transform = 'scale(1.2)';
-                                                if (!originalColorRef.current) {
-                                                    const currentPoly = polygons.find(p => p.id === polygonContextMenu.polygonId);
-                                                    originalColorRef.current = currentPoly?.color || '#3388ff';
-                                                }
-                                                setPolygons(prev => prev.map(p => p.id === polygonContextMenu.polygonId ? { ...p, color } : p));
-                                            }}
-                                            onMouseLeave={(e) => {
-                                                e.currentTarget.style.transform = 'scale(1)';
-                                                if (originalColorRef.current) {
-                                                    setPolygons(prev => prev.map(p => p.id === polygonContextMenu.polygonId ? { ...p, color: originalColorRef.current! } : p));
-                                                }
-                                            }}
-                                            style={{
-                                                width: '24px',
-                                                height: '24px',
-                                                border: '2px solid #fff',
-                                                borderRadius: '50%',
-                                                background: color,
-                                                cursor: 'pointer',
-                                                boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
-                                                transition: 'transform 0.2s'
-                                            }}
-                                        />
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    )}
-                    <button 
-                        onClick={() => { 
-                            if (pendingDeleteId) {
-                                deletePolygon(pendingDeleteId);
+                <div
+                    className={`${floatingMenuClasses} overflow-hidden`}
+                    style={{ left: polygonContextMenu.x, top: polygonContextMenu.y }}
+                >
+                    <div className="flex flex-col gap-1 p-1">
+                        <button
+                            type="button"
+                            onClick={() => {
+                                const poly = polygons.find(p => p.id === polygonContextMenu.polygonId);
                                 closePolygonContextMenu();
-                            } else {
-                                setPendingDeleteId(polygonContextMenu.polygonId);
-                            }
-                        }} 
-                        style={{ 
-                            width: '100%', 
-                            padding: '0.5rem 1rem', 
-                            border: 'none', 
-                            background: pendingDeleteId ? '#ef5350' : 'transparent', 
-                            textAlign: 'left', 
-                            cursor: 'pointer', 
-                            fontSize: '0.9rem', 
-                            color: pendingDeleteId ? 'white' : '#d32f2f', 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            gap: '0.5rem', 
-                            transition: 'all 0.3s ease-out',
-                            fontWeight: pendingDeleteId ? 500 : 'normal',
-                            animation: pendingDeleteId ? 'slideIn 0.3s ease-out' : 'none'
-                        }} 
-                        onMouseEnter={e => e.currentTarget.style.background = pendingDeleteId ? '#e53935' : '#ffebee'} 
-                        onMouseLeave={e => e.currentTarget.style.background = pendingDeleteId ? '#ef5350' : 'transparent'}
-                    >
-                        <span>🗑️</span> {pendingDeleteId ? t('common.confirm') : t('common.delete')}
-                    </button>
-                </div>
-            )}
+                                setRenamingId(polygonContextMenu.polygonId);
+                                setRenameValue(poly?.name || "");
+                            }}
+                            className={`${floatingButtonClasses} text-slate-800`}
+                        >
+                            <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-50 text-base text-indigo-600">✏️</span>
+                            {t('map.polygonMenu.rename')}
+                        </button>
+                        {contextType === 'farm' && (
+                            <button
+                                type="button"
+                                onClick={async () => {
+                                    const { x, y, polygonId } = polygonContextMenu;
+                                    closePolygonContextMenu();
+                                    setSelectedId(polygonId);
+                                    setCurrentParcelId(polygonId);
+                                    await loadParcelOperations(polygonId);
+                                    setOperationPopup({ x: x + 10, y: y + 10, polygonId });
+                                }}
+                                className={`${floatingButtonClasses} text-slate-800`}
+                            >
+                                <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-50 text-base text-indigo-600">📋</span>
+                                {t('operations.title', { defaultValue: 'Parcel operations' })}
+                            </button>
+                        )}
+                        <button
+                            type="button"
+                            onClick={() => { closePolygonContextMenu(); startEdit(polygonContextMenu.polygonId); }}
+                            className={`${floatingButtonClasses} text-slate-800`}
+                        >
+                            <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-50 text-base text-indigo-600">🔧</span>
+                            {t('map.polygonMenu.edit')}
+                        </button>
+                        {isImportMode && (
+                            <button
+                                type="button"
+                                onClick={() => { closePolygonContextMenu(); approveSingleParcel(polygonContextMenu.polygonId); }}
+                                className={`${floatingButtonClasses} text-emerald-700`}
+                            >
+                                <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-50 text-base text-emerald-600">✅</span>
+                                {t('imports.map.approveOne', { defaultValue: 'Approve parcel' })}
+                            </button>
+                        )}
+                        {!showColorPicker ? (
+                            <button
+                                type="button"
+                                onClick={() => setShowColorPicker(true)}
+                                className={`${floatingButtonClasses} text-slate-800`}
+                            >
+                                <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-50 text-base text-indigo-600">🎨</span>
+                                {t('map.polygonMenu.color')}
+                            </button>
+                        ) : (
+                            <div className="rounded-2xl bg-slate-50/80 p-3">
+                                <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                    {t('map.polygonMenu.color')}
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                    {['#3388ff', '#ff6b6b', '#4ecdc4', '#ffe66d', '#a8e6cf', '#ff8b94', '#b4a7d6', '#ffa07a'].map(color => {
+                                        const isCurrent = polygons.find(p => p.id === polygonContextMenu.polygonId)?.color === color;
+                                        return (
+                                            <button
+                                                key={color}
+                                                type="button"
+                                                onClick={async () => {
+                                                    setPolygons(prev => prev.map(p => p.id === polygonContextMenu.polygonId ? { ...p, color } : p));
+                                                    originalColorRef.current = null;
+                                                    closePolygonContextMenu();
 
-            {pendingDeleteId && !polygonContextMenu && (
-                <div style={{ position: "fixed", top: "20px", left: "50%", transform: "translateX(-50%)", background: "#ef5350", color: "white", padding: "1rem 2rem", borderRadius: 8, boxShadow: "0 4px 12px rgba(0,0,0,0.3)", zIndex: 10000, display: "flex", alignItems: "center", gap: "1rem", animation: "slideIn 0.3s ease-out" }}>
-                    <span style={{ fontSize: "1.1rem", fontWeight: 500 }}>{t('map.deletePrompt', { name: polygons.find(p => p.id === pendingDeleteId)?.name ?? '' })}</span>
-                    <div style={{ display: "flex", gap: "0.5rem" }}>
-                        <button onClick={() => { deletePolygon(pendingDeleteId); setPendingDeleteId(null); }} style={{ padding: "0.5rem 1rem", borderRadius: 4, border: "none", background: "white", color: "#ef5350", cursor: "pointer", fontWeight: 600 }}>{t('common.confirm')}</button>
-                        <button onClick={() => setPendingDeleteId(null)} style={{ padding: "0.5rem 1rem", borderRadius: 4, border: "1px solid white", background: "transparent", color: "white", cursor: "pointer" }}>{t('common.cancel')}</button>
+                                                    try {
+                                                        const payload = { color };
+                                                        const response = await apiPut(`${parcelsEndpoint}/${polygonContextMenu.polygonId}`, payload);
+                                                        if (!response.ok) {
+                                                            console.error("Failed to update parcel color:", response.statusText);
+                                                        }
+                                                    } catch (err) {
+                                                        console.error("Failed to update parcel color:", err);
+                                                    }
+                                                }}
+                                                onMouseEnter={() => {
+                                                    if (!originalColorRef.current) {
+                                                        const currentPoly = polygons.find(p => p.id === polygonContextMenu.polygonId);
+                                                        originalColorRef.current = currentPoly?.color || '#3388ff';
+                                                    }
+                                                    setPolygons(prev => prev.map(p => p.id === polygonContextMenu.polygonId ? { ...p, color } : p));
+                                                }}
+                                                onMouseLeave={() => {
+                                                    if (originalColorRef.current) {
+                                                        setPolygons(prev => prev.map(p => p.id === polygonContextMenu.polygonId ? { ...p, color: originalColorRef.current! } : p));
+                                                    }
+                                                }}
+                                                className={`h-7 w-7 rounded-full border-2 border-white shadow-md transition hover:scale-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-200 ${isCurrent ? 'ring-2 ring-indigo-400' : ''}`}
+                                                style={{ background: color }}
+                                            />
+                                        );
+                                    })}
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowColorPicker(false)}
+                                    className="mt-3 w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500 transition hover:bg-white"
+                                >
+                                    {t('common.cancel')}
+                                </button>
+                            </div>
+                        )}
+                        <button
+                            type="button"
+                            onClick={() => {
+                                if (pendingDeleteId === polygonContextMenu.polygonId) {
+                                    deletePolygon(pendingDeleteId);
+                                    closePolygonContextMenu();
+                                } else {
+                                    setPendingDeleteId(polygonContextMenu.polygonId);
+                                }
+                            }}
+                            className={`${floatingButtonClasses} ${pendingDeleteId === polygonContextMenu.polygonId ? 'bg-rose-500 text-white hover:!bg-rose-600 hover:!text-white' : 'text-rose-600 hover:bg-rose-50'}`}
+                        >
+                            <span className={`inline-flex h-8 w-8 items-center justify-center rounded-xl text-base ${pendingDeleteId === polygonContextMenu.polygonId ? 'bg-white/20 text-white' : 'bg-rose-50 text-rose-600'}`}>🗑️</span>
+                            {pendingDeleteId === polygonContextMenu.polygonId ? t('common.confirm') : t('common.delete')}
+                        </button>
                     </div>
                 </div>
             )}
 
+            {pendingDeleteId && !polygonContextMenu && (
+                <div className="fixed left-1/2 top-5 z-[10000] flex -translate-x-1/2 items-center gap-4 rounded-3xl bg-rose-500/95 px-6 py-4 text-white shadow-2xl shadow-rose-500/40 backdrop-blur">
+                    <span className="text-sm font-semibold leading-snug">
+                        {t('map.deletePrompt', { name: polygons.find(p => p.id === pendingDeleteId)?.name ?? '' })}
+                    </span>
+                    <div className="flex gap-2">
+                        <button
+                            type="button"
+                            onClick={() => { deletePolygon(pendingDeleteId); setPendingDeleteId(null); }}
+                            className="rounded-2xl bg-white/95 px-4 py-2 text-sm font-semibold text-rose-600 shadow-md transition hover:-translate-y-0.5"
+                        >
+                            {t('common.confirm')}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setPendingDeleteId(null)}
+                            className="rounded-2xl border border-white/60 px-4 py-2 text-sm font-semibold text-white/90 transition hover:bg-white/10"
+                        >
+                            {t('common.cancel')}
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {operationPopup && popupCoords && (() => {
+                const listRect = listBarRef.current?.getBoundingClientRect();
+                const mobileTop = (listRect?.bottom ?? 0) + 12;
+                const viewportH = typeof window !== 'undefined' ? window.innerHeight : undefined;
+                const mobileHeight = viewportH ? Math.max(180, viewportH - mobileTop - 12) : undefined;
+                const popupStyle = isMobile
+                    ? {
+                        left: 0,
+                        top: mobileTop,
+                        width: '100vw',
+                        maxWidth: '100vw',
+                        height: mobileHeight ? `${mobileHeight}px` : undefined,
+                        maxHeight: mobileHeight ? `${mobileHeight}px` : undefined,
+                    }
+                    : { left: popupCoords.left, top: popupCoords.top };
+
+                return createPortal(
+                    <div
+                        className="fixed z-[120000] w-[420px] max-w-[94vw] max-h-[82vh] overflow-y-auto rounded-2xl border border-white/10 bg-slate-900/95 p-4 text-white shadow-2xl shadow-black/40 backdrop-blur"
+                        style={popupStyle}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="mb-3 flex items-start justify-between gap-3">
+                            <div className="cursor-move" onMouseDown={startDrag}>
+                                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-indigo-200">{t('operations.title', { defaultValue: 'Parcel operations' })}</p>
+                                <h3 className="text-lg font-semibold text-white">{polygons.find(p => p.id === operationPopup.polygonId)?.name || t('map.unnamedParcel')}</h3>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <label className="flex items-center gap-1 text-xs font-semibold text-slate-200">
+                                    <input
+                                        type="checkbox"
+                                        checked={preferTopRight}
+                                        onChange={(e) => setPreferTopRight(e.target.checked)}
+                                        className="h-4 w-4 rounded border-white/30 bg-white/10 text-indigo-500"
+                                    />
+                                    {t('operations.pinTopRight', { defaultValue: 'Open top-right' })}
+                                </label>
+                                <button
+                                    type="button"
+                                    onClick={closeOperationPopup}
+                                    className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/15 bg-white/5 text-slate-200 transition hover:bg-white/10"
+                                >
+                                    ×
+                                </button>
+                            </div>
+                        </div>
+
+                        {operationError && (
+                            <div className="mb-3 rounded-lg border border-rose-500/40 bg-rose-500/15 px-3 py-2 text-sm text-rose-100">
+                                {operationError}
+                            </div>
+                        )}
+
+                        {operationLoading && (
+                            <div className="mb-3 flex items-center gap-2 rounded-xl border border-indigo-300/30 bg-indigo-500/10 px-3 py-2 text-sm text-indigo-50">
+                                <span className="inline-block h-3 w-3 animate-pulse rounded-full bg-indigo-200" aria-hidden="true" />
+                                {t('common.loading', { defaultValue: 'Loading...' })}
+                            </div>
+                        )}
+
+                        <div className="space-y-3">
+                            <select
+                                value={operationTypeId}
+                                onChange={(e) => setOperationTypeId(e.target.value)}
+                                className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-indigo-300"
+                            >
+                                <option value="">{t('operations.selectTypePlaceholder', { defaultValue: 'Select operation type' })}</option>
+                                {operationTypes.map(type => (
+                                    <option key={type.id} value={type.id}>{type.name}</option>
+                                ))}
+                            </select>
+
+                            <div className="grid grid-cols-2 gap-3">
+                                <input
+                                    type="datetime-local"
+                                    value={operationDate}
+                                    onChange={(e) => setOperationDate(e.target.value)}
+                                    className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-indigo-300"
+                                />
+                                <input
+                                    type="number"
+                                    min="0"
+                                    placeholder={t('operations.durationLabel', { defaultValue: 'Duration (minutes)' })}
+                                    value={operationDurationMinutes}
+                                    onChange={(e) => setOperationDurationMinutes(e.target.value)}
+                                    className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-indigo-300"
+                                />
+                            </div>
+
+                            <div className="flex items-center justify-between text-sm text-slate-100">
+                                <span>{t('operations.productsTools', { defaultValue: 'Products & Tools' })}</span>
+                                <button
+                                    type="button"
+                                    onClick={handleAddOperationLine}
+                                    className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-white hover:bg-white/10"
+                                >
+                                    + {t('common.add', { defaultValue: 'Add' })}
+                                </button>
+                            </div>
+
+                            <div className="flex flex-col gap-2">
+                                {operationLines.map((line, index) => (
+                                    <div key={index} className="grid grid-cols-5 gap-2 text-sm">
+                                        <select
+                                            value={line.productId}
+                                            onChange={(e) => updateOperationLine(index, 'productId', e.target.value)}
+                                            className="rounded-md border border-white/10 bg-white/5 px-2 py-2 text-white outline-none focus:border-indigo-300"
+                                        >
+                                            <option value="">{t('common.select', { defaultValue: 'Select' })}</option>
+                                            {products.map(p => (
+                                                <option key={p.id} value={p.id}>{p.name}</option>
+                                            ))}
+                                        </select>
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            placeholder={t('common.quantity', { defaultValue: 'Qty' })}
+                                            value={line.quantity}
+                                            onChange={(e) => updateOperationLine(index, 'quantity', e.target.value)}
+                                            className="rounded-md border border-white/10 bg-white/5 px-2 py-2 text-white outline-none focus:border-indigo-300"
+                                        />
+                                        <select
+                                            value={line.unitId}
+                                            onChange={(e) => updateOperationLine(index, 'unitId', e.target.value)}
+                                            className="rounded-md border border-white/10 bg-white/5 px-2 py-2 text-white outline-none focus:border-indigo-300"
+                                        >
+                                            <option value="">{t('operations.unit', { defaultValue: 'Unit' })}</option>
+                                            {units.map(u => (
+                                                <option key={u.id} value={u.id}>{u.value}</option>
+                                            ))}
+                                        </select>
+                                        <select
+                                            value={line.toolId}
+                                            onChange={(e) => updateOperationLine(index, 'toolId', e.target.value)}
+                                            className="rounded-md border border-white/10 bg-white/5 px-2 py-2 text-white outline-none focus:border-indigo-300"
+                                        >
+                                            <option value="">{t('operations.tool', { defaultValue: 'Tool' })}</option>
+                                            {tools.map(tl => (
+                                                <option key={tl.id} value={tl.id}>{tl.name}</option>
+                                            ))}
+                                        </select>
+                                        <div className="flex items-center justify-end">
+                                            {operationLines.length > 1 && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleRemoveOperationLine(index)}
+                                                    className="text-xs font-semibold text-rose-200 hover:text-rose-100"
+                                                >
+                                                    {t('common.delete', { defaultValue: 'Remove' })}
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <div className="flex justify-end gap-2">
+                                <button
+                                    type="button"
+                                    onClick={resetOperationForm}
+                                    disabled={operationLoading}
+                                    className="rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-60"
+                                >
+                                    {t('common.cancel', { defaultValue: 'Cancel' })}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleSaveOperation}
+                                    disabled={!currentParcelId || operationLoading}
+                                    className="rounded-xl border border-indigo-400/70 bg-gradient-to-r from-indigo-500 to-indigo-600 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-indigo-500/25 transition hover:from-indigo-500 hover:to-indigo-500 disabled:opacity-60"
+                                >
+                                    {operationLoading ? t('common.loading', { defaultValue: 'Loading...' }) : t('operations.submit', { defaultValue: 'Save operation' })}
+                                </button>
+                            </div>
+
+                            <div>
+                                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-200">{t('operations.history', { defaultValue: 'History' })}</p>
+                                <div className="mt-2 flex max-h-56 flex-col gap-2 overflow-y-auto">
+                                    {parcelOperations.length === 0 && (
+                                        <div className="text-sm text-slate-200/80">{t('operations.emptyHistory', { defaultValue: 'No operations yet' })}</div>
+                                    )}
+                                    {parcelOperations.map(op => (
+                                        <div key={op.id} className="rounded-xl border border-white/10 bg-white/5 p-3">
+                                            <div className="flex items-center justify-between gap-3">
+                                                <div>
+                                                    <div className="font-semibold text-white">{op.typeName || t('operations.selectTypePlaceholder', { defaultValue: 'Operation' })}</div>
+                                                    <div className="text-xs text-slate-200/80">{op.date ? new Date(op.date).toLocaleString() : ''}</div>
+                                                </div>
+                                                {op.durationSeconds != null && (
+                                                    <span className="rounded-full bg-white/10 px-2 py-1 text-[11px] font-semibold text-white">
+                                                        {(op.durationSeconds / 60).toFixed(0)} min
+                                                    </span>
+                                                )}
+                                            </div>
+                                            {op.products && op.products.length > 0 && (
+                                                <div className="mt-2 border-t border-white/10 pt-2 text-sm text-white">
+                                                    {op.products.map(p => (
+                                                        <div key={p.id || `${p.productId}-${p.toolId}`} className="flex items-center justify-between">
+                                                            <span>
+                                                                <strong>{p.productName || t('operations.product', { defaultValue: 'Product' })}</strong>
+                                                                {p.quantity != null && (
+                                                                    <span className="text-slate-200/80"> {p.quantity}{p.unitValue ? ` ${p.unitValue}` : ''}</span>
+                                                                )}
+                                                            </span>
+                                                            {p.toolName && (
+                                                                <span className="rounded-full bg-indigo-500/20 px-2 py-1 text-[11px] font-semibold text-indigo-100">{p.toolName}</span>
+                                                            )}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    </div>,
+                    document.body
+                );
+            })()}
             {renamingId && (
                 <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 10001 }}>
                     <div style={{ background: "#fff", padding: "2rem", borderRadius: 8, boxShadow: "0 4px 24px rgba(0,0,0,0.3)", minWidth: 400, display: "flex", flexDirection: "column", gap: "1.5rem" }}>
@@ -1201,7 +1716,7 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
                     </div>
                 </div>
             )}
-            <div style={{ flex: 1, position: 'relative', height: '100%' }}>
+            <div style={{ flex: 1, position: 'relative', minHeight: 0, height: '100%' }}>
                 <div
                     style={{
                         position: 'absolute',
@@ -1221,6 +1736,7 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
                             pointerEvents: 'auto',
                             transition: 'width 0.25s ease',
                         }}
+                        data-tour-id="map-polygon-list"
                     >
                         <div
                             style={{
@@ -1235,6 +1751,7 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
                                 boxShadow: '0 18px 35px rgba(15,23,42,0.35)',
                                 backdropFilter: 'blur(6px)',
                             }}
+                            ref={listBarRef}
                         >
                             <div
                                 style={{
@@ -1403,7 +1920,9 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
                                                             fontWeight: 500,
                                                             cursor: 'pointer',
                                                             textAlign: 'left',
-                                                            background: listFilter === option.key ? 'rgba(15,23,42,0.08)' : 'transparent',
+                                                            background: option.key === 'all'
+                                                                ? (listFilter.length === 0 ? 'rgba(15,23,42,0.08)' : 'transparent')
+                                                                : (listFilter.includes(option.key as 'visible' | 'hidden' | 'approved' | 'unapproved') ? 'rgba(15,23,42,0.08)' : 'transparent'),
                                                             color: '#0f172a',
                                                             display: 'flex',
                                                             alignItems: 'center',
@@ -1460,8 +1979,10 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
                         )}
                     </div>
                 </div>
-                <MapContainer style={{ height: "100%", width: "100%" }} center={center} zoom={15} maxZoom={19}>
-                    <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" maxNativeZoom={20} attribution='&copy; <a href="https://osm.org/copyright">OpenStreetMap</a>' />
+                <div data-tour-id="map-canvas" style={{ height: '100%', width: '100%', minHeight: 0 }}>
+                    <MapContainer style={{ height: "100%", width: "100%" }} center={center} zoom={15} maxZoom={19} zoomControl={false}>
+                        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" maxNativeZoom={20} attribution='&copy; <a href="https://osm.org/copyright">OpenStreetMap</a>' />
+                        <ZoomControl position="bottomright" />
                     <MapEvents />
                     <style>{`
                         .leaflet-control-container .leaflet-draw, .leaflet-draw-toolbar { display: none !important; }
@@ -1549,9 +2070,10 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
                                             L.DomEvent.stopPropagation(e as any); 
                                             if (!editingId) {
                                                 e.originalEvent.preventDefault();
+                                                const { x, y } = clampToViewport(e.originalEvent.clientX, e.originalEvent.clientY, 260, 260);
                                                 setPolygonContextMenu({ 
-                                                    x: e.originalEvent.clientX, 
-                                                    y: e.originalEvent.clientY, 
+                                                    x, 
+                                                    y, 
                                                     polygonId: poly.id 
                                                 });
                                                 setSelectedId(poly.id);
@@ -1630,84 +2152,101 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
                             </>
                         )}
                     </FeatureGroup>
-                </MapContainer>
+                    </MapContainer>
+                </div>
 
-                <div style={{ position: 'absolute', top: 16, right: 16, zIndex: 2000, display: 'flex', gap: 8 }}>
+                <div data-tour-id="map-toolbar" className="pointer-events-auto absolute top-4 right-4 z-[2000] flex flex-wrap justify-end gap-2">
                     {overlapWarning && showPreview ? (
                         <>
                             <button
+                                type="button"
                                 onClick={() => setShowPreview(false)}
                                 title={t('map.preview.back')}
-                                style={{
-                                    background: '#007bff',
-                                    color: 'white',
-                                    border: 'none',
-                                    padding: '0.5rem 0.75rem',
-                                    borderRadius: 4,
-                                    fontWeight: 600,
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '0.35rem'
-                                }}
+                                className={`${toolbarButtonBase} border-indigo-500 bg-indigo-600 text-white hover:-translate-y-0.5 hover:bg-indigo-500`}
                             >
-                                <span>👁️</span>
+                                <span className="text-base">👁️</span>
                                 {t('map.preview.back')}
                             </button>
-                            <div style={{ display: 'flex', gap: 6, background: 'rgba(0,0,0,0.45)', padding: '0.35rem', borderRadius: 999, boxShadow: '0 2px 6px rgba(0,0,0,0.2)' }}>
+                            <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-900/80 px-2 py-1 text-xs font-semibold uppercase tracking-wide text-slate-100 shadow-2xl shadow-slate-900/30 backdrop-blur">
                                 <button
+                                    type="button"
                                     onClick={() => setPreviewVisibility(prev => ({ ...prev, original: !prev.original }))}
                                     disabled={!overlapWarning.originalCoords?.length}
-                                    style={{
-                                        border: 'none',
-                                        borderRadius: 999,
-                                        padding: '0.35rem 0.85rem',
-                                        fontSize: '0.8rem',
-                                        cursor: overlapWarning.originalCoords?.length ? 'pointer' : 'not-allowed',
-                                        background: previewVisibility.original ? '#ff5252' : 'transparent',
-                                        color: '#fff',
-                                        opacity: overlapWarning.originalCoords?.length ? 1 : 0.4,
-                                        transition: 'background 0.2s, opacity 0.2s'
-                                    }}
+                                    className={`rounded-2xl px-3 py-1 transition ${previewVisibility.original ? 'bg-rose-500 text-white' : 'text-slate-100 hover:text-white'} ${overlapWarning.originalCoords?.length ? '' : 'cursor-not-allowed opacity-40'}`}
                                 >
                                     {t('map.preview.original')}
                                 </button>
                                 <button
+                                    type="button"
                                     onClick={() => setPreviewVisibility(prev => ({ ...prev, fixed: !prev.fixed }))}
                                     disabled={!overlapWarning.fixedCoords?.length}
-                                    style={{
-                                        border: 'none',
-                                        borderRadius: 999,
-                                        padding: '0.35rem 0.85rem',
-                                        fontSize: '0.8rem',
-                                        cursor: overlapWarning.fixedCoords?.length ? 'pointer' : 'not-allowed',
-                                        background: previewVisibility.fixed ? '#4caf50' : 'transparent',
-                                        color: '#fff',
-                                        opacity: overlapWarning.fixedCoords?.length ? 1 : 0.4,
-                                        transition: 'background 0.2s, opacity 0.2s'
-                                    }}
+                                    className={`rounded-2xl px-3 py-1 transition ${previewVisibility.fixed ? 'bg-emerald-500 text-white' : 'text-slate-100 hover:text-white'} ${overlapWarning.fixedCoords?.length ? '' : 'cursor-not-allowed opacity-40'}`}
                                 >
                                     {t('map.preview.fixed')}
                                 </button>
                             </div>
                         </>
                     ) : (allowCreate && !editingId && !isCreating && (
-                        <button onClick={startCreate} title={t('map.toolbar.addTitle')} style={{ background: '#007bff', color: 'white', border: 'none', padding: '0.5rem', borderRadius: 4 }}>+</button>
+                        <button
+                            type="button"
+                            onClick={startCreate}
+                            title={t('map.toolbar.addTitle')}
+                            className={`${toolbarButtonBase} border-indigo-500 bg-indigo-600 text-lg text-white hover:-translate-y-0.5 hover:bg-indigo-500`}
+                        >
+                            +
+                        </button>
                     ))}
                     {allowCreate && isCreating && (
                         <>
-                            <button onClick={finishCreate} title={t('map.toolbar.finishDrawing')} disabled={createPointCount < 3} style={{ background: createPointCount >= 3 ? 'green' : '#9fc59f', color: 'white', border: 'none', padding: '0.5rem', borderRadius: 4, cursor: createPointCount >= 3 ? 'pointer' : 'not-allowed', opacity: createPointCount >= 3 ? 1 : 0.6 }}>✓</button>
-                            <button onClick={cancelCreate} title={t('map.toolbar.cancelDrawing')} style={{ background: 'red', color: 'white', border: 'none', padding: '0.5rem', borderRadius: 4 }}>✕</button>
-                            <button onClick={() => createHandlerRef.current?.deleteLastVertex?.()} title={t('map.toolbar.removeLastPoint')} style={{ background: '#ddd', color: '#333', border: 'none', padding: '0.5rem', borderRadius: 4 }}>-</button>
+                            <button
+                                type="button"
+                                onClick={finishCreate}
+                                title={t('map.toolbar.finishDrawing')}
+                                disabled={createPointCount < 3}
+                                className={`${toolbarButtonBase} border-emerald-500 bg-emerald-500 text-white ${createPointCount < 3 ? 'cursor-not-allowed opacity-60' : 'hover:-translate-y-0.5 hover:bg-emerald-400'}`}
+                            >
+                                ✓
+                            </button>
+                            <button
+                                type="button"
+                                onClick={cancelCreate}
+                                title={t('map.toolbar.cancelDrawing')}
+                                className={`${toolbarButtonBase} border-rose-500 bg-rose-500 text-white hover:-translate-y-0.5 hover:bg-rose-400`}
+                            >
+                                ✕
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => createHandlerRef.current?.deleteLastVertex?.()}
+                                title={t('map.toolbar.removeLastPoint')}
+                                className={`${toolbarButtonBase} border-slate-300 bg-white text-slate-600 hover:-translate-y-0.5 hover:bg-slate-50`}
+                            >
+                                -
+                            </button>
                         </>
                     )}
                     {editingId && (
                         <>
-                            <button onClick={finishEdit} title={t('map.toolbar.saveEdit')} style={{ background: 'green', color: 'white', border: 'none', padding: '0.5rem', borderRadius: 4 }}>✓</button>
-                            <button onClick={cancelEdit} title={t('map.toolbar.cancelEdit')} style={{ background: 'red', color: 'white', border: 'none', padding: '0.5rem', borderRadius: 4 }}>✕</button>
+                            <button
+                                type="button"
+                                onClick={finishEdit}
+                                title={t('map.toolbar.saveEdit')}
+                                className={`${toolbarButtonBase} border-emerald-500 bg-emerald-500 text-white hover:-translate-y-0.5 hover:bg-emerald-400`}
+                            >
+                                ✓
+                            </button>
+                            <button
+                                type="button"
+                                onClick={cancelEdit}
+                                title={t('map.toolbar.cancelEdit')}
+                                className={`${toolbarButtonBase} border-rose-500 bg-rose-500 text-white hover:-translate-y-0.5 hover:bg-rose-400`}
+                            >
+                                ✕
+                            </button>
                         </>
                     )}
                 </div>
             </div>
-        </>
+        </div>
     );
 }

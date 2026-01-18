@@ -7,7 +7,7 @@ import {
   ScrollRestoration,
   useLocation,
 } from "react-router";
-import { useEffect } from "react";
+import { useEffect, useLayoutEffect } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { Route } from "./+types/root";
@@ -17,6 +17,8 @@ import "./i18n";
 import { AuthProvider } from "./contexts/AuthContext";
 import { FarmProvider } from "./contexts/FarmContext";
 import { getLocaleFromPathname } from "./utils/locale";
+
+const useIsomorphicLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
 export const links: Route.LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -36,7 +38,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const { i18n } = useTranslation();
   const currentLocale = getLocaleFromPathname(location.pathname ?? "/");
 
-  useEffect(() => {
+  if (typeof window === "undefined" && i18n.language !== currentLocale) {
+    i18n.changeLanguage(currentLocale);
+  }
+
+  useIsomorphicLayoutEffect(() => {
     if (i18n.language !== currentLocale) {
       i18n.changeLanguage(currentLocale);
     }

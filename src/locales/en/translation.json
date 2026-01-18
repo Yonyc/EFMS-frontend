@@ -2,6 +2,9 @@
   "nav": {
     "home": "Home",
     "map": "Map",
+    "public_farms": "Public farms",
+    "assets": "Assets",
+    "operations": "Operations",
     "wiki": "Wiki",
     "imports": "Imports",
     "language_switcher": "Language Switcher",
@@ -10,7 +13,7 @@
     "settings": "Settings",
     "sign_out": "Sign out",
     "sign_in": "Sign In",
-    "create_farm": "Create Farm"
+    "create_farm": "Manage Farms"
   },
   "imports": {
     "title": "Import lists",
@@ -62,9 +65,123 @@
     "fr": "Français"
   },
   "home": {
-    "title": "Welcome to EFMS",
-    "description": "This is a platform for managing plots."
+    "title": "Experimental Farms Management System",
+    "description": "Open-source web platform helping the Louvain-la-Neuve experimental farm stay compliant while tracking every parcel and sub-plot over time.",
+    "hero": {
+      "badge": "Master Thesis · 2025-2026",
+      "title": "Plan, document and report every square meter with confidence.",
+      "subtitle": "EFMS centralizes field histories, experiments and regulatory exports so agronomists, researchers and staff can collaborate without spreadsheets.",
+      "primaryCta": "Open interactive map",
+      "secondaryCta": "Create a farm",
+      "stats": [
+        { "value": "Hélène Verhaeghe", "label": "supervisor" },
+        { "value": "Alexandre & Arnaud Wery", "label": "students" },
+        { "value": "LLN", "label": "experimental farm" }
+      ]
+    },
+    "context": {
+      "title": "Context",
+      "heading": "Why the farm needed EFMS",
+      "description": "Belgian farms must provide a yearly declaration for each cultivated surface. The LLN experimental farm further subdivides fields into small research parcels, multiplying the paperwork and the risk of inconsistencies."
+    },
+    "project": {
+      "title": "Project",
+      "heading": "Co-designed with LLN teams",
+      "description": "This thesis delivers a maintainable, open-source GIS-like web application co-designed with the farm's team to record, visualize and retrieve operations while remaining compatible with official tools."
+    },
+    "features": {
+      "title": "What EFMS brings",
+      "tagline": "Platform capabilities",
+      "items": [
+        { "title": "Precise parcel editor", "description": "Draw, split and color-code main fields plus experimental sub-parcels with overlap detection." },
+        { "title": "Complete agronomic logbook", "description": "Record crops, treatments, experiments and yearly operations per zone with a full audit trail." },
+        { "title": "Regulation-ready exports", "description": "Generate reports compatible with Belgian administrative systems and research workflows." },
+        { "title": "Historical timeline", "description": "Travel through seasons to understand what happened on any square meter in seconds." },
+        { "title": "Collaboration-first UI", "description": "Role-friendly interface that stays fast on the field and intuitive in the office." }
+      ]
+    },
+    "cta": {
+      "title": "Ready to try it?",
+      "description": "Start by drawing your farm or jump straight to the interactive map to explore existing parcels.",
+      "primary": "Go to the map",
+      "secondary": "Create my first farm"
+    }
   },
+    "wiki": {
+      "title": "EFMS Wiki",
+      "mapTutorial": {
+        "title": "Interactive map tutorial",
+        "intro": "Use this guided workflow to draw experimental parcels, edit them safely and keep your data organized.",
+        "cta": {
+          "openMap": "Open map",
+          "restartTour": "Replay in-app tutorial"
+        },
+        "sections": [
+          {
+            "title": "1. Prepare the workspace",
+            "body": "Before drawing, make sure you are authenticated and that the right farm is selected in the navigation bar.",
+            "actions": [
+              "Choose a farm with the selector next to your profile picture. This loads its polygons and color palette.",
+              "Press the map link in the navbar to open the editor.",
+              "Wait for the base map to finish loading (spinner in the right panel)."
+            ]
+          },
+          {
+            "title": "2. Create a polygon",
+            "body": "Draw experimental parcels by placing vertices on the imagery layer.",
+            "actions": [
+              "Click the \"Add\" button in the left toolbar, then select \"Polygon\".",
+              "Left-click on the map to drop each vertex. Use scroll to zoom for higher precision.",
+              "Close the polygon by clicking on the first vertex or by pressing Enter to auto-complete.",
+              "Give the parcel a name in the modal that appears and confirm to save it."
+            ]
+          },
+          {
+            "title": "3. Edit an existing polygon",
+            "body": "Adjust shapes whenever trials evolve.",
+            "actions": [
+              "Select the polygon either from the list or by clicking it on the map.",
+              "Use the toolbar action \"Edit\" to expose draggable vertices.",
+              "Drag handles to new positions; double-click to insert a new vertex, press Delete to remove one.",
+              "Hit \"Save\" when you are satisfied or \"Cancel\" to revert changes."
+            ]
+          },
+          {
+            "title": "4. Manage visibility & colors",
+            "body": "Keep the view readable by toggling polygons on and off and applying semantic colors.",
+            "actions": [
+              "Open the polygon list on the right and use the checkbox to show or hide a parcel.",
+              "Click the colored dot to choose a new hue that matches crops or experiment types.",
+              "Group related sub-parcels by assigning the same color family."
+            ]
+          },
+          {
+            "title": "5. Delete",
+            "body": "Clean up prototypes.",
+            "actions": [
+              "Use the menu on a polygon.",
+              "Select \"Delete\" to remove a parcel. You will be asked to confirm to avoid accidental loss.",
+              "When deleting, EFMS keeps the historical log but removes it from the live map."
+            ]
+          }
+        ],
+        "tips": {
+          "title": "Field-tested tips",
+          "items": [
+            "Name polygons with a consistent convention such as FIELD-PLOT-SUBPLOT (e.g., B1-Red-2025)."
+          ]
+        },
+        "shortcuts": {
+          "title": "Keyboard shortcuts",
+          "items": [
+            { "keys": "Esc", "description": "Cancel the current drawing or exit edit mode." },
+            { "keys": "Enter", "description": "Finish drawing and open the naming modal." },
+            { "keys": "Ctrl + Z", "description": "Undo the last vertex while drawing." },
+            { "keys": "Ctrl + D", "description": "Duplicate the selected polygon." }
+          ]
+        }
+      }
+    },
   "common": {
     "cancel": "Cancel",
     "confirm": "Confirm",
@@ -78,19 +195,52 @@
     "error": "Failed to load farms",
     "selectFarm": "Select Farm"
   },
-  "createFarm": {
-    "title": "Create a New Farm",
-    "description": "Enter the details for your new farm",
-    "nameLabel": "Farm Name",
+  "manageFarms": {
+    "title": "Manage Farms",
+    "description": "Rename an existing farm or add a new one.",
+    "currentTitle": "Current farm",
+    "currentDescription": "Select a farm to edit its settings.",
+    "nameLabel": "Farm name",
     "namePlaceholder": "Enter farm name",
     "nameHelp": "Minimum 3 characters",
     "errors": {
       "required": "Farm name is required",
       "minLength": "Farm name must be at least 3 characters long",
-      "generic": "Failed to create farm. Please try again."
+      "generic": "Request failed. Please try again.",
+      "noSelection": "Select a farm first"
     },
+    "update": "Save changes",
+    "updating": "Saving...",
+    "updated": "Farm updated",
+    "newTitle": "Add a new farm",
+    "newDescription": "Create another farm and start mapping it.",
+    "descriptionLabel": "Description",
+    "locationLabel": "Location",
+    "visibility": "Visibility",
+    "public": "Public listing",
+    "showName": "Show name",
+    "showDescription": "Show description",
+    "showLocation": "Show location",
     "submit": "Create Farm",
-    "submitting": "Creating..."
+    "submitting": "Creating...",
+    "created": "Farm created"
+  },
+  "publicFarms": {
+    "title": "Public farms",
+    "subtitle": "Farms that opted into public listing. Only fields their owners marked visible appear here.",
+    "refresh": "Refresh",
+    "loading": "Loading public farms...",
+    "error": "Unable to load public farms.",
+    "empty": "No public farms are listed yet.",
+    "emptyHint": "Check back later or refresh.",
+    "countLabel": "Public farms: {{count}}",
+    "nameHidden": "Name hidden",
+    "descriptionHidden": "Description hidden",
+    "descriptionMissing": "No description shared",
+    "locationHidden": "Location hidden",
+    "locationMissing": "No location shared",
+    "publicBadge": "Public",
+    "note": "Owners choose what to show. Hidden fields stay private."
   },
   "auth": {
     "shared": {
@@ -124,9 +274,93 @@
       }
     }
   },
+  "operations": {
+    "title": "Parcel operations",
+    "subtitle": "Log interventions on your parcels and review their history.",
+    "selectParcel": "Choose a parcel",
+    "selectType": "Operation type",
+    "selectTypePlaceholder": "Select a type (optional)",
+    "dateLabel": "Date",
+    "durationLabel": "Duration (minutes)",
+    "submit": "Add operation",
+    "update": "Save changes",
+    "edit": "Edit",
+    "editing": "Editing operation",
+    "editingHint": "Update the fields and save or cancel to start a new operation.",
+    "history": "History",
+    "emptyHistory": "No operations recorded for this parcel yet.",
+    "noParcel": "Select a parcel to view or add operations.",
+    "refreshFarms": "Refresh farms",
+    "refreshParcels": "Reload parcels",
+    "pinTopRight": "Open top-right"
+  },
+  "profile": {
+    "title": "Profile",
+    "subtitle": "Manage your account",
+    "backToMap": "Back to map",
+    "account": "Account",
+    "unknown": "Unknown user",
+    "reset": "Reset",
+    "reload": "Reload",
+    "username": "Username",
+    "email": "Email",
+    "preferences": "Preferences",
+    "pinTopRight": "Open operations popup at top-right",
+    "pinTopRightHint": "Also used on the map operations popup.",
+    "save": "Save changes",
+    "saving": "Saving...",
+    "saved": "Profile updated",
+    "errorSave": "Failed to update profile",
+    "errorLoad": "Unable to reload profile",
+    "changeAvatar": "Change avatar",
+    "cropTitle": "Crop avatar",
+    "saveAvatar": "Save avatar",
+    "uploading": "Uploading...",
+    "avatarUpdated": "Avatar updated",
+    "avatarError": "Failed to update avatar"
+  },
   "map": {
     "defaultPolygonName": "Polygon",
     "unnamedParcel": "Unnamed Parcel",
+    "farmSelection": {
+      "chooseLabel": "Step 1 · Choose a farm",
+      "title": "Which farm do you want to manage?",
+      "description": "Select a farm to load its parcels on the map.",
+      "availableBadge": "Available",
+      "selectButton": "Use this farm",
+      "stepLabel": "Get started",
+      "emptyTitle": "You don't have any farms yet",
+      "emptyDescription": "Create your first farm to start mapping parcels.",
+      "createButton": "Create a farm"
+    },
+    "tour": {
+      "title": "Interactive tour",
+      "controls": {
+        "step": "Step {{current}} / {{total}}",
+        "skip": "Skip tutorial",
+        "back": "Back",
+        "next": "Next",
+        "finish": "Start mapping"
+      },
+      "steps": {
+        "farmSelector": {
+          "title": "Pick the right farm",
+          "description": "Use the selector near your avatar to switch between farms and load their parcels."
+        },
+        "toolbar": {
+          "title": "Drawing toolbar",
+          "description": "Create, finish or cancel polygons with these floating controls. They change automatically when you edit an existing parcel."
+        },
+        "canvas": {
+          "title": "Interactive map",
+          "description": "Click to select parcels, right-click for quick actions and zoom in to digitize sub-plots with centimeter precision."
+        },
+        "list": {
+          "title": "Polygon list",
+          "description": "Search, rename, recolor or hide parcels from this drawer. Collapse it when you need extra space."
+        }
+      }
+    },
     "polygonList": {
       "title": "Polygons",
       "empty": "No polygons yet",
