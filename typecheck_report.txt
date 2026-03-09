@@ -1,0 +1,18 @@
+
+> typecheck
+> react-router typegen && tsc
+
+app/components/map/MapWithPolygons.client.tsx(190,52): error TS2339: Property 'latitude' does not exist on type 'Farm'.
+app/components/map/MapWithPolygons.client.tsx(190,78): error TS2339: Property 'longitude' does not exist on type 'Farm'.
+app/components/map/MapWithPolygons.client.tsx(191,25): error TS2339: Property 'latitude' does not exist on type 'Farm'.
+app/components/map/MapWithPolygons.client.tsx(191,48): error TS2339: Property 'longitude' does not exist on type 'Farm'.
+app/components/map/MapWithPolygons.client.tsx(453,77): error TS2304: Cannot find name 'approveSingleParcel'.
+app/components/map/MapWithPolygons.client.tsx(590,71): error TS2304: Cannot find name 'startDrag'.
+app/components/map/MapWithPolygons.client.tsx(943,38): error TS2304: Cannot find name 'filteredPolygons'.
+app/components/map/MapWithPolygons.client.tsx(1048,80): error TS2304: Cannot find name 'activeFilterLabel'.
+app/components/map/MapWithPolygons.client.tsx(1069,50): error TS2304: Cannot find name 'filterOptions'.
+app/components/map/MapWithPolygons.client.tsx(1069,68): error TS7006: Parameter 'option' implicitly has an 'any' type.
+app/components/map/MapWithPolygons.client.tsx(1142,47): error TS2304: Cannot find name 'filteredPolygons'.
+app/components/map/MapWithPolygons.client.tsx(1145,46): error TS2304: Cannot find name 'focusPolygon'.
+app/components/map/MapWithPolygons.client.tsx(1146,69): error TS2304: Cannot find name 'approveSingleParcel'.
+app/components/map/MapWithPolygons.client.tsx(1575,42): error TS2304: Cannot find name 'clearSearchFilters'.

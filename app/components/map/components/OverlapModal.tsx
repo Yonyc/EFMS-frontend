@@ -32,101 +32,69 @@ export default function OverlapModal({
     );
 
     return (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 10001 }}>
-            <div style={{ 
-                background: "#fff", 
-                padding: "2rem", 
-                borderRadius: 8, 
-                boxShadow: "0 4px 24px rgba(0,0,0,0.3)", 
-                minWidth: 400, 
-                maxWidth: 600, 
-                display: "flex", 
-                flexDirection: "column", 
-                gap: "1.5rem"
-            }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-                    <span style={{ fontSize: "2rem" }}>⚠️</span>
-                    <h2 style={{ margin: 0, color: '#d32f2f', fontSize: "1.5rem" }}>{t('map.overlap.title')}</h2>
+        <div className="fixed inset-0 z-[10001] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+            <div className="flex w-full max-w-lg flex-col gap-6 rounded-3xl bg-white p-8 shadow-2xl shadow-slate-900/20 ring-1 ring-slate-200">
+                <div className="flex items-center gap-3">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-50 text-2xl text-amber-500 ring-1 ring-amber-200">
+                        ⚠️
+                    </div>
+                    <div>
+                        <h2 className="text-xl font-bold text-slate-900">{t('map.overlap.title')}</h2>
+                        <p className="text-sm text-slate-500">
+                            {t('map.overlap.description', { count: overlapCount })}
+                        </p>
+                    </div>
                 </div>
 
                 {warning.isNewPolygon && (
-                    <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-                        <label style={{ color: '#555', fontWeight: 500 }}>{t('map.overlap.polygonNameLabel')}</label>
+                    <div className="space-y-2">
+                        <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">{t('map.overlap.polygonNameLabel')}</label>
                         <input 
                             type="text" 
                             value={areaName} 
                             onChange={e => onAreaNameChange(e.target.value)} 
                             placeholder={t('map.overlap.polygonNamePlaceholder')}
-                            style={{ 
-                                padding: "0.75rem", 
-                                fontSize: "1rem", 
-                                borderRadius: 4, 
-                                border: "1px solid #ccc", 
-                                color: "#222" 
-                            }} 
+                            className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-900 outline-none transition focus:border-indigo-300 focus:bg-white focus:ring-4 focus:ring-indigo-100"
                             autoFocus 
                         />
                     </div>
                 )}
                 
-                <p style={{ margin: 0, color: '#555', lineHeight: 1.6 }}>
-                    {t('map.overlap.description', { count: overlapCount })}
-                </p>
-                
-                <ul style={{ margin: 0, paddingLeft: "1.5rem", color: '#333' }}>
-                    {warning.overlappingPolygons.map(op => (
-                        <li key={op.id} style={{ marginBottom: "0.5rem" }}>
-                            <strong>{op.name}</strong>
-                        </li>
-                    ))}
-                </ul>
+                <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-4">
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">{t('map.overlap.conflictingWith') || 'Conflicting with'}</p>
+                    <ul className="space-y-1.5">
+                        {warning.overlappingPolygons.map(op => (
+                            <li key={op.id} className="flex items-center gap-2 text-sm font-medium text-slate-700">
+                                <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+                                {op.name}
+                            </li>
+                        ))}
+                    </ul>
+                </div>
 
-                <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-                    <div style={{ padding: '0.75rem', background: '#e8f5e9', border: '1px solid #4caf50', borderRadius: 4, color: '#2e7d32', fontSize: '0.9rem' }}>
-                        <strong>✓ {t('map.overlap.autoFixTitle')}</strong> {t('map.overlap.autoFixMessage', { vertices: verticesCount, percentage: areaPercentage })}
+                <div className="space-y-3">
+                    <div className="rounded-2xl border border-emerald-100 bg-emerald-50/50 p-4 text-sm text-emerald-800 ring-1 ring-emerald-100">
+                        <div className="flex items-center gap-2 font-bold text-emerald-700">
+                            <span className="text-lg">✓</span>
+                            {t('map.overlap.autoFixTitle')}
+                        </div>
+                        <p className="mt-1 leading-relaxed opacity-90">
+                            {t('map.overlap.autoFixMessage', { vertices: verticesCount, percentage: areaPercentage })}
+                        </p>
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    
+                    <div className="grid grid-cols-2 gap-3">
                         <button 
                             onClick={onShowPreview}
-                            style={{ 
-                                padding: "0.75rem 1rem", 
-                                borderRadius: 4, 
-                                border: "1px solid #007bff", 
-                                background: "transparent", 
-                                color: "#007bff",
-                                cursor: "pointer",
-                                fontWeight: 500,
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '0.5rem',
-                                transition: 'all 0.2s'
-                            }}
-                            onMouseEnter={e => e.currentTarget.style.background = '#e3f2fd'}
-                            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                            className="flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 hover:border-slate-300 active:scale-95"
                         >
-                            <span>👁️‍🗨️</span>
+                            <span>👁️</span>
                             {t('map.overlap.previewButton')}
                         </button>
                         {warning.isNewPolygon ? (
                             <button 
                                 onClick={onManualEdit} 
-                                style={{ 
-                                    padding: "0.75rem 1rem", 
-                                    borderRadius: 4, 
-                                    border: "1px solid #2196f3", 
-                                    background: "#fff", 
-                                    cursor: "pointer",
-                                    fontWeight: 500,
-                                    color: "#2196f3",
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    gap: '0.5rem',
-                                    transition: 'all 0.2s'
-                                }}
-                                onMouseEnter={e => e.currentTarget.style.background = '#e3f2fd'}
-                                onMouseLeave={e => e.currentTarget.style.background = '#fff'}
+                                className="flex items-center justify-center gap-2 rounded-2xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100 hover:border-indigo-200 active:scale-95"
                             >
                                 <span>🛠️</span>
                                 {t('map.overlap.manualEdit')}
@@ -134,22 +102,7 @@ export default function OverlapModal({
                         ) : (
                             <button 
                                 onClick={onEditOriginal} 
-                                style={{ 
-                                    padding: "0.75rem 1rem", 
-                                    borderRadius: 4, 
-                                    border: "1px solid #2196f3", 
-                                    background: "#fff", 
-                                    cursor: "pointer",
-                                    fontWeight: 500,
-                                    color: "#2196f3",
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    gap: '0.5rem',
-                                    transition: 'all 0.2s'
-                                }}
-                                onMouseEnter={e => e.currentTarget.style.background = '#e3f2fd'}
-                                onMouseLeave={e => e.currentTarget.style.background = '#fff'}
+                                className="flex items-center justify-center gap-2 rounded-2xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100 hover:border-indigo-200 active:scale-95"
                             >
                                 <span>✏️</span>
                                 {t('map.overlap.continueEditing')}
@@ -158,70 +111,25 @@ export default function OverlapModal({
                     </div>
                 </div>
 
-                <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem", paddingTop: "1rem", borderTop: "1px solid #eee", flexWrap: "wrap" }}>
+                <div className="flex flex-col gap-2 pt-2 sm:flex-row sm:justify-end">
                     <button 
                         onClick={onCancel} 
-                        style={{ 
-                            padding: "0.75rem 1.5rem", 
-                            borderRadius: 4, 
-                            border: "1px solid #ccc", 
-                            background: "#fff", 
-                            cursor: "pointer",
-                            fontWeight: 500,
-                            color: "#757575",
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.5rem',
-                            transition: 'all 0.2s'
-                        }}
-                        onMouseEnter={e => e.currentTarget.style.background = '#f5f5f5'}
-                        onMouseLeave={e => e.currentTarget.style.background = '#fff'}
+                        className="order-3 sm:order-1 flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-6 py-3 text-sm font-semibold text-slate-500 transition hover:bg-slate-50 hover:text-slate-700 active:scale-95"
                     >
-                        <span>✕</span>
                         {t('common.cancel')}
                     </button>
                     
                     <button 
                         onClick={onIgnore} 
-                        style={{ 
-                            padding: "0.75rem 1.5rem", 
-                            borderRadius: 4, 
-                            border: "none", 
-                            background: "#ff9800", 
-                            color: "#fff", 
-                            cursor: "pointer",
-                            fontWeight: 500,
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.5rem',
-                            transition: 'all 0.2s'
-                        }}
-                        onMouseEnter={e => e.currentTarget.style.background = '#fb8c00'}
-                        onMouseLeave={e => e.currentTarget.style.background = '#ff9800'}
+                        className="order-2 sm:order-2 flex items-center justify-center gap-2 rounded-2xl bg-amber-500 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-amber-500/20 transition hover:bg-amber-600 active:scale-95"
                     >
-                        <span>⚠️</span>
                         {t('map.overlap.allowOverlap')}
                     </button>
                     
                     <button 
                         onClick={onAccept} 
-                        style={{ 
-                            padding: "0.75rem 1.5rem", 
-                            borderRadius: 4, 
-                            border: "none", 
-                            background: "#4caf50", 
-                            color: "#fff", 
-                            cursor: "pointer",
-                            fontWeight: 500,
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.5rem',
-                            transition: 'all 0.2s'
-                        }}
-                        onMouseEnter={e => e.currentTarget.style.background = '#43a047'}
-                        onMouseLeave={e => e.currentTarget.style.background = '#4caf50'}
+                        className="order-1 sm:order-3 flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-600/20 transition hover:bg-emerald-500 active:scale-95"
                     >
-                        <span>✓</span>
                         {t('map.overlap.applyShrink')}
                     </button>
                 </div>

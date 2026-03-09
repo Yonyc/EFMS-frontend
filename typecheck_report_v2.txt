@@ -1,0 +1,26 @@
+
+> typecheck
+> react-router typegen && tsc
+
+app/components/map/MapWithPolygons.client.tsx(197,52): error TS2339: Property 'latitude' does not exist on type 'Farm'.
+app/components/map/MapWithPolygons.client.tsx(197,78): error TS2339: Property 'longitude' does not exist on type 'Farm'.
+app/components/map/MapWithPolygons.client.tsx(198,25): error TS2339: Property 'latitude' does not exist on type 'Farm'.
+app/components/map/MapWithPolygons.client.tsx(198,48): error TS2339: Property 'longitude' does not exist on type 'Farm'.
+app/components/map/MapWithPolygons.client.tsx(1078,69): error TS2339: Property 'key' does not exist on type '{ label: string; value: string; }'.
+app/components/map/MapWithPolygons.client.tsx(1081,72): error TS2339: Property 'key' does not exist on type '{ label: string; value: string; }'.
+app/components/map/MapWithPolygons.client.tsx(1087,101): error TS2339: Property 'key' does not exist on type '{ label: string; value: string; }'.
+app/components/map/MapWithPolygons.client.tsx(1089,112): error TS2339: Property 'key' does not exist on type '{ label: string; value: string; }'.
+app/components/map/MapWithPolygons.client.tsx(1091,89): error TS2339: Property 'key' does not exist on type '{ label: string; value: string; }'.
+app/components/map/MapWithPolygons.client.tsx(1102,80): error TS2339: Property 'key' does not exist on type '{ label: string; value: string; }'.
+app/components/map/MapWithPolygons.client.tsx(1104,95): error TS2339: Property 'key' does not exist on type '{ label: string; value: string; }'.
+app/components/map/MapWithPolygons.client.tsx(1112,66): error TS2339: Property 'key' does not exist on type '{ label: string; value: string; }'.
+app/components/map/MapWithPolygons.client.tsx(1113,65): error TS2339: Property 'key' does not exist on type '{ label: string; value: string; }'.
+app/components/map/MapWithPolygons.client.tsx(1113,109): error TS2339: Property 'key' does not exist on type '{ label: string; value: string; }'.
+app/components/map/MapWithPolygons.client.tsx(1149,37): error TS2322: Type 'PolygonData[]' is not assignable to type '{ id: string; name: string; visible: boolean; color?: string | undefined; validationStatus?: string | undefined; convertedParcelId?: number | null | undefined; parentId: string | null; }[]'.
+  Type 'PolygonData' is not assignable to type '{ id: string; name: string; visible: boolean; color?: string | undefined; validationStatus?: string | undefined; convertedParcelId?: number | null | undefined; parentId: string | null; }'.
+    Types of property 'parentId' are incompatible.
+      Type 'string | null | undefined' is not assignable to type 'string | null'.
+        Type 'undefined' is not assignable to type 'string | null'.
+app/components/map/MapWithPolygons.client.tsx(1152,37): error TS2322: Type '(coords: [number, number][]) => void' is not assignable to type '(id: string) => void'.
+  Types of parameters 'coords' and 'id' are incompatible.
+    Type 'string' is not assignable to type '[number, number][]'.
