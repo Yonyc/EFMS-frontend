@@ -1,8 +1,6 @@
 import L from "leaflet";
-import { diff as martinezDiff } from "martinez-polygon-clipping";
+import polyClip from "polygon-clipping";
 import type { PolygonData } from "../types";
-
-export type MartinezMultiPolygon = number[][][][];
 
 export const removeConsecutiveDuplicates = (points: [number, number][], epsilon = 1e-10): [number, number][] => {
     if (points.length === 0) return [];
@@ -52,34 +50,6 @@ export const ensureClosedRing = (points: [number, number][]): [number, number][]
     return [...points, first];
 };
 
-export const coordsToMartinezRing = (coords: [number, number][]): number[][] => {
-    return ensureClosedRing(coords).map(([lat, lng]) => [lng, lat]);
-};
-
-export const martinezRingToCoords = (ring: number[][]): [number, number][] => {
-    if (!ring || ring.length === 0) return [];
-    const result: [number, number][] = [];
-    for (let i = 0; i < ring.length - 1; i++) {
-        const [lng, lat] = ring[i];
-        result.push([lat, lng]);
-    }
-    return result;
-};
-
-export const martinezToPolygons = (multi: MartinezMultiPolygon | null | undefined): [number, number][][] => {
-    if (!multi) return [];
-    const polygons: [number, number][][] = [];
-    for (const polygon of multi) {
-        if (!polygon || polygon.length === 0) continue;
-        const outer = polygon[0];
-        const coords = martinezRingToCoords(outer);
-        if (coords.length >= 3) {
-            polygons.push(coords);
-        }
-    }
-    return polygons;
-};
-
 export const subtractPolygon = (
     subject: [number, number][],
     clip: [number, number][]
@@ -87,15 +57,37 @@ export const subtractPolygon = (
     if (subject.length < 3) return [];
     if (clip.length < 3) return [subject];
 
-    const subjectPoly = [[coordsToMartinezRing(subject)]];
-    const clipPoly = [[coordsToMartinezRing(clip)]];
+    const subjectRing = ensureClosedRing(subject).map(([lat, lng]) => [lng, lat] as [number, number]);
+    const clipRing = ensureClosedRing(clip).map(([lat, lng]) => [lng, lat] as [number, number]);
 
-    const diff = martinezDiff(subjectPoly, clipPoly) as MartinezMultiPolygon | null;
-    if (!diff || diff.length === 0) {
-        return [];
+    try {
+        const diff = polyClip.difference([[subjectRing]], [[clipRing]]);
+        
+        if (!diff || diff.length === 0) {
+            return [];
+        }
+
+        const polygons: [number, number][][] = [];
+        
+        for (const multiPoly of diff) {
+            if (!multiPoly || multiPoly.length === 0) continue;
+            const outerRing = multiPoly[0];
+            
+            const coords: [number, number][] = [];
+            for (let i = 0; i < outerRing.length - 1; i++) {
+                const [lng, lat] = outerRing[i];
+                coords.push([lat, lng]);
+            }
+            if (coords.length >= 3) {
+                polygons.push(coords);
+            }
+        }
+        
+        return polygons.map(removeConsecutiveDuplicates);
+    } catch (e) {
+        console.error("polygon-clipping difference error:", e);
+        return [subject];
     }
-
-    return martinezToPolygons(diff).map(removeConsecutiveDuplicates);
 };
 
 export const shrinkPolygonAwayFromObstacles = (
@@ -146,31 +138,38 @@ export const isPointInPolygon = (point: [number, number], polygon: [number, numb
 
 export const checkOverlap = (coords1: [number, number][], coords2: [number, number][]): boolean => {
     try {
+        if (coords1.length < 3 || coords2.length < 3) return false;
+
+        // Quick bounds check first to save performance
         const poly1 = L.polygon(coords1);
         const poly2 = L.polygon(coords2);
-        const bounds1 = poly1.getBounds();
-        const bounds2 = poly2.getBounds();
-        
-        if (!bounds1.intersects(bounds2)) {
+        if (!poly1.getBounds().intersects(poly2.getBounds())) {
             return false;
         }
 
-        for (const point of coords1) {
-            const latLng = L.latLng(point[0], point[1]);
-            if (poly2.getBounds().contains(latLng)) {
-                const inside = isPointInPolygon(point, coords2);
-                if (inside) return true;
+        const ring1 = ensureClosedRing(coords1).map(([lat, lng]) => [lng, lat] as [number, number]);
+        const ring2 = ensureClosedRing(coords2).map(([lat, lng]) => [lng, lat] as [number, number]);
+
+        const intersection = polyClip.intersection([[ring1]], [[ring2]]);
+        
+        if (!intersection || intersection.length === 0) return false;
+
+        // Check if the intersection has any meaningful area (skip tiny slivers / shared borders)
+        for (const multiPoly of intersection) {
+            if (!multiPoly || multiPoly.length === 0) continue;
+            const outerRing = multiPoly[0];
+            const coords = outerRing.map(([lng, lat]) => [lat, lng] as [number, number]);
+            
+            // Calculate area of intersection in square meters (approx)
+            // Just using the signed area function we already have, which works in degrees.
+            // A threshold of 1e-10 degrees^2 is roughly 1 sq meter at the equator, 
+            // enough to ignore float inaccuracies on shared borders.
+            const area = Math.abs(polygonSignedArea(coords));
+            if (area > 1e-10) {
+                return true;
             }
         }
-        
-        for (const point of coords2) {
-            const latLng = L.latLng(point[0], point[1]);
-            if (poly1.getBounds().contains(latLng)) {
-                const inside = isPointInPolygon(point, coords1);
-                if (inside) return true;
-            }
-        }
-        
+
         return false;
     } catch (e) {
         console.error("Error checking overlap:", e);

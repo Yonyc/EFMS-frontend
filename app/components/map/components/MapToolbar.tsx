@@ -97,7 +97,7 @@ export function MapToolbar({
                         </button>
                     </div>
                 </>
-            ) : (allowCreate && !editingId && !isCreating && (
+            ) : (allowCreate && !editingId && !isCreating && !overlapWarning && (
                 <button
                     type="button"
                     onClick={startCreate}
