@@ -13,7 +13,8 @@
     "settings": "Settings",
     "sign_out": "Sign out",
     "sign_in": "Sign In",
-    "create_farm": "Manage Farms"
+    "create_farm": "Manage Farms",
+    "periods": "Periods"
   },
   "imports": {
     "title": "Import lists",
@@ -44,6 +45,7 @@
       "noSelectionDescription": "Choose a batch from the imports list to start validating polygons.",
       "returnToList": "Back to imports",
       "approveButton": "Approve import list",
+      "approvedLabel": "This import list has been approved.",
       "approveOne": "Approve",
       "reapproveOne": "Re-approve",
       "approveOneSuccess": "Parcel approved",
@@ -383,6 +385,46 @@
         "selected": "{{count}} selected"
       }
     },
+    "searchFilters": {
+      "title": "Parcel search",
+      "button": "Filters",
+      "close": "Close filters",
+      "periodLabel": "Period",
+      "anyPeriod": "Any period",
+      "toolLabel": "Tool used",
+      "productLabel": "Product",
+      "anyTool": "Any tool",
+      "anyProduct": "Any product",
+      "startDate": "Start date",
+      "endDate": "End date",
+      "mapAreaLabel": "Use current map area",
+      "mapAreaHint": "Applies the map viewport at the moment you click Apply.",
+      "polygonLabel": "Polygon area",
+      "polygonReady": "Polygon ready",
+      "polygonEmpty": "No polygon yet",
+      "drawPolygon": "Draw polygon",
+      "clearPolygon": "Clear polygon",
+      "drawingHint": "Click on the map to draw the search polygon.",
+      "cancelDraw": "Cancel",
+      "usePolygon": "Restrict search to this polygon",
+      "usePolygonHint": "Uses the polygon boundary you just drew.",
+      "apply": "Apply filters",
+      "clear": "Clear"
+    },
+    "periods": {
+      "title": "Manage periods",
+      "subtitle": "Create and update yearly parcel periods for the selected farm.",
+      "selectFarm": "Select a farm to manage its periods.",
+      "createTitle": "New period",
+      "namePlaceholder": "Name (optional)",
+      "createAction": "Create period",
+      "listTitle": "Existing periods",
+      "saveAction": "Save changes",
+      "empty": "No periods created yet.",
+      "errorLoad": "Unable to load periods",
+      "errorCreate": "Unable to create period",
+      "errorUpdate": "Unable to update period"
+    },
     "contextMenu": {
       "addPolygon": "Add New Polygon"
     },
@@ -395,11 +437,15 @@
     "deletePrompt": "Delete \"{{name}}\"?",
     "renameModal": {
       "title": "Rename Polygon",
-      "placeholder": "Polygon name"
+      "placeholder": "Polygon name",
+      "periodLabel": "Period",
+      "periodPlaceholder": "No period"
     },
     "areaModal": {
       "title": "Enter Area Name",
-      "placeholder": "Area name"
+      "placeholder": "Area name",
+      "periodLabel": "Period",
+      "periodPlaceholder": "No period"
     },
     "preview": {
       "back": "Back to options",

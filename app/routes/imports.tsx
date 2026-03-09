@@ -12,6 +12,7 @@ interface ImportGroup {
     name?: string;
     filename?: string;
     createdAt?: string;
+    approvedAt?: string;
     polygonsCount?: number;
     status?: string;
     sourceName?: string;
@@ -170,7 +171,9 @@ export default function ImportsPage() {
                                 <h3 className="mt-1 truncate text-lg font-semibold text-slate-900">{group.name || group.filename || t('imports.list.untitled', { defaultValue: 'Untitled batch' })}</h3>
                             </div>
                             <span className="shrink-0 rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
-                                {t(`imports.status.${group.status || 'pending'}` as const, { defaultValue: group.status || 'Pending' })}
+                                {t(`imports.status.${group.status || (group.approvedAt ? 'approved' : 'pending')}` as const, {
+                                    defaultValue: group.status || (group.approvedAt ? 'Approved' : 'Pending'),
+                                })}
                             </span>
                         </div>
                         <dl className="mt-4 space-y-2 text-sm text-slate-500">

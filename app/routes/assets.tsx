@@ -119,41 +119,41 @@ export default function AssetsPage() {
 
   return (
     <ProtectedRoute>
-      <div className="min-h-screen bg-slate-50 px-4 py-10">
+      <div className="min-h-screen bg-slate-50 px-4 py-10 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
         <div className="mx-auto flex max-w-6xl flex-col gap-6">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-semibold uppercase tracking-wide text-indigo-600">Assets</p>
-              <h1 className="text-3xl font-semibold text-slate-900">Products & Tools</h1>
-              <p className="text-sm text-slate-600">Manage the consumables and equipment available on the selected farm.</p>
+              <h1 className="text-3xl font-semibold text-slate-900 dark:text-slate-100">Products & Tools</h1>
+              <p className="text-sm text-slate-600 dark:text-slate-400">Manage the consumables and equipment available on the selected farm.</p>
             </div>
             <button
               type="button"
               onClick={() => refreshFarms()}
-              className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-white"
+              className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-white dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-900"
             >
               Refresh farms
             </button>
           </div>
 
           {emptyState ? (
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 text-slate-700 shadow-sm">
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 text-slate-700 shadow-sm dark:border-slate-800 dark:bg-slate-900/70 dark:text-slate-200">
               Select a farm first to manage its assets.
             </div>
           ) : (
             <>
               {error && (
-                <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-rose-900/60 dark:bg-rose-950/60 dark:text-rose-200">
                   {error}
                 </div>
               )}
 
               <div className="grid gap-6 lg:grid-cols-2">
-                <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
                   <header className="mb-4 flex items-center justify-between">
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-wide text-indigo-600">Products</p>
-                      <h2 className="text-lg font-semibold text-slate-900">Farm products</h2>
+                      <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Farm products</h2>
                     </div>
                   </header>
                   <div className="flex gap-2 mb-4">
@@ -162,7 +162,7 @@ export default function AssetsPage() {
                       value={newProductName}
                       onChange={(e) => setNewProductName(e.target.value)}
                       placeholder="Add a product (e.g., seed, fertilizer)"
-                      className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+                      className="flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500"
                     />
                     <button
                       type="button"
@@ -173,14 +173,14 @@ export default function AssetsPage() {
                       Add
                     </button>
                   </div>
-                  <ul className="divide-y divide-slate-100">
+                  <ul className="divide-y divide-slate-100 dark:divide-slate-800">
                     {products.map((p) => (
                       <li key={p.id} className="flex items-center justify-between py-3">
-                        <span className="text-sm text-slate-800">{p.name}</span>
+                        <span className="text-sm text-slate-800 dark:text-slate-100">{p.name}</span>
                         <button
                           type="button"
                           onClick={() => handleDeleteProduct(p.id)}
-                          className="text-xs font-semibold text-red-600 hover:text-red-500"
+                          className="text-xs font-semibold text-red-600 hover:text-red-500 dark:text-rose-300 dark:hover:text-rose-200"
                           disabled={loading}
                         >
                           Delete
@@ -188,16 +188,16 @@ export default function AssetsPage() {
                       </li>
                     ))}
                     {!products.length && (
-                      <li className="py-3 text-sm text-slate-500">No products yet.</li>
+                      <li className="py-3 text-sm text-slate-500 dark:text-slate-400">No products yet.</li>
                     )}
                   </ul>
                 </section>
 
-                <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
                   <header className="mb-4 flex items-center justify-between">
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-wide text-indigo-600">Tools</p>
-                      <h2 className="text-lg font-semibold text-slate-900">Farm tools</h2>
+                      <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Farm tools</h2>
                     </div>
                   </header>
                   <div className="flex gap-2 mb-4">
@@ -206,7 +206,7 @@ export default function AssetsPage() {
                       value={newToolName}
                       onChange={(e) => setNewToolName(e.target.value)}
                       placeholder="Add a tool (e.g., sprayer, tractor)"
-                      className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+                      className="flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500"
                     />
                     <button
                       type="button"
@@ -217,14 +217,14 @@ export default function AssetsPage() {
                       Add
                     </button>
                   </div>
-                  <ul className="divide-y divide-slate-100">
+                  <ul className="divide-y divide-slate-100 dark:divide-slate-800">
                     {tools.map((t) => (
                       <li key={t.id} className="flex items-center justify-between py-3">
-                        <span className="text-sm text-slate-800">{t.name}</span>
+                        <span className="text-sm text-slate-800 dark:text-slate-100">{t.name}</span>
                         <button
                           type="button"
                           onClick={() => handleDeleteTool(t.id)}
-                          className="text-xs font-semibold text-red-600 hover:text-red-500"
+                          className="text-xs font-semibold text-red-600 hover:text-red-500 dark:text-rose-300 dark:hover:text-rose-200"
                           disabled={loading}
                         >
                           Delete
@@ -232,7 +232,7 @@ export default function AssetsPage() {
                       </li>
                     ))}
                     {!tools.length && (
-                      <li className="py-3 text-sm text-slate-500">No tools yet.</li>
+                      <li className="py-3 text-sm text-slate-500 dark:text-slate-400">No tools yet.</li>
                     )}
                   </ul>
                 </section>

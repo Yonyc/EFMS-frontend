@@ -12,6 +12,7 @@ export default [
 	route(":locale/profile", "routes/profile.tsx"),
 	route(":locale/operations", "routes/operations.tsx"),
 	route(":locale/assets", "routes/assets.tsx"),
+	route(":locale/periods", "routes/periods.tsx"),
 	route(":locale/wiki", "routes/wiki.tsx"),
 	route(":locale/imports", "routes/imports.tsx"),
 	route(":locale/imports/map", "routes/imports.map.tsx"),

@@ -6,11 +6,13 @@ import ProtectedRoute from "~/components/ProtectedRoute";
 import { apiGet, apiPost } from "~/utils/api";
 import { buildLocalizedPath } from "~/utils/locale";
 import { useCurrentLocale } from "~/hooks/useCurrentLocale";
+import { useFarm } from "~/contexts/FarmContext";
 
 interface ImportGroupDetail {
     id: string;
     name: string;
     createdAt?: string;
+    approvedAt?: string;
     polygonsCount?: number;
     status?: string;
 }
@@ -19,6 +21,7 @@ type MapComponentType = ComponentType<any> | null;
 
 export default function ImportMapPage() {
     const { t } = useTranslation();
+    const { selectedFarm } = useFarm();
     const [MapComponent, setMapComponent] = useState<MapComponentType>(null);
     const [params] = useSearchParams();
     const [importInfo, setImportInfo] = useState<ImportGroupDetail | null>(null);
@@ -48,13 +51,19 @@ export default function ImportMapPage() {
         setLoadingInfo(true);
         (async () => {
             try {
-                const response = await apiGet(`/imports/${importId}/parcels`);
+                const response = await apiGet(`/imports/${importId}`);
                 if (!response.ok) {
                     throw new Error(`Failed to fetch import batch: ${response.statusText}`);
                 }
                 const payload = await response.json();
                 if (active) {
-                    setImportInfo(payload);
+                    const normalized = payload
+                        ? {
+                            ...payload,
+                            polygonsCount: payload.polygonsCount ?? payload.totalParcels,
+                        }
+                        : null;
+                    setImportInfo(normalized);
                     setError(null);
                 }
             } catch (err) {
@@ -71,15 +80,19 @@ export default function ImportMapPage() {
         };
     }, [importId, t]);
 
+    const isAlreadyApproved = Boolean(importInfo?.approvedAt);
+
     const handleApproveAll = useCallback(async () => {
-        if (!importId) return;
+        if (!importId || isAlreadyApproved) return;
         setIsApproving(true);
         setApproveFeedback(null);
         try {
-            const response = await apiPost(`/imports/${importId}/approve`);
+            const payload = selectedFarm?.id ? { farmId: Number(selectedFarm.id) } : undefined;
+            const response = await apiPost(`/imports/${importId}/approve`, payload);
             if (!response.ok) {
                 throw new Error('Approve request failed');
             }
+            setImportInfo(prev => prev ? { ...prev, approvedAt: prev.approvedAt || new Date().toISOString() } : prev);
             setApproveFeedback({ type: 'success', message: t('imports.map.approveSuccess', { defaultValue: 'Import list approved successfully.' }) });
         } catch (err) {
             console.error(err);
@@ -87,7 +100,7 @@ export default function ImportMapPage() {
         } finally {
             setIsApproving(false);
         }
-    }, [importId]);
+    }, [importId, isAlreadyApproved, selectedFarm, t]);
 
     if (!importId) {
         return (
@@ -129,10 +142,12 @@ export default function ImportMapPage() {
                                 <button
                                     type="button"
                                     onClick={handleApproveAll}
-                                    disabled={isApproving}
-                                    className={`rounded-xl px-4 py-2 text-sm font-semibold text-white shadow transition ${isApproving ? 'bg-slate-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-500'}`}
+                                    disabled={isApproving || isAlreadyApproved}
+                                    className={`rounded-xl px-4 py-2 text-sm font-semibold text-white shadow transition ${isApproving || isAlreadyApproved ? 'bg-slate-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-500'}`}
                                 >
-                                    {t('imports.map.approveButton', { defaultValue: 'Approve import list' })}
+                                    {isAlreadyApproved
+                                        ? t('imports.map.approvedLabel', { defaultValue: 'Already approved' })
+                                        : t('imports.map.approveButton', { defaultValue: 'Approve import list' })}
                                 </button>
                                 {approveFeedback && (
                                     <span className={`text-xs font-medium ${approveFeedback.type === 'success' ? 'text-emerald-600' : 'text-red-600'}`}>

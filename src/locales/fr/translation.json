@@ -13,7 +13,8 @@
     "settings": "Paramètres",
     "sign_out": "Se déconnecter",
     "sign_in": "Se connecter",
-    "create_farm": "Gérer les exploitations"
+    "create_farm": "Gérer les exploitations",
+    "periods": "Périodes"
   },
   "imports": {
     "title": "Listes d'import",
@@ -44,6 +45,7 @@
       "noSelectionDescription": "Choisissez un lot dans la liste des importations pour commencer la validation.",
       "returnToList": "Retour aux importations",
       "approveButton": "Approuver la liste d'importation",
+      "approvedLabel": "Cette liste a été approuvée.",
       "approveOne": "Approuver",
       "reapproveOne": "Réapprouver",
       "approveOneSuccess": "Parcelle approuvée",
@@ -383,6 +385,46 @@
         "selected": "{{count}} sélectionnées"
       }
     },
+    "searchFilters": {
+      "title": "Recherche de parcelles",
+      "button": "Filtres",
+      "close": "Fermer les filtres",
+      "periodLabel": "Période",
+      "anyPeriod": "Toute période",
+      "toolLabel": "Outil utilisé",
+      "productLabel": "Produit",
+      "anyTool": "Tout outil",
+      "anyProduct": "Tout produit",
+      "startDate": "Date de début",
+      "endDate": "Date de fin",
+      "mapAreaLabel": "Utiliser la zone visible",
+      "mapAreaHint": "Utilise la fenêtre de la carte au moment de l'application.",
+      "polygonLabel": "Zone polygonale",
+      "polygonReady": "Polygone prêt",
+      "polygonEmpty": "Aucun polygone",
+      "drawPolygon": "Dessiner un polygone",
+      "clearPolygon": "Effacer le polygone",
+      "drawingHint": "Cliquez sur la carte pour dessiner la zone de recherche.",
+      "cancelDraw": "Annuler",
+      "usePolygon": "Limiter la recherche à ce polygone",
+      "usePolygonHint": "Utilise le contour que vous venez de dessiner.",
+      "apply": "Appliquer les filtres",
+      "clear": "Effacer"
+    },
+    "periods": {
+      "title": "Gérer les périodes",
+      "subtitle": "Créez et mettez à jour les périodes annuelles pour l'exploitation sélectionnée.",
+      "selectFarm": "Sélectionnez une exploitation pour gérer ses périodes.",
+      "createTitle": "Nouvelle période",
+      "namePlaceholder": "Nom (optionnel)",
+      "createAction": "Créer la période",
+      "listTitle": "Périodes existantes",
+      "saveAction": "Enregistrer",
+      "empty": "Aucune période créée pour le moment.",
+      "errorLoad": "Impossible de charger les périodes",
+      "errorCreate": "Impossible de créer la période",
+      "errorUpdate": "Impossible de mettre à jour la période"
+    },
     "contextMenu": {
       "addPolygon": "Ajouter une nouvelle parcelle"
     },
@@ -395,11 +437,15 @@
     "deletePrompt": "Supprimer \"{{name}}\" ?",
     "renameModal": {
       "title": "Renommer la parcelle",
-      "placeholder": "Nom de la parcelle"
+      "placeholder": "Nom de la parcelle",
+      "periodLabel": "Période",
+      "periodPlaceholder": "Aucune période"
     },
     "areaModal": {
       "title": "Nommer la parcelle",
-      "placeholder": "Nom de la parcelle"
+      "placeholder": "Nom de la parcelle",
+      "periodLabel": "Période",
+      "periodPlaceholder": "Aucune période"
     },
     "preview": {
       "back": "Retour aux options",

@@ -16,7 +16,7 @@ import "leaflet-draw/dist/leaflet.draw.css";
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
-import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
+import { ChevronLeftIcon, ChevronRightIcon, FunnelIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import PolygonList from "./PolygonList";
 import OverlapModal from "./components/OverlapModal";
 import { checkOverlap, fixOverlap } from "./utils/geometry";
@@ -47,6 +47,18 @@ interface ParcelOperationDto {
     typeId?: number;
     typeName?: string;
     products?: OperationProductDto[];
+}
+
+interface PeriodDto { id: number; name?: string; startDate?: string; endDate?: string; }
+
+interface ParcelSearchFilters {
+    periodId: string;
+    toolId: string;
+    productId: string;
+    startDate: string;
+    endDate: string;
+    useMapArea: boolean;
+    usePolygon: boolean;
 }
 
 type MapContextType = 'farm' | 'import';
@@ -102,6 +114,22 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
     const [listFilter, setListFilter] = useState<Array<'visible' | 'hidden' | 'approved' | 'unapproved'>>([]);
     const [showFilterMenu, setShowFilterMenu] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
+    const defaultSearchFilters = useMemo<ParcelSearchFilters>(() => ({
+        periodId: '',
+        toolId: '',
+        productId: '',
+        startDate: '',
+        endDate: '',
+        useMapArea: false,
+        usePolygon: false,
+    }), []);
+    const [isSearchOpen, setIsSearchOpen] = useState(false);
+    const [searchDraft, setSearchDraft] = useState<ParcelSearchFilters>(defaultSearchFilters);
+    const [appliedFilters, setAppliedFilters] = useState<ParcelSearchFilters>(defaultSearchFilters);
+    const [appliedBounds, setAppliedBounds] = useState<{ minLat: number; minLng: number; maxLat: number; maxLng: number } | null>(null);
+    const [searchAreaCoords, setSearchAreaCoords] = useState<[number, number][]>([]);
+    const [isSearchDrawing, setIsSearchDrawing] = useState(false);
+    const [appliedPolygonWkt, setAppliedPolygonWkt] = useState<string | null>(null);
     const [isApproving, setIsApproving] = useState(false);
     const [approveFeedback, setApproveFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
     const [operationPopup, setOperationPopup] = useState<{ x: number; y: number; polygonId: string } | null>(null);
@@ -118,12 +146,17 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
     const [operationError, setOperationError] = useState<string | null>(null);
     const [operationLoading, setOperationLoading] = useState(false);
     const [parcelOperations, setParcelOperations] = useState<ParcelOperationDto[]>([]);
+    const [periods, setPeriods] = useState<PeriodDto[]>([]);
+    const [selectedPeriodId, setSelectedPeriodId] = useState<string>("");
+    const [renamePeriodId, setRenamePeriodId] = useState<string>("");
     const [preferTopRight, setPreferTopRight] = useState<boolean>(!!user?.operationsPopupTopRight);
     const [isMobile, setIsMobile] = useState(false);
     const [dragState, setDragState] = useState<{ active: boolean; offsetX: number; offsetY: number }>({ active: false, offsetX: 0, offsetY: 0 });
     const originalColorRef = useRef<string | null>(null);
     const listBarRef = useRef<HTMLDivElement>(null);
     const polygonLayersRef = useRef<Map<string, L.Polygon>>(new Map());
+    const searchDrawHandlerRef = useRef<any>(null);
+    const searchAreaLayerRef = useRef<L.Polygon | null>(null);
     
     // Refs
     const featureGroupRef = useRef<L.FeatureGroup>(null);
@@ -153,6 +186,15 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
         const y = Math.max(rect.top + POPUP_PADDING, Math.min(top, rect.bottom - height - POPUP_PADDING));
         return { x, y };
     }, [POPUP_PADDING]);
+
+    const toWktPolygon = useCallback((coords: [number, number][]) => {
+        if (coords.length < 3) return null;
+        const ring = coords[0][0] === coords[coords.length - 1][0] && coords[0][1] === coords[coords.length - 1][1]
+            ? coords
+            : [...coords, coords[0]];
+        const points = ring.map(([lat, lng]) => `${lng} ${lat}`).join(', ');
+        return `POLYGON((${points}))`;
+    }, []);
 
     const togglePolygonVisibility = useCallback((id: string) => {
         setPolygons(prev => prev.map(p => p.id === id ? { ...p, visible: !p.visible } : p));
@@ -223,6 +265,37 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
         return next;
     }, [polygons, listFilter, searchQuery]);
 
+    const hasActiveSearchFilters = useMemo(() => (
+        Boolean(appliedFilters.periodId) ||
+        Boolean(appliedFilters.toolId) ||
+        Boolean(appliedFilters.productId) ||
+        Boolean(appliedFilters.startDate) ||
+        Boolean(appliedFilters.endDate) ||
+        appliedFilters.useMapArea ||
+        appliedFilters.usePolygon
+    ), [appliedFilters]);
+
+    const searchEndpoint = useMemo(() => {
+        if (!hasActiveSearchFilters) {
+            return parcelsEndpoint;
+        }
+        const params = new URLSearchParams();
+        if (appliedFilters.periodId) params.set('periodId', appliedFilters.periodId);
+        if (appliedFilters.toolId) params.set('toolId', appliedFilters.toolId);
+        if (appliedFilters.productId) params.set('productId', appliedFilters.productId);
+        if (appliedFilters.startDate) params.set('startDate', appliedFilters.startDate);
+        if (appliedFilters.endDate) params.set('endDate', appliedFilters.endDate);
+        if (appliedFilters.usePolygon && appliedPolygonWkt) params.set('polygonWkt', appliedPolygonWkt);
+        if (appliedFilters.useMapArea && appliedBounds) {
+            params.set('minLat', String(appliedBounds.minLat));
+            params.set('minLng', String(appliedBounds.minLng));
+            params.set('maxLat', String(appliedBounds.maxLat));
+            params.set('maxLng', String(appliedBounds.maxLng));
+        }
+        const query = params.toString();
+        return `${parcelsEndpoint}/search${query ? `?${query}` : ''}`;
+    }, [appliedBounds, appliedFilters, appliedPolygonWkt, hasActiveSearchFilters, parcelsEndpoint]);
+
     useEffect(() => {
         if (!approveFeedback) return;
         const timer = setTimeout(() => setApproveFeedback(null), 4000);
@@ -243,6 +316,48 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
             setIsApproving(false);
         }
     }, [props.onApproveAll, props.approveLabel, t]);
+
+    const applySearchFilters = useCallback(() => {
+        setAppliedFilters(searchDraft);
+        if (searchDraft.usePolygon) {
+            setAppliedPolygonWkt(toWktPolygon(searchAreaCoords));
+        } else {
+            setAppliedPolygonWkt(null);
+        }
+        if (searchDraft.useMapArea) {
+            const map = getMap();
+            if (map?.getBounds) {
+                const bounds = map.getBounds();
+                const southWest = bounds.getSouthWest();
+                const northEast = bounds.getNorthEast();
+                setAppliedBounds({
+                    minLat: southWest.lat,
+                    minLng: southWest.lng,
+                    maxLat: northEast.lat,
+                    maxLng: northEast.lng,
+                });
+            } else {
+                setAppliedBounds(null);
+            }
+        } else {
+            setAppliedBounds(null);
+        }
+        setIsSearchOpen(false);
+    }, [searchAreaCoords, searchDraft, toWktPolygon]);
+
+    const clearSearchFilters = useCallback(() => {
+        setSearchDraft(defaultSearchFilters);
+        setAppliedFilters(defaultSearchFilters);
+        setAppliedBounds(null);
+        setAppliedPolygonWkt(null);
+        setSearchAreaCoords([]);
+        const map = getMap();
+        if (map && searchAreaLayerRef.current) {
+            map.removeLayer(searchAreaLayerRef.current);
+            searchAreaLayerRef.current = null;
+        }
+        setIsSearchOpen(false);
+    }, [defaultSearchFilters]);
 
     const approveSingleParcel = useCallback(async (id: string) => {
         if (!isImportMode) return;
@@ -546,6 +661,21 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
         }
     }, [contextType, resolvedContextId]);
 
+    const loadPeriods = useCallback(async () => {
+        if (contextType !== 'farm' || !resolvedContextId) return;
+        try {
+            const res = await apiGet(`/farm/${resolvedContextId}/periods`);
+            if (res.ok) {
+                setPeriods(await res.json());
+            } else {
+                setPeriods([]);
+            }
+        } catch (err) {
+            console.error("Failed to load periods", err);
+            setPeriods([]);
+        }
+    }, [contextType, resolvedContextId]);
+
     const loadParcelOperations = useCallback(async (parcelId: string) => {
         if (contextType !== 'farm' || !resolvedContextId) return;
         setOperationLoading(true);
@@ -624,6 +754,7 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
                 version: 0,
                 visible: true,
                 color: '#3388ff',
+                periodId: selectedPeriodId ? Number(selectedPeriodId) : null,
             };
 
             // Send POST request to backend
@@ -635,6 +766,7 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
                     endValidity: null,
                     geodata: coordsToWKT(newPoly.coords),
                     color: newPoly.color,
+                    periodId: selectedPeriodId ? Number(selectedPeriodId) : undefined,
                 };
 
                 const response = await apiPost(parcelsEndpoint, payload);
@@ -658,6 +790,7 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
 
             setModal({ open: false, coords: null });
             setAreaName("");
+            setSelectedPeriodId("");
         } else {
             // For edited polygons
             
@@ -686,7 +819,7 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
         
         setOverlapWarning(null);
         setShowPreview(false);
-    }, [overlapWarning, areaName, updatePolygon, cleanupEdit, parcelsEndpoint, t]);
+    }, [overlapWarning, areaName, updatePolygon, cleanupEdit, parcelsEndpoint, selectedPeriodId, t]);
 
     const handleOverlapAccept = useCallback(async () => {
         if (!overlapWarning || !overlapWarning.fixedCoords) {
@@ -709,6 +842,7 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
                 version: 0,
                 visible: true,
                 color: '#3388ff',
+                periodId: selectedPeriodId ? Number(selectedPeriodId) : null,
             };
             
             console.log("Creating new polygon:", newPoly);
@@ -722,6 +856,7 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
                     endValidity: null,
                     geodata: coordsToWKT(newPoly.coords),
                     color: newPoly.color,
+                    periodId: selectedPeriodId ? Number(selectedPeriodId) : undefined,
                 };
 
                 const response = await apiPost(parcelsEndpoint, payload);
@@ -781,9 +916,10 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
         
         setModal({ open: false, coords: null });
         setAreaName("");
+        setSelectedPeriodId("");
         setOverlapWarning(null);
         setShowPreview(false);
-    }, [overlapWarning, areaName, updatePolygon, cleanupEdit, parcelsEndpoint, t]);
+    }, [overlapWarning, areaName, updatePolygon, cleanupEdit, parcelsEndpoint, selectedPeriodId, t]);
 
     const handleOverlapCancel = useCallback(() => {
         if (overlapWarning?.isNewPolygon) {
@@ -828,6 +964,7 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
             version: 0,
             visible: true,
             color: '#3388ff',
+            periodId: selectedPeriodId ? Number(selectedPeriodId) : null,
         };
 
         createdLayerRef.current && getMap()?.removeLayer(createdLayerRef.current);
@@ -838,11 +975,15 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
         setModal({ open: false, coords: null });
         setOverlapWarning(null);
         setShowPreview(false);
-    }, [overlapWarning, areaName, t]);
+    }, [overlapWarning, areaName, selectedPeriodId, t]);
 
     useEffect(() => {
         loadOperationReferences();
     }, [loadOperationReferences]);
+
+    useEffect(() => {
+        loadPeriods();
+    }, [loadPeriods]);
 
     useEffect(() => {
         if (typeof window === 'undefined') return;
@@ -964,13 +1105,56 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
         createdLayerRef.current = null;
     }, []);
 
+    const startSearchPolygon = useCallback(() => {
+        if (isCreating || editingId) return;
+        const handler = getMap() && (L as any).Draw?.Polygon ? new (L as any).Draw.Polygon(getMap(), { allowIntersection: false, showArea: false }) : null;
+        if (!handler) return;
+        handler.enable();
+        searchDrawHandlerRef.current = handler;
+        setIsSearchDrawing(true);
+    }, [editingId, isCreating]);
+
+    const cancelSearchPolygon = useCallback(() => {
+        searchDrawHandlerRef.current?.disable?.();
+        searchDrawHandlerRef.current = null;
+        setIsSearchDrawing(false);
+    }, []);
+
+    const clearSearchPolygon = useCallback(() => {
+        setSearchAreaCoords([]);
+        const map = getMap();
+        if (map && searchAreaLayerRef.current) {
+            map.removeLayer(searchAreaLayerRef.current);
+            searchAreaLayerRef.current = null;
+        }
+        setSearchDraft(prev => ({ ...prev, usePolygon: false }));
+    }, []);
+
     const handleCreated = useCallback((e: any) => {
+        if (isSearchDrawing) {
+            const coords = e.layer.getLatLngs()[0].map((ll: L.LatLng) => [ll.lat, ll.lng]) as [number, number][];
+            const map = getMap();
+            if (map) {
+                if (searchAreaLayerRef.current) {
+                    map.removeLayer(searchAreaLayerRef.current);
+                }
+                e.layer.setStyle?.({ color: '#f97316', weight: 2, fillOpacity: 0.08, dashArray: '6 6' });
+                e.layer.addTo(map);
+                searchAreaLayerRef.current = e.layer;
+            }
+            setSearchAreaCoords(coords);
+            setIsSearchDrawing(false);
+            searchDrawHandlerRef.current?.disable?.();
+            searchDrawHandlerRef.current = null;
+            setSearchDraft(prev => ({ ...prev, usePolygon: true }));
+            return;
+        }
         const coords = e.layer.getLatLngs()[0].map((ll: L.LatLng) => [ll.lat, ll.lng]) as [number, number][];
         createdLayerRef.current = e.layer;
         setModal({ open: true, coords });
         createHandlerRef.current = null;
         setIsCreating(false);
-    }, []);
+    }, [isSearchDrawing]);
 
     const confirmCreate = useCallback(async () => {
         const coords = modal.coords;
@@ -1005,6 +1189,7 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
             version: 0,
             visible: true,
             color: '#3388ff',
+            periodId: selectedPeriodId ? Number(selectedPeriodId) : null,
         };
 
         // Send POST request to backend
@@ -1016,6 +1201,7 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
                 endValidity: null,
                 geodata: coordsToWKT(newPoly.coords),
                 color: newPoly.color,
+                periodId: selectedPeriodId ? Number(selectedPeriodId) : undefined,
             };
 
             const response = await apiPost(parcelsEndpoint, payload);
@@ -1037,13 +1223,15 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
 
         setModal({ open: false, coords: null });
         setAreaName("");
-    }, [modal.coords, areaName, polygons, parcelsEndpoint, t]);
+        setSelectedPeriodId("");
+    }, [modal.coords, areaName, polygons, parcelsEndpoint, selectedPeriodId, t]);
 
     const cancelModal = useCallback(() => {
         createdLayerRef.current && getMap()?.removeLayer(createdLayerRef.current);
         createdLayerRef.current = null;
         setModal({ open: false, coords: null });
         setAreaName("");
+        setSelectedPeriodId("");
     }, []);
 
     const detachCreatedLayer = useCallback(() => {
@@ -1075,7 +1263,7 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
     useEffect(() => {
         const fetchPolygons = async () => {
             try {
-                const response = await apiGet(parcelsEndpoint);
+                const response = await apiGet(searchEndpoint);
                 if (response.ok) {
                     const data = await response.json();
                     setPolygons(data.map((p: any) => {
@@ -1104,6 +1292,7 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
                             startValidity: p.startValidity,
                             endValidity: p.endValidity,
                             farmId: p.farmId,
+                            periodId: p.periodId ?? null,
                             validationStatus: p.validationStatus,
                             convertedParcelId: p.convertedParcelId ?? null,
                         };
@@ -1119,7 +1308,7 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
         };
 
         fetchPolygons();
-    }, [parcelsEndpoint, t]);
+    }, [parcelsEndpoint, searchEndpoint, t]);
 
     useEffect(() => {
         if (!isCreating) return;
@@ -1279,6 +1468,7 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
                                 closePolygonContextMenu();
                                 setRenamingId(polygonContextMenu.polygonId);
                                 setRenameValue(poly?.name || "");
+                                setRenamePeriodId(poly?.periodId ? String(poly.periodId) : "");
                             }}
                             className={`${floatingButtonClasses} text-slate-800`}
                         >
@@ -1653,12 +1843,13 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
                         <h2 style={{ margin: 0, color: '#222', fontSize: "1.5rem" }}>{t('map.renameModal.title')}</h2>
                         <input type="text" value={renameValue} onChange={e => setRenameValue(e.target.value)} onKeyDown={async e => { 
                             if (e.key === "Enter") {
-                                setPolygons(prev => prev.map(p => p.id === renamingId ? { ...p, name: renameValue } : p));
+                                setPolygons(prev => prev.map(p => p.id === renamingId ? { ...p, name: renameValue, periodId: renamePeriodId ? Number(renamePeriodId) : null } : p));
                                 
                                 // Send PUT request to backend to update the name
                                 try {
                                     const payload = {
                                         name: renameValue,
+                                        periodId: renamePeriodId ? Number(renamePeriodId) : null,
                                     };
 
                                     const response = await apiPut(`${parcelsEndpoint}/${renamingId}`, payload);
@@ -1672,19 +1863,37 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
                                 }
                                 
                                 setRenamingId(null); 
+                                setRenamePeriodId("");
                             } else if (e.key === "Escape") {
                                 setRenamingId(null);
+                                setRenamePeriodId("");
                             }
                         }} placeholder={t('map.renameModal.placeholder')} style={{ padding: "0.75rem", fontSize: "1rem", borderRadius: 4, border: "1px solid #ccc", color: "#222" }} autoFocus />
+                        <label style={{ display: "flex", flexDirection: "column", gap: "0.5rem", fontSize: "0.95rem", color: "#333" }}>
+                            {t('map.renameModal.periodLabel', { defaultValue: 'Period' })}
+                            <select
+                                value={renamePeriodId}
+                                onChange={(e) => setRenamePeriodId(e.target.value)}
+                                style={{ padding: "0.7rem", fontSize: "1rem", borderRadius: 4, border: "1px solid #ccc", color: "#222" }}
+                            >
+                                <option value="">{t('map.renameModal.periodPlaceholder', { defaultValue: 'No period' })}</option>
+                                {periods.map(period => (
+                                    <option key={period.id} value={String(period.id)}>
+                                        {period.name || `${period.startDate || ''} - ${period.endDate || ''}`}
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
                         <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem", paddingTop: "1rem", borderTop: "1px solid #eee" }}>
-                            <button onClick={() => setRenamingId(null)} style={{ padding: "0.75rem 1.5rem", borderRadius: 4, border: "1px solid #ccc", background: "#fff", cursor: "pointer", fontWeight: 500, color: "#333" }}>{t('common.cancel', { defaultValue: 'Cancel' })}</button>
+                            <button onClick={() => { setRenamingId(null); setRenamePeriodId(""); }} style={{ padding: "0.75rem 1.5rem", borderRadius: 4, border: "1px solid #ccc", background: "#fff", cursor: "pointer", fontWeight: 500, color: "#333" }}>{t('common.cancel', { defaultValue: 'Cancel' })}</button>
                             <button onClick={async () => {
-                                setPolygons(prev => prev.map(p => p.id === renamingId ? { ...p, name: renameValue } : p));
+                                setPolygons(prev => prev.map(p => p.id === renamingId ? { ...p, name: renameValue, periodId: renamePeriodId ? Number(renamePeriodId) : null } : p));
                                 
                                 // Send PUT request to backend to update the name
                                 try {
                                     const payload = {
                                         name: renameValue,
+                                        periodId: renamePeriodId ? Number(renamePeriodId) : null,
                                     };
 
                                     const response = await apiPut(`${parcelsEndpoint}/${renamingId}`, payload);
@@ -1698,6 +1907,7 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
                                 }
                                 
                                 setRenamingId(null);
+                                setRenamePeriodId("");
                             }} style={{ padding: "0.75rem 1.5rem", borderRadius: 4, border: "none", background: "#007bff", color: "#fff", cursor: "pointer", fontWeight: 500 }}>{t('common.confirm', { defaultValue: 'Confirm' })}</button>
                         </div>
                     </div>
@@ -1709,6 +1919,21 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
                     <div style={{ background: "#fff", padding: "2rem", borderRadius: 8, boxShadow: "0 4px 24px rgba(0,0,0,0.3)", minWidth: 400, display: "flex", flexDirection: "column", gap: "1.5rem" }}>
                         <h2 style={{ margin: 0, color: '#222', fontSize: "1.5rem" }}>{t('map.areaModal.title')}</h2>
                         <input type="text" value={areaName} onChange={e => setAreaName(e.target.value)} onKeyDown={e => e.key === "Enter" && confirmCreate()} placeholder={t('map.areaModal.placeholder')} style={{ padding: "0.75rem", fontSize: "1rem", borderRadius: 4, border: "1px solid #ccc", color: "#222" }} autoFocus />
+                        <label style={{ display: "flex", flexDirection: "column", gap: "0.5rem", fontSize: "0.95rem", color: "#333" }}>
+                            {t('map.areaModal.periodLabel', { defaultValue: 'Period' })}
+                            <select
+                                value={selectedPeriodId}
+                                onChange={(e) => setSelectedPeriodId(e.target.value)}
+                                style={{ padding: "0.7rem", fontSize: "1rem", borderRadius: 4, border: "1px solid #ccc", color: "#222" }}
+                            >
+                                <option value="">{t('map.areaModal.periodPlaceholder', { defaultValue: 'No period' })}</option>
+                                {periods.map(period => (
+                                    <option key={period.id} value={String(period.id)}>
+                                        {period.name || `${period.startDate || ''} - ${period.endDate || ''}`}
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
                         <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem", paddingTop: "1rem", borderTop: "1px solid #eee" }}>
                             <button onClick={cancelModal} style={{ padding: "0.75rem 1.5rem", borderRadius: 4, border: "1px solid #ccc", background: "#fff", cursor: "pointer", fontWeight: 500, color: "#333" }}>{t('common.cancel', { defaultValue: 'Cancel' })}</button>
                             <button onClick={confirmCreate} style={{ padding: "0.75rem 1.5rem", borderRadius: 4, border: "none", background: "#007bff", color: "#fff", cursor: "pointer", fontWeight: 500 }}>{t('common.confirm', { defaultValue: 'Confirm' })}</button>
@@ -2156,6 +2381,20 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
                 </div>
 
                 <div data-tour-id="map-toolbar" className="pointer-events-auto absolute top-4 right-4 z-[2000] flex flex-wrap justify-end gap-2">
+                    {!isImportMode && (
+                        <button
+                            type="button"
+                            onClick={() => setIsSearchOpen(prev => !prev)}
+                            title={t('map.searchFilters.title')}
+                            className={`${toolbarButtonBase} border-slate-200 bg-white text-slate-700 hover:-translate-y-0.5 hover:bg-slate-50`}
+                        >
+                            <FunnelIcon className="h-4 w-4" />
+                            <span className="hidden sm:inline">{t('map.searchFilters.button')}</span>
+                            {hasActiveSearchFilters && (
+                                <span className="ml-1 h-2 w-2 rounded-full bg-emerald-500" />
+                            )}
+                        </button>
+                    )}
                     {overlapWarning && showPreview ? (
                         <>
                             <button
@@ -2246,6 +2485,161 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
                         </>
                     )}
                 </div>
+
+                {!isImportMode && isSearchOpen && (
+                    <div className="pointer-events-auto absolute top-16 right-4 z-[2100] w-[22rem] rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-2xl shadow-slate-900/15 backdrop-blur">
+                        <div className="mb-3 flex items-center justify-between">
+                            <h3 className="text-sm font-semibold text-slate-900">{t('map.searchFilters.title')}</h3>
+                            <button
+                                type="button"
+                                onClick={() => setIsSearchOpen(false)}
+                                className="rounded-full p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+                                aria-label={t('map.searchFilters.close')}
+                            >
+                                <XMarkIcon className="h-4 w-4" />
+                            </button>
+                        </div>
+
+                        <div className="space-y-3">
+                            <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                {t('map.searchFilters.periodLabel')}
+                                <select
+                                    value={searchDraft.periodId}
+                                    onChange={(event) => setSearchDraft(prev => ({ ...prev, periodId: event.target.value }))}
+                                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:border-indigo-300 focus:outline-none"
+                                >
+                                    <option value="">{t('map.searchFilters.anyPeriod')}</option>
+                                    {periods.map((period) => (
+                                        <option key={period.id} value={String(period.id)}>
+                                            {period.name || `${period.startDate || ''} - ${period.endDate || ''}`}
+                                        </option>
+                                    ))}
+                                </select>
+                            </label>
+                            <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                {t('map.searchFilters.toolLabel')}
+                                <select
+                                    value={searchDraft.toolId}
+                                    onChange={(event) => setSearchDraft(prev => ({ ...prev, toolId: event.target.value }))}
+                                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:border-indigo-300 focus:outline-none"
+                                >
+                                    <option value="">{t('map.searchFilters.anyTool')}</option>
+                                    {tools.map((tool) => (
+                                        <option key={tool.id} value={String(tool.id)}>{tool.name}</option>
+                                    ))}
+                                </select>
+                            </label>
+
+                            <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                {t('map.searchFilters.productLabel')}
+                                <select
+                                    value={searchDraft.productId}
+                                    onChange={(event) => setSearchDraft(prev => ({ ...prev, productId: event.target.value }))}
+                                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:border-indigo-300 focus:outline-none"
+                                >
+                                    <option value="">{t('map.searchFilters.anyProduct')}</option>
+                                    {products.map((product) => (
+                                        <option key={product.id} value={String(product.id)}>{product.name}</option>
+                                    ))}
+                                </select>
+                            </label>
+
+                            <div className="grid grid-cols-2 gap-3">
+                                <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                    {t('map.searchFilters.startDate')}
+                                    <input
+                                        type="date"
+                                        value={searchDraft.startDate}
+                                        onChange={(event) => setSearchDraft(prev => ({ ...prev, startDate: event.target.value }))}
+                                        className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:border-indigo-300 focus:outline-none"
+                                    />
+                                </label>
+                                <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                    {t('map.searchFilters.endDate')}
+                                    <input
+                                        type="date"
+                                        value={searchDraft.endDate}
+                                        onChange={(event) => setSearchDraft(prev => ({ ...prev, endDate: event.target.value }))}
+                                        className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:border-indigo-300 focus:outline-none"
+                                    />
+                                </label>
+                            </div>
+
+                            <label className="flex items-start gap-2 text-sm text-slate-700">
+                                <input
+                                    type="checkbox"
+                                    checked={searchDraft.useMapArea}
+                                    onChange={(event) => setSearchDraft(prev => ({ ...prev, useMapArea: event.target.checked }))}
+                                    className="mt-1 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-400"
+                                />
+                                <span>
+                                    {t('map.searchFilters.mapAreaLabel')}
+                                    <span className="mt-1 block text-xs text-slate-500">{t('map.searchFilters.mapAreaHint')}</span>
+                                </span>
+                            </label>
+
+                            <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-3">
+                                <div className="flex items-center justify-between gap-2">
+                                    <div>
+                                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t('map.searchFilters.polygonLabel')}</p>
+                                        <p className="text-xs text-slate-500">
+                                            {searchAreaCoords.length ? t('map.searchFilters.polygonReady') : t('map.searchFilters.polygonEmpty')}
+                                        </p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={searchAreaCoords.length ? clearSearchPolygon : startSearchPolygon}
+                                        className="rounded-xl border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+                                    >
+                                        {searchAreaCoords.length ? t('map.searchFilters.clearPolygon') : t('map.searchFilters.drawPolygon')}
+                                    </button>
+                                </div>
+                                {isSearchDrawing && (
+                                    <div className="mt-2 flex items-center justify-between rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                                        <span>{t('map.searchFilters.drawingHint')}</span>
+                                        <button
+                                            type="button"
+                                            onClick={cancelSearchPolygon}
+                                            className="font-semibold text-amber-800 hover:underline"
+                                        >
+                                            {t('map.searchFilters.cancelDraw')}
+                                        </button>
+                                    </div>
+                                )}
+                                <label className="mt-3 flex items-start gap-2 text-sm text-slate-700">
+                                    <input
+                                        type="checkbox"
+                                        checked={searchDraft.usePolygon}
+                                        onChange={(event) => setSearchDraft(prev => ({ ...prev, usePolygon: event.target.checked }))}
+                                        disabled={!searchAreaCoords.length}
+                                        className="mt-1 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-400 disabled:opacity-50"
+                                    />
+                                    <span>
+                                        {t('map.searchFilters.usePolygon')}
+                                        <span className="mt-1 block text-xs text-slate-500">{t('map.searchFilters.usePolygonHint')}</span>
+                                    </span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div className="mt-4 flex items-center justify-between gap-2">
+                            <button
+                                type="button"
+                                onClick={clearSearchFilters}
+                                className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+                            >
+                                {t('map.searchFilters.clear')}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={applySearchFilters}
+                                className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-indigo-500/20 hover:bg-indigo-500"
+                            >
+                                {t('map.searchFilters.apply')}
+                            </button>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );

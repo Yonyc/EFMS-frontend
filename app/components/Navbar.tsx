@@ -12,8 +12,6 @@ const NAV_ITEMS = [
     { translationId: 'nav.home', slug: '', end: true },
     { translationId: 'nav.map', slug: 'map', end: false },
     { translationId: 'nav.public_farms', slug: 'public-farms', end: false },
-    { translationId: 'nav.operations', slug: 'operations', end: false },
-    { translationId: 'nav.assets', slug: 'assets', end: false },
     { translationId: 'nav.wiki', slug: 'wiki', end: false }
 ] as const;
 
@@ -156,6 +154,32 @@ export default function Navbar({ currentLocale }: NavbarProps) {
                                             {t('nav.profile')}
                                         </Link>
                                     </MenuItem>
+                                    <div className="my-1 h-px bg-white/10" />
+                                    <MenuItem>
+                                        <Link
+                                            to={localizedPath('operations')}
+                                            className="block px-4 py-2 text-sm text-gray-300 data-focus:bg-white/5 data-focus:outline-hidden"
+                                        >
+                                            {t('nav.operations')}
+                                        </Link>
+                                    </MenuItem>
+                                    <MenuItem>
+                                        <Link
+                                            to={localizedPath('assets')}
+                                            className="block px-4 py-2 text-sm text-gray-300 data-focus:bg-white/5 data-focus:outline-hidden"
+                                        >
+                                            {t('nav.assets')}
+                                        </Link>
+                                    </MenuItem>
+                                    <MenuItem>
+                                        <Link
+                                            to={localizedPath('periods')}
+                                            className="block px-4 py-2 text-sm text-gray-300 data-focus:bg-white/5 data-focus:outline-hidden"
+                                        >
+                                            {t('nav.periods')}
+                                        </Link>
+                                    </MenuItem>
+                                    <div className="my-1 h-px bg-white/10" />
                                     <MenuItem>
                                         <Link
                                             to={localizedPath('imports')}
