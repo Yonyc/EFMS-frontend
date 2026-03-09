@@ -93,6 +93,7 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
     
     // State
     const [polygons, setPolygons] = useState<PolygonData[]>([]);
+    const [allPolygons, setAllPolygons] = useState<PolygonData[]>([]);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [renamingId, setRenamingId] = useState<string | null>(null);
@@ -111,7 +112,7 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
     const [manualEditContext, setManualEditContext] = useState<ManualEditContext | null>(null);
     const [previewVisibility, setPreviewVisibility] = useState<{ original: boolean; fixed: boolean }>({ original: false, fixed: true });
     const [isListCollapsed, setIsListCollapsed] = useState(false);
-    const [listFilter, setListFilter] = useState<Array<'visible' | 'hidden' | 'approved' | 'unapproved'>>([]);
+    const [listFilter, setListFilter] = useState<Array<'visible' | 'hidden' | 'approved' | 'unapproved' | 'onscreen'>>([]);
     const [showFilterMenu, setShowFilterMenu] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const defaultSearchFilters = useMemo<ParcelSearchFilters>(() => ({
@@ -130,6 +131,7 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
     const [searchAreaCoords, setSearchAreaCoords] = useState<[number, number][]>([]);
     const [isSearchDrawing, setIsSearchDrawing] = useState(false);
     const [appliedPolygonWkt, setAppliedPolygonWkt] = useState<string | null>(null);
+    const [viewportBounds, setViewportBounds] = useState<{ minLat: number; minLng: number; maxLat: number; maxLng: number } | null>(null);
     const [isApproving, setIsApproving] = useState(false);
     const [approveFeedback, setApproveFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
     const [operationPopup, setOperationPopup] = useState<{ x: number; y: number; polygonId: string } | null>(null);
@@ -157,6 +159,7 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
     const polygonLayersRef = useRef<Map<string, L.Polygon>>(new Map());
     const searchDrawHandlerRef = useRef<any>(null);
     const searchAreaLayerRef = useRef<L.Polygon | null>(null);
+    const viewportDebounceRef = useRef<number | null>(null);
     
     // Refs
     const featureGroupRef = useRef<L.FeatureGroup>(null);
@@ -198,31 +201,57 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
 
     const togglePolygonVisibility = useCallback((id: string) => {
         setPolygons(prev => prev.map(p => p.id === id ? { ...p, visible: !p.visible } : p));
+        setAllPolygons(prev => prev.map(p => p.id === id ? { ...p, visible: !p.visible } : p));
     }, []);
 
     const renamePolygonInline = useCallback((id: string, name: string) => {
         setPolygons(prev => prev.map(p => p.id === id ? { ...p, name } : p));
+        setAllPolygons(prev => prev.map(p => p.id === id ? { ...p, name } : p));
     }, []);
 
-    const focusPolygon = useCallback((id: string) => {
-        const polygon = polygons.find(p => p.id === id);
+    const focusPolygon = useCallback(async (id: string) => {
         const map = getMap();
-        if (!polygon || !map || !polygon.coords?.length) return;
+        if (!map) return;
+
+        const polygon = polygons.find(p => p.id === id) || allPolygons.find(p => p.id === id);
+        if (!polygon) return;
+
+        const ensureCoords = async () => {
+            if (polygon.coords?.length) return polygon.coords;
+            try {
+                const response = await apiGet(`/parcels/${id}`);
+                if (!response.ok) return null;
+                const data = await response.json();
+                if (!data?.geodata) return null;
+                const coords = parseWktCoords(typeof data.geodata === 'string' ? data.geodata : String(data.geodata));
+                if (!coords.length) return null;
+                setAllPolygons(prev => prev.map(p => p.id === id ? { ...p, coords } : p));
+                setPolygons(prev => prev.map(p => p.id === id ? { ...p, coords, visible: true } : p));
+                return coords;
+            } catch (err) {
+                console.error('Failed to load parcel geometry:', err);
+                return null;
+            }
+        };
+
+        const coords = await ensureCoords();
+        if (!coords?.length) return;
 
         setPolygons(prev => prev.map(p => p.id === id ? { ...p, visible: true } : p));
         setSelectedId(id);
 
-        const bounds = L.latLngBounds(polygon.coords.map(([lat, lng]) => [lat, lng] as [number, number]));
+        const bounds = L.latLngBounds(coords.map(([lat, lng]) => [lat, lng] as [number, number]));
         if (bounds.isValid()) {
             map.flyToBounds(bounds, { maxZoom: 18, padding: [80, 80] });
-        } else if (polygon.coords.length) {
-            map.flyTo(polygon.coords[0], 17);
+        } else {
+            map.flyTo(coords[0], 17);
         }
-    }, [polygons]);
+    }, [allPolygons, polygons]);
 
     const filterOptions = useMemo(() => {
         const base = [
             { key: 'all', label: t('map.polygonList.filters.all', { defaultValue: 'All' }) },
+            { key: 'onscreen', label: t('map.polygonList.filters.onScreen', { defaultValue: 'On screen' }) },
             { key: 'visible', label: t('map.polygonList.filters.visible', { defaultValue: 'Visible' }) },
             { key: 'hidden', label: t('map.polygonList.filters.hidden', { defaultValue: 'Hidden' }) },
         ];
@@ -241,9 +270,11 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
     }, [listFilter, t]);
 
     const filteredPolygons = useMemo(() => {
-        let next = polygons;
+        let next = allPolygons;
         const visibilityFilters = listFilter.filter(filter => filter === 'visible' || filter === 'hidden');
         const statusFilters = listFilter.filter(filter => filter === 'approved' || filter === 'unapproved');
+        const screenFilters = listFilter.filter(filter => filter === 'onscreen');
+        const onScreenIds = new Set(polygons.map(p => p.id));
 
         if (visibilityFilters.length === 1) {
             next = next.filter(p => visibilityFilters[0] === 'visible' ? p.visible : !p.visible);
@@ -257,13 +288,17 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
             });
         }
 
+        if (screenFilters.length) {
+            next = next.filter(p => onScreenIds.has(p.id));
+        }
+
         if (searchQuery.trim()) {
             const needle = searchQuery.trim().toLowerCase();
             next = next.filter(p => (p.name || '').toLowerCase().includes(needle));
         }
 
         return next;
-    }, [polygons, listFilter, searchQuery]);
+    }, [allPolygons, listFilter, polygons, searchQuery]);
 
     const hasActiveSearchFilters = useMemo(() => (
         Boolean(appliedFilters.periodId) ||
@@ -295,6 +330,17 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
         const query = params.toString();
         return `${parcelsEndpoint}/search${query ? `?${query}` : ''}`;
     }, [appliedBounds, appliedFilters, appliedPolygonWkt, hasActiveSearchFilters, parcelsEndpoint]);
+
+    const viewportEndpoint = useMemo(() => {
+        if (!viewportBounds || contextType !== 'farm' || isImportMode || hasActiveSearchFilters) return null;
+        const params = new URLSearchParams({
+            minLat: String(viewportBounds.minLat),
+            minLng: String(viewportBounds.minLng),
+            maxLat: String(viewportBounds.maxLat),
+            maxLng: String(viewportBounds.maxLng),
+        });
+        return `${parcelsEndpoint}/viewport?${params.toString()}`;
+    }, [contextType, hasActiveSearchFilters, isImportMode, parcelsEndpoint, viewportBounds]);
 
     useEffect(() => {
         if (!approveFeedback) return;
@@ -1263,10 +1309,14 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
     useEffect(() => {
         const fetchPolygons = async () => {
             try {
-                const response = await apiGet(searchEndpoint);
+                if (contextType === 'farm' && !isImportMode && !hasActiveSearchFilters && !viewportEndpoint) {
+                    return;
+                }
+                const endpoint = viewportEndpoint || searchEndpoint;
+                const response = await apiGet(endpoint);
                 if (response.ok) {
                     const data = await response.json();
-                    setPolygons(data.map((p: any) => {
+                    const parsed: PolygonData[] = data.map((p: any) => {
                         // Parse geodata WKT string to coordinates
                         let coords: [number, number][] = [];
                         try {
@@ -1296,7 +1346,16 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
                             validationStatus: p.validationStatus,
                             convertedParcelId: p.convertedParcelId ?? null,
                         };
-                    }));
+                    });
+                    setPolygons(parsed);
+                    setAllPolygons(prev => {
+                        if (!prev.length) return parsed;
+                        const map = new Map(prev.map(item => [item.id, item]));
+                        parsed.forEach((item: PolygonData) => {
+                            map.set(item.id, { ...map.get(item.id), ...item });
+                        });
+                        return Array.from(map.values());
+                    });
                 } else {
                     console.error("Failed to fetch polygons:", response.statusText);
                     setPolygons([]);
@@ -1308,7 +1367,40 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
         };
 
         fetchPolygons();
-    }, [parcelsEndpoint, searchEndpoint, t]);
+    }, [contextType, hasActiveSearchFilters, isImportMode, parcelsEndpoint, searchEndpoint, t, viewportEndpoint]);
+
+
+    useEffect(() => {
+        if (contextType !== 'farm' || !resolvedContextId || isImportMode) return;
+        const fetchAll = async () => {
+            try {
+                const response = await apiGet(`/farm/${resolvedContextId}/parcels/all`);
+                if (response.ok) {
+                    const data = await response.json();
+                    const parsed: PolygonData[] = data.map((p: any) => ({
+                        id: String(p.id),
+                        name: p.name || t('map.unnamedParcel'),
+                        coords: [],
+                        visible: true,
+                        version: 0,
+                        color: p.color || '#3388ff',
+                        active: p.active,
+                        farmId: p.farmId,
+                        periodId: p.periodId ?? null,
+                        validationStatus: p.validationStatus,
+                        convertedParcelId: p.convertedParcelId ?? null,
+                    }));
+                    setAllPolygons(parsed);
+                } else {
+                    console.error('Failed to fetch full parcel list:', response.statusText);
+                }
+            } catch (err) {
+                console.error('Failed to fetch full parcel list:', err);
+            }
+        };
+
+        fetchAll();
+    }, [contextType, resolvedContextId, isImportMode, t]);
 
     useEffect(() => {
         if (!isCreating) return;
@@ -1373,7 +1465,32 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
 
     // Components
     function MapEvents() {
+        const updateViewport = (map: L.Map) => {
+            if (hasActiveSearchFilters || isImportMode || contextType !== 'farm') return;
+            const bounds = map.getBounds().pad(0.2);
+            const sw = bounds.getSouthWest();
+            const ne = bounds.getNorthEast();
+            setViewportBounds({
+                minLat: sw.lat,
+                minLng: sw.lng,
+                maxLat: ne.lat,
+                maxLng: ne.lng,
+            });
+        };
+
         useMapEvents({
+            load: e => {
+                if (viewportDebounceRef.current) window.clearTimeout(viewportDebounceRef.current);
+                viewportDebounceRef.current = window.setTimeout(() => updateViewport(e.target), 150);
+            },
+            moveend: e => {
+                if (viewportDebounceRef.current) window.clearTimeout(viewportDebounceRef.current);
+                viewportDebounceRef.current = window.setTimeout(() => updateViewport(e.target), 150);
+            },
+            zoomend: e => {
+                if (viewportDebounceRef.current) window.clearTimeout(viewportDebounceRef.current);
+                viewportDebounceRef.current = window.setTimeout(() => updateViewport(e.target), 150);
+            },
             contextmenu: e => {
                 if (!editingId && !isCreating) {
                     e.originalEvent.preventDefault();
@@ -1396,6 +1513,22 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
             },
             popupopen: e => editingId && e.popup?.remove?.()
         });
+
+        useEffect(() => {
+            if (hasActiveSearchFilters || isImportMode || contextType !== 'farm') return;
+            if (viewportBounds) return;
+            const map = getMap();
+            if (!map?.getBounds) return;
+            const bounds = map.getBounds().pad(0.2);
+            const sw = bounds.getSouthWest();
+            const ne = bounds.getNorthEast();
+            setViewportBounds({
+                minLat: sw.lat,
+                minLng: sw.lng,
+                maxLat: ne.lat,
+                maxLng: ne.lng,
+            });
+        }, []);
         return null;
     }
 
@@ -2130,11 +2263,11 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
                                                                 return;
                                                             }
                                                             setListFilter(prev => {
-                                                                const exists = prev.includes(option.key as 'visible' | 'hidden' | 'approved' | 'unapproved');
+                                                                        const exists = prev.includes(option.key as 'visible' | 'hidden' | 'approved' | 'unapproved' | 'onscreen');
                                                                 if (exists) {
                                                                     return prev.filter(item => item !== option.key);
                                                                 }
-                                                                return [...prev, option.key as 'visible' | 'hidden' | 'approved' | 'unapproved'];
+                                                                        return [...prev, option.key as 'visible' | 'hidden' | 'approved' | 'unapproved' | 'onscreen'];
                                                             });
                                                         }}
                                                         style={{
@@ -2147,7 +2280,7 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
                                                             textAlign: 'left',
                                                             background: option.key === 'all'
                                                                 ? (listFilter.length === 0 ? 'rgba(15,23,42,0.08)' : 'transparent')
-                                                                : (listFilter.includes(option.key as 'visible' | 'hidden' | 'approved' | 'unapproved') ? 'rgba(15,23,42,0.08)' : 'transparent'),
+                                                                : (listFilter.includes(option.key as 'visible' | 'hidden' | 'approved' | 'unapproved' | 'onscreen') ? 'rgba(15,23,42,0.08)' : 'transparent'),
                                                             color: '#0f172a',
                                                             display: 'flex',
                                                             alignItems: 'center',
@@ -2156,7 +2289,7 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
                                                     >
                                                         <span>{option.label}</span>
                                                         {(option.key === 'all' && listFilter.length === 0) && <span aria-hidden>✓</span>}
-                                                        {option.key !== 'all' && listFilter.includes(option.key as 'visible' | 'hidden' | 'approved' | 'unapproved') && <span aria-hidden>✓</span>}
+                                                        {option.key !== 'all' && listFilter.includes(option.key as 'visible' | 'hidden' | 'approved' | 'unapproved' | 'onscreen') && <span aria-hidden>✓</span>}
                                                     </button>
                                                 ))}
                                             </div>
@@ -2198,14 +2331,20 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
                                     onFocus={focusPolygon}
                                     onApproveSingle={isImportMode ? approveSingleParcel : undefined}
                                     showStatus={isImportMode}
-                                    emptyLabel={polygons.length ? t('map.polygonList.emptyFiltered', { defaultValue: 'No polygons match this filter' }) : undefined}
+                                    emptyLabel={allPolygons.length ? t('map.polygonList.emptyFiltered', { defaultValue: 'No polygons match this filter' }) : undefined}
                                 />
                             </div>
                         )}
                     </div>
                 </div>
                 <div data-tour-id="map-canvas" style={{ height: '100%', width: '100%', minHeight: 0 }}>
-                    <MapContainer style={{ height: "100%", width: "100%" }} center={center} zoom={15} maxZoom={19} zoomControl={false}>
+                    <MapContainer
+                        style={{ height: "100%", width: "100%" }}
+                        center={center}
+                        zoom={15}
+                        maxZoom={19}
+                        zoomControl={false}
+                    >
                         <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" maxNativeZoom={20} attribution='&copy; <a href="https://osm.org/copyright">OpenStreetMap</a>' />
                         <ZoomControl position="bottomright" />
                     <MapEvents />

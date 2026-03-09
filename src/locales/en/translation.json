@@ -378,6 +378,7 @@
       "filters": {
         "label": "Filters",
         "all": "All",
+        "onScreen": "On screen",
         "visible": "Visible",
         "hidden": "Hidden",
         "approved": "Approved",
