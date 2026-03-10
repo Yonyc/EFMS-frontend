@@ -189,7 +189,9 @@
     "confirm": "Confirm",
     "save": "Save",
     "delete": "Delete",
-    "loading": "Loading..."
+    "loading": "Loading...",
+    "yes": "Yes",
+    "no": "No"
   },
   "farmSelector": {
     "noFarms": "No farms available",
@@ -225,7 +227,45 @@
     "showLocation": "Show location",
     "submit": "Create Farm",
     "submitting": "Creating...",
-    "created": "Farm created"
+    "created": "Farm created",
+    "members": {
+      "title": "Farm members",
+      "description": "Invite teammates and set their access level.",
+      "selectFarm": "Select a farm to manage members.",
+      "usernamePlaceholder": "Username",
+      "add": "Add",
+      "loading": "Loading members...",
+      "empty": "No members yet.",
+      "owner": "Owner",
+      "member": "Member",
+      "remove": "Remove",
+      "roles": {
+        "admin": "Admin",
+        "editor": "Editor",
+        "viewer": "Viewer"
+      },
+      "errors": {
+        "loadFailed": "Unable to load members.",
+        "saveFailed": "Unable to save member changes.",
+        "usernameRequired": "Enter a username to add.",
+        "noAccess": "You do not have permission to manage members for this farm."
+      }
+    },
+    "info": {
+      "title": "Farm info",
+      "description": "Review the current farm details and visibility settings.",
+      "selectFarm": "Select a farm to view its details.",
+      "name": "Name",
+      "location": "Location",
+      "visibility": "Visibility",
+      "public": "Public",
+      "private": "Private",
+      "descriptionLabel": "Description",
+      "showName": "Show name",
+      "showDescription": "Show description",
+      "showLocation": "Show location",
+      "missing": "Not provided"
+    }
   },
   "publicFarms": {
     "title": "Public farms",
@@ -292,6 +332,7 @@
     "history": "History",
     "emptyHistory": "No operations recorded for this parcel yet.",
     "noParcel": "Select a parcel to view or add operations.",
+    "readOnly": "You can view operations but cannot add new ones for this parcel.",
     "refreshFarms": "Refresh farms",
     "refreshParcels": "Reload parcels",
     "pinTopRight": "Open top-right"
@@ -434,6 +475,26 @@
       "edit": "Edit",
       "color": "Color",
       "delete": "Delete"
+    },
+    "sharing": {
+      "open": "Share parcel",
+      "title": "Share parcel",
+      "subtitle": "Invite access for {{name}}.",
+      "close": "Close",
+      "usernamePlaceholder": "Username",
+      "add": "Share",
+      "loading": "Loading shares...",
+      "empty": "No shares yet.",
+      "remove": "Remove",
+      "roles": {
+        "editor": "Editor",
+        "viewer": "Viewer"
+      },
+      "errors": {
+        "loadFailed": "Unable to load shares.",
+        "saveFailed": "Unable to save share.",
+        "usernameRequired": "Enter a username to share."
+      }
     },
     "deletePrompt": "Delete \"{{name}}\"?",
     "renameModal": {

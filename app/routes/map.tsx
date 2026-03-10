@@ -123,7 +123,7 @@ export default function MapPage() {
             <div className="relative flex flex-1 w-full min-h-0">
                 {MapComponent ? (
                     <>
-                        <MapComponent farm_id={selectedFarm.id} key={selectedFarm.id} />
+                        <MapComponent farm_id={selectedFarm.id} allowCreate={selectedFarm.canEdit !== false} key={selectedFarm.id} />
                         {isTourOpen && tourSteps.length > 0 && (
                             <MapTourOverlay
                                 isOpen={isTourOpen}

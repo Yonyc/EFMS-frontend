@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 
 interface PolygonListProps {
-  polygons: { id: string; name: string; visible: boolean; color?: string; validationStatus?: string; convertedParcelId?: number | null }[];
+  polygons: { id: string; name: string; visible: boolean; color?: string; validationStatus?: string; convertedParcelId?: number | null; canEdit?: boolean }[];
   onToggle: (id: string) => void;
   onRename: (id: string, newName: string) => void;
   onFocus?: (id: string) => void;
@@ -50,7 +50,8 @@ export default function PolygonList({ polygons, onToggle, onRename, onFocus, onA
                   <input
                     type="text"
                     value={poly.name}
-                    onChange={(e) => onRename(poly.id, e.target.value)}
+                    onChange={(e) => poly.canEdit === false ? undefined : onRename(poly.id, e.target.value)}
+                    disabled={poly.canEdit === false}
                     className="w-full rounded-xl border border-slate-200/80 bg-white/80 px-2.5 py-1.5 text-sm font-semibold text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-indigo-300 focus:bg-white focus:ring-2 focus:ring-indigo-100"
                     placeholder={t('map.polygonList.placeholder') || 'Polygon name'}
                   />

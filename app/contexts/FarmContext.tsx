@@ -12,6 +12,8 @@ interface Farm {
   showName?: boolean;
   showDescription?: boolean;
   showLocation?: boolean;
+  canEdit?: boolean;
+  canManage?: boolean;
 }
 
 interface FarmContextType {

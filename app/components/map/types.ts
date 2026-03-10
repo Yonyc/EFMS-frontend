@@ -10,6 +10,8 @@ export interface PolygonData {
     endValidity?: string;
     farmId?: number;
     periodId?: number | null;
+    canEdit?: boolean;
+    canShare?: boolean;
     validationStatus?: string;
     convertedParcelId?: number | null;
 }

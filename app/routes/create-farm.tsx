@@ -4,10 +4,17 @@ import { useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import { useFarm } from '../contexts/FarmContext';
-import { apiPost, apiPut } from '~/utils/api';
+import { apiDelete, apiGet, apiPost, apiPut } from '~/utils/api';
 import ProtectedRoute from '~/components/ProtectedRoute';
 import { useCurrentLocale } from '../hooks/useCurrentLocale';
 import { buildLocalizedPath } from '../utils/locale';
+
+interface FarmMemberDto {
+    userId: number;
+    username: string;
+    role: string;
+    owner: boolean;
+}
 
 export function meta() {
     return [
@@ -36,6 +43,11 @@ export default function CreateFarm() {
     const [message, setMessage] = useState('');
     const [isUpdating, setIsUpdating] = useState(false);
     const [isCreating, setIsCreating] = useState(false);
+    const [members, setMembers] = useState<FarmMemberDto[]>([]);
+    const [memberLoading, setMemberLoading] = useState(false);
+    const [memberError, setMemberError] = useState('');
+    const [newMemberUsername, setNewMemberUsername] = useState('');
+    const [newMemberRole, setNewMemberRole] = useState('EDITOR');
 
     const { isAuthenticated } = useAuth();
     const { farms, selectedFarm, selectFarm, refreshFarms } = useFarm();
@@ -54,6 +66,41 @@ export default function CreateFarm() {
             setEditShowLocation(selectedFarm.showLocation ?? true);
         }
     }, [selectedFarm?.id]);
+
+    useEffect(() => {
+        const loadMembers = async () => {
+            if (!selectedFarm?.id) {
+                setMembers([]);
+                setMemberError('');
+                return;
+            }
+            if (selectedFarm.canManage === false) {
+                setMembers([]);
+                setMemberError(t('manageFarms.members.errors.noAccess'));
+                return;
+            }
+            setMemberLoading(true);
+            setMemberError('');
+            try {
+                const response = await apiGet(`/farm/${selectedFarm.id}/members`);
+                if (response.ok) {
+                    const data = await response.json();
+                    setMembers(data);
+                } else if (response.status === 403) {
+                    setMembers([]);
+                    setMemberError(t('manageFarms.members.errors.noAccess'));
+                } else {
+                    setMemberError(t('manageFarms.members.errors.loadFailed'));
+                }
+            } catch (err) {
+                console.error('Failed to load members:', err);
+                setMemberError(t('manageFarms.members.errors.loadFailed'));
+            } finally {
+                setMemberLoading(false);
+            }
+        };
+        loadMembers();
+    }, [selectedFarm?.id, selectedFarm?.canManage, t]);
 
     const validateName = (name: string) => {
         if (!name.trim()) {
@@ -154,6 +201,67 @@ export default function CreateFarm() {
     navigate(buildLocalizedPath(locale, '/'));
     };
 
+    const handleAddMember = async (e: FormEvent) => {
+        e.preventDefault();
+        setMemberError('');
+        if (!selectedFarm?.id) return;
+        if (!newMemberUsername.trim()) {
+            setMemberError(t('manageFarms.members.errors.usernameRequired'));
+            return;
+        }
+        try {
+            const response = await apiPost(`/farm/${selectedFarm.id}/members`, {
+                username: newMemberUsername.trim(),
+                role: newMemberRole,
+            });
+            if (!response.ok) {
+                const data = await response.json().catch(() => ({}));
+                setMemberError(data.message || t('manageFarms.members.errors.saveFailed'));
+                return;
+            }
+            const created = await response.json();
+            setMembers(prev => [...prev, created]);
+            setNewMemberUsername('');
+            setNewMemberRole('EDITOR');
+        } catch (err) {
+            console.error('Failed to add member:', err);
+            setMemberError(t('manageFarms.members.errors.saveFailed'));
+        }
+    };
+
+    const handleUpdateMember = async (userId: number, role: string) => {
+        if (!selectedFarm?.id) return;
+        setMemberError('');
+        try {
+            const response = await apiPut(`/farm/${selectedFarm.id}/members/${userId}`, { role });
+            if (!response.ok) {
+                setMemberError(t('manageFarms.members.errors.saveFailed'));
+                return;
+            }
+            const updated = await response.json();
+            setMembers(prev => prev.map(m => m.userId === userId ? { ...m, role: updated.role } : m));
+        } catch (err) {
+            console.error('Failed to update member:', err);
+            setMemberError(t('manageFarms.members.errors.saveFailed'));
+        }
+    };
+
+    const handleRemoveMember = async (userId: number) => {
+        if (!selectedFarm?.id) return;
+        setMemberError('');
+        try {
+            const response = await apiDelete(`/farm/${selectedFarm.id}/members/${userId}`);
+            if (!response.ok) {
+                setMemberError(t('manageFarms.members.errors.saveFailed'));
+                return;
+            }
+            setMembers(prev => prev.filter(m => m.userId !== userId));
+        } catch (err) {
+            console.error('Failed to remove member:', err);
+            setMemberError(t('manageFarms.members.errors.saveFailed'));
+        }
+    };
+
     if (!isAuthenticated) {
         return null;
     }
@@ -174,20 +282,21 @@ export default function CreateFarm() {
                     )}
 
                     <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
-                        <div className="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-xl shadow-black/30">
-                            <div className="flex items-start justify-between">
-                                <div>
-                                    <h3 className="text-lg font-semibold text-white">{t('manageFarms.currentTitle')}</h3>
-                                    <p className="text-sm text-slate-300">{t('manageFarms.currentDescription')}</p>
+                        <div className="space-y-6">
+                            <div className="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-xl shadow-black/30">
+                                <div className="flex items-start justify-between">
+                                    <div>
+                                        <h3 className="text-lg font-semibold text-white">{t('manageFarms.currentTitle')}</h3>
+                                        <p className="text-sm text-slate-300">{t('manageFarms.currentDescription')}</p>
+                                    </div>
+                                    {farms.length > 0 && (
+                                        <span className="rounded-full bg-indigo-500/15 px-3 py-1 text-xs font-semibold text-indigo-100 border border-indigo-400/30">
+                                            {farms.length} farms
+                                        </span>
+                                    )}
                                 </div>
-                                {farms.length > 0 && (
-                                    <span className="rounded-full bg-indigo-500/15 px-3 py-1 text-xs font-semibold text-indigo-100 border border-indigo-400/30">
-                                        {farms.length} farms
-                                    </span>
-                                )}
-                            </div>
 
-                            <form className="mt-4 space-y-4" onSubmit={handleUpdate}>
+                                <form className="mt-4 space-y-4" onSubmit={handleUpdate}>
                                 <div className="space-y-2">
                                     <label className="block text-sm font-medium text-slate-100">{t('manageFarms.nameLabel')}</label>
                                     <select
@@ -285,7 +394,149 @@ export default function CreateFarm() {
                                         {isUpdating ? t('manageFarms.updating') : t('manageFarms.update')}
                                     </button>
                                 </div>
-                            </form>
+                                </form>
+                            </div>
+
+                            <div className="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-xl shadow-black/30">
+                                <div>
+                                    <h3 className="text-lg font-semibold text-white">{t('manageFarms.info.title')}</h3>
+                                    <p className="text-sm text-slate-300">{t('manageFarms.info.description')}</p>
+                                </div>
+
+                                {!selectedFarm && (
+                                    <p className="mt-4 text-sm text-slate-400">{t('manageFarms.info.selectFarm')}</p>
+                                )}
+
+                                {selectedFarm && (
+                                    <div className="mt-4 space-y-3 text-sm text-slate-200">
+                                        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/10 bg-slate-900/40 px-4 py-3">
+                                            <span className="text-xs uppercase tracking-wide text-slate-400">{t('manageFarms.info.name')}</span>
+                                            <span className="font-semibold text-white">{selectedFarm.name || t('manageFarms.info.missing')}</span>
+                                        </div>
+                                        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/10 bg-slate-900/40 px-4 py-3">
+                                            <span className="text-xs uppercase tracking-wide text-slate-400">{t('manageFarms.info.location')}</span>
+                                            <span className="font-semibold text-white">{selectedFarm.location || t('manageFarms.info.missing')}</span>
+                                        </div>
+                                        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/10 bg-slate-900/40 px-4 py-3">
+                                            <span className="text-xs uppercase tracking-wide text-slate-400">{t('manageFarms.info.visibility')}</span>
+                                            <span className={`rounded-full px-3 py-1 text-xs font-semibold ${selectedFarm.isPublic ? 'bg-emerald-500/15 text-emerald-100 border border-emerald-400/30' : 'bg-slate-700/40 text-slate-200 border border-white/10'}`}>
+                                                {selectedFarm.isPublic ? t('manageFarms.info.public') : t('manageFarms.info.private')}
+                                            </span>
+                                        </div>
+                                        <div className="rounded-xl border border-white/10 bg-slate-900/40 px-4 py-3">
+                                            <p className="text-xs uppercase tracking-wide text-slate-400">{t('manageFarms.info.descriptionLabel')}</p>
+                                            <p className="mt-2 text-sm text-slate-100">{selectedFarm.description || t('manageFarms.info.missing')}</p>
+                                        </div>
+                                        <div className="grid gap-2 sm:grid-cols-3">
+                                            <div className="rounded-xl border border-white/10 bg-slate-900/40 px-4 py-3">
+                                                <p className="text-xs uppercase tracking-wide text-slate-400">{t('manageFarms.info.showName')}</p>
+                                                <p className="mt-1 font-semibold text-white">{selectedFarm.showName ? t('common.yes') : t('common.no')}</p>
+                                            </div>
+                                            <div className="rounded-xl border border-white/10 bg-slate-900/40 px-4 py-3">
+                                                <p className="text-xs uppercase tracking-wide text-slate-400">{t('manageFarms.info.showDescription')}</p>
+                                                <p className="mt-1 font-semibold text-white">{selectedFarm.showDescription ? t('common.yes') : t('common.no')}</p>
+                                            </div>
+                                            <div className="rounded-xl border border-white/10 bg-slate-900/40 px-4 py-3">
+                                                <p className="text-xs uppercase tracking-wide text-slate-400">{t('manageFarms.info.showLocation')}</p>
+                                                <p className="mt-1 font-semibold text-white">{selectedFarm.showLocation ? t('common.yes') : t('common.no')}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-xl shadow-black/30">
+                                <div className="flex items-start justify-between">
+                                    <div>
+                                        <h3 className="text-lg font-semibold text-white">{t('manageFarms.members.title')}</h3>
+                                        <p className="text-sm text-slate-300">{t('manageFarms.members.description')}</p>
+                                    </div>
+                                </div>
+
+                                {!selectedFarm && (
+                                    <p className="mt-4 text-sm text-slate-400">{t('manageFarms.members.selectFarm')}</p>
+                                )}
+
+                                {selectedFarm && (
+                                    <div className="mt-4 space-y-4">
+                                        {memberError && (
+                                            <div className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-xs text-rose-100">
+                                                {memberError}
+                                            </div>
+                                        )}
+
+                                        {selectedFarm.canManage !== false && (
+                                            <form className="grid gap-3 sm:grid-cols-[1.5fr_1fr_auto]" onSubmit={handleAddMember}>
+                                                <input
+                                                    type="text"
+                                                    value={newMemberUsername}
+                                                    onChange={(e) => setNewMemberUsername(e.target.value)}
+                                                    placeholder={t('manageFarms.members.usernamePlaceholder')}
+                                                    className="w-full rounded-lg border border-white/15 bg-slate-900/70 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:border-indigo-400 focus:outline-none"
+                                                />
+                                                <select
+                                                    value={newMemberRole}
+                                                    onChange={(e) => setNewMemberRole(e.target.value)}
+                                                    className="w-full rounded-lg border border-white/15 bg-slate-900/70 px-3 py-2 text-sm text-white focus:border-indigo-400 focus:outline-none"
+                                                >
+                                                    <option value="ADMIN">{t('manageFarms.members.roles.admin')}</option>
+                                                    <option value="EDITOR">{t('manageFarms.members.roles.editor')}</option>
+                                                    <option value="VIEWER">{t('manageFarms.members.roles.viewer')}</option>
+                                                </select>
+                                                <button
+                                                    type="submit"
+                                                    className="rounded-lg bg-indigo-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 hover:bg-indigo-400"
+                                                >
+                                                    {t('manageFarms.members.add')}
+                                                </button>
+                                            </form>
+                                        )}
+
+                                        <div className="space-y-2">
+                                            {memberLoading && (
+                                                <p className="text-sm text-slate-400">{t('manageFarms.members.loading')}</p>
+                                            )}
+                                            {!memberLoading && members.length === 0 && (
+                                                <p className="text-sm text-slate-400">{t('manageFarms.members.empty')}</p>
+                                            )}
+                                            {members.map(member => (
+                                                <div key={member.userId} className="flex flex-wrap items-center gap-3 rounded-xl border border-white/10 bg-slate-900/40 px-3 py-2">
+                                                    <div className="flex-1">
+                                                        <p className="text-sm font-semibold text-white">{member.username}</p>
+                                                        <p className="text-xs text-slate-400">{member.owner ? t('manageFarms.members.owner') : t('manageFarms.members.member')}</p>
+                                                    </div>
+                                                    {member.owner ? (
+                                                        <span className="rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-100 border border-emerald-400/30">
+                                                            {t('manageFarms.members.owner')}
+                                                        </span>
+                                                    ) : (
+                                                        <>
+                                                            <select
+                                                                value={member.role}
+                                                                onChange={(e) => handleUpdateMember(member.userId, e.target.value)}
+                                                                disabled={selectedFarm.canManage === false}
+                                                                className="rounded-lg border border-white/15 bg-slate-900/70 px-3 py-1.5 text-xs text-white focus:border-indigo-400 focus:outline-none"
+                                                            >
+                                                                <option value="ADMIN">{t('manageFarms.members.roles.admin')}</option>
+                                                                <option value="EDITOR">{t('manageFarms.members.roles.editor')}</option>
+                                                                <option value="VIEWER">{t('manageFarms.members.roles.viewer')}</option>
+                                                            </select>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleRemoveMember(member.userId)}
+                                                                disabled={selectedFarm.canManage === false}
+                                                                className="rounded-lg border border-rose-400/40 bg-rose-500/10 px-3 py-1.5 text-xs font-semibold text-rose-100 hover:bg-rose-500/20"
+                                                            >
+                                                                {t('manageFarms.members.remove')}
+                                                            </button>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
                         </div>
 
                         <div className="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-xl shadow-black/30 lg:self-start lg:sticky lg:top-24">

@@ -189,7 +189,9 @@
     "confirm": "Confirmer",
     "save": "Enregistrer",
     "delete": "Supprimer",
-    "loading": "Chargement..."
+    "loading": "Chargement...",
+    "yes": "Oui",
+    "no": "Non"
   },
   "farmSelector": {
     "noFarms": "Aucune exploitation disponible",
@@ -225,7 +227,45 @@
     "showLocation": "Afficher la localisation",
     "submit": "Créer l'exploitation",
     "submitting": "Création...",
-    "created": "Exploitation créée"
+    "created": "Exploitation créée",
+    "members": {
+      "title": "Membres de la ferme",
+      "description": "Invitez des coéquipiers et définissez leur niveau d'accès.",
+      "selectFarm": "Sélectionnez une ferme pour gérer les membres.",
+      "usernamePlaceholder": "Nom d'utilisateur",
+      "add": "Ajouter",
+      "loading": "Chargement des membres...",
+      "empty": "Aucun membre pour l'instant.",
+      "owner": "Propriétaire",
+      "member": "Membre",
+      "remove": "Retirer",
+      "roles": {
+        "admin": "Administrateur",
+        "editor": "Éditeur",
+        "viewer": "Lecteur"
+      },
+      "errors": {
+        "loadFailed": "Impossible de charger les membres.",
+        "saveFailed": "Impossible d'enregistrer les changements.",
+        "usernameRequired": "Saisissez un nom d'utilisateur.",
+        "noAccess": "Vous n'avez pas l'autorisation de gérer les membres de cette ferme."
+      }
+    },
+    "info": {
+      "title": "Infos de la ferme",
+      "description": "Consultez les détails et la visibilité actuels de la ferme.",
+      "selectFarm": "Sélectionnez une ferme pour voir ses détails.",
+      "name": "Nom",
+      "location": "Localisation",
+      "visibility": "Visibilité",
+      "public": "Publique",
+      "private": "Privée",
+      "descriptionLabel": "Description",
+      "showName": "Afficher le nom",
+      "showDescription": "Afficher la description",
+      "showLocation": "Afficher la localisation",
+      "missing": "Non renseigné"
+    }
   },
   "publicFarms": {
     "title": "Exploitations publiques",
@@ -292,6 +332,7 @@
     "history": "Historique",
     "emptyHistory": "Aucune opération enregistrée pour cette parcelle.",
     "noParcel": "Sélectionnez une parcelle pour voir ou ajouter des opérations.",
+    "readOnly": "Vous pouvez consulter les opérations mais vous ne pouvez pas en ajouter pour cette parcelle.",
     "refreshFarms": "Actualiser les fermes",
     "refreshParcels": "Recharger les parcelles",
     "pinTopRight": "Ouvrir en haut à droite"
@@ -434,6 +475,26 @@
       "edit": "Modifier",
       "color": "Couleur",
       "delete": "Supprimer"
+    },
+    "sharing": {
+      "open": "Partager la parcelle",
+      "title": "Partager la parcelle",
+      "subtitle": "Invitez l'accès pour {{name}}.",
+      "close": "Fermer",
+      "usernamePlaceholder": "Nom d'utilisateur",
+      "add": "Partager",
+      "loading": "Chargement des partages...",
+      "empty": "Aucun partage pour l'instant.",
+      "remove": "Retirer",
+      "roles": {
+        "editor": "Éditeur",
+        "viewer": "Lecteur"
+      },
+      "errors": {
+        "loadFailed": "Impossible de charger les partages.",
+        "saveFailed": "Impossible d'enregistrer le partage.",
+        "usernameRequired": "Saisissez un nom d'utilisateur."
+      }
     },
     "deletePrompt": "Supprimer \"{{name}}\" ?",
     "renameModal": {

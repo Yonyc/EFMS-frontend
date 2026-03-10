@@ -13,7 +13,7 @@ import { EditControl } from "react-leaflet-draw";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "leaflet-draw/dist/leaflet.draw.css";
-import { useEffect, useRef, useState, useCallback, useMemo } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo, type FormEvent } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { ChevronLeftIcon, ChevronRightIcon, FunnelIcon, XMarkIcon } from "@heroicons/react/24/outline";
@@ -50,6 +50,7 @@ interface ParcelOperationDto {
 }
 
 interface PeriodDto { id: number; name?: string; startDate?: string; endDate?: string; }
+interface ParcelShareDto { userId: number; username: string; role: string; }
 
 interface ParcelSearchFilters {
     periodId: string;
@@ -90,7 +91,7 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
     const isImportMode = props.importMode ?? (contextType === 'import');
     const basePath = isImportMode ? `/imports/${resolvedContextId}` : `/farm/${resolvedContextId}`;
     const parcelsEndpoint = `${basePath}/parcels`;
-    
+
     // State
     const [polygons, setPolygons] = useState<PolygonData[]>([]);
     const [allPolygons, setAllPolygons] = useState<PolygonData[]>([]);
@@ -115,6 +116,12 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
     const [listFilter, setListFilter] = useState<Array<'visible' | 'hidden' | 'approved' | 'unapproved' | 'onscreen'>>([]);
     const [showFilterMenu, setShowFilterMenu] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
+    const [shareParcelId, setShareParcelId] = useState<string | null>(null);
+    const [shareList, setShareList] = useState<ParcelShareDto[]>([]);
+    const [shareUsername, setShareUsername] = useState('');
+    const [shareRole, setShareRole] = useState('VIEWER');
+    const [shareError, setShareError] = useState('');
+    const [shareLoading, setShareLoading] = useState(false);
     const defaultSearchFilters = useMemo<ParcelSearchFilters>(() => ({
         periodId: '',
         toolId: '',
@@ -160,7 +167,7 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
     const searchDrawHandlerRef = useRef<any>(null);
     const searchAreaLayerRef = useRef<L.Polygon | null>(null);
     const viewportDebounceRef = useRef<number | null>(null);
-    
+
     // Refs
     const featureGroupRef = useRef<L.FeatureGroup>(null);
     const editControlRef = useRef<any>(null);
@@ -204,10 +211,21 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
         setAllPolygons(prev => prev.map(p => p.id === id ? { ...p, visible: !p.visible } : p));
     }, []);
 
+    const canEditPolygon = useCallback((id: string) => {
+        const polygon = polygons.find(p => p.id === id) || allPolygons.find(p => p.id === id);
+        return polygon?.canEdit !== false;
+    }, [allPolygons, polygons]);
+
+    const canSharePolygon = useCallback((id: string) => {
+        const polygon = polygons.find(p => p.id === id) || allPolygons.find(p => p.id === id);
+        return polygon?.canShare === true;
+    }, [allPolygons, polygons]);
+
     const renamePolygonInline = useCallback((id: string, name: string) => {
+        if (!canEditPolygon(id)) return;
         setPolygons(prev => prev.map(p => p.id === id ? { ...p, name } : p));
         setAllPolygons(prev => prev.map(p => p.id === id ? { ...p, name } : p));
-    }, []);
+    }, [canEditPolygon]);
 
     const focusPolygon = useCallback(async (id: string) => {
         const map = getMap();
@@ -452,7 +470,7 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
         const polygonMatch = wkt.match(/POLYGON\s*\(\s*\(\s*([^)]*?)\s*\)\s*/i);
         const multiPolygonMatch = wkt.match(/MULTIPOLYGON\s*\(\s*\(\s*\(\s*([^)]*?)\s*\)\s*/i);
         const coordsSource = polygonMatch?.[1] ?? multiPolygonMatch?.[1];
-        
+
         if (!coordsSource) return [];
 
         return coordsSource
@@ -472,16 +490,16 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
 
     const detectOverlaps = (id: string, coords: [number, number][]): { id: string; name: string }[] => {
         const overlapping: { id: string; name: string }[] = [];
-        
+
         for (const poly of polygons) {
             if (poly.id === id) continue;
             if (!poly.visible) continue;
-            
+
             if (checkOverlap(coords, poly.coords)) {
                 overlapping.push({ id: poly.id, name: poly.name });
             }
         }
-        
+
         return overlapping;
     };
 
@@ -497,7 +515,7 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
         state.listeners.mousemove && state.listeners.mousemove.map?.off('mousemove', state.listeners.mousemove.listener);
         state.handler?.disable?.();
         state.tempGroup && getMap()?.removeLayer(state.tempGroup);
-        
+
         editStateRef.current = null;
     }, []);
 
@@ -528,6 +546,7 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
 
     const startEdit = useCallback((id: string) => {
         if (editingId && editingId !== id) return;
+        if (!canEditPolygon(id)) return;
 
         const poly = polygons.find(p => p.id === id);
         const fg = featureGroupRef.current;
@@ -558,7 +577,7 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
         setupEditListeners(clone, id);
         handler.enable();
         setEditingId(id);
-    }, [polygons, editingId, setupEditListeners]);
+    }, [polygons, editingId, setupEditListeners, canEditPolygon]);
 
     const finishEdit = useCallback(async () => {
         const state = editStateRef.current;
@@ -567,7 +586,7 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
         const newCoords = extractCoords(state.layer);
         const overlapping = detectOverlaps(editingId, newCoords);
         const manualContextActive = manualEditContext?.warning.polygonId === editingId;
-        
+
         if (overlapping.length > 0) {
             const otherPolygons = polygons.filter(p => overlapping.some(o => o.id === p.id));
             const fixedCoords = fixOverlap(newCoords, otherPolygons);
@@ -647,6 +666,7 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
     }, [editingId, manualEditContext, updatePolygon, cleanupEdit]);
 
     const deletePolygon = useCallback(async (id: string) => {
+        if (!canEditPolygon(id)) return;
         if (contextType === 'farm') {
             try {
                 const response = await apiDelete(`/parcels/${id}`);
@@ -665,7 +685,7 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
             cleanupEdit();
             setEditingId(null);
         }
-    }, [contextType, editingId, cleanupEdit]);
+    }, [canEditPolygon, contextType, editingId, cleanupEdit]);
 
     const closePolygonContextMenu = useCallback(() => {
         setPolygonContextMenu(null);
@@ -739,6 +759,92 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
         }
     }, [contextType, resolvedContextId, t]);
 
+    const loadParcelShares = useCallback(async (parcelId: string) => {
+        if (contextType !== 'farm' || !resolvedContextId) return;
+        setShareLoading(true);
+        setShareError('');
+        try {
+            const res = await apiGet(`/farm/${resolvedContextId}/parcels/${parcelId}/shares`);
+            if (!res.ok) throw new Error('failed');
+            const data = await res.json();
+            setShareList(data);
+        } catch (err) {
+            console.error('Failed to load parcel shares', err);
+            setShareError(t('map.sharing.errors.loadFailed', { defaultValue: 'Unable to load shares' }));
+        } finally {
+            setShareLoading(false);
+        }
+    }, [contextType, resolvedContextId, t]);
+
+    const openShareModal = useCallback(async (parcelId: string) => {
+        setShareParcelId(parcelId);
+        setShareUsername('');
+        setShareRole('VIEWER');
+        await loadParcelShares(parcelId);
+    }, [loadParcelShares]);
+
+    const closeShareModal = useCallback(() => {
+        setShareParcelId(null);
+        setShareList([]);
+        setShareUsername('');
+        setShareRole('VIEWER');
+        setShareError('');
+    }, []);
+
+    const handleAddShare = useCallback(async (e: FormEvent) => {
+        e.preventDefault();
+        if (!shareParcelId || !resolvedContextId) return;
+        if (!shareUsername.trim()) {
+            setShareError(t('map.sharing.errors.usernameRequired', { defaultValue: 'Enter a username to share' }));
+            return;
+        }
+        setShareError('');
+        try {
+            const res = await apiPost(`/farm/${resolvedContextId}/parcels/${shareParcelId}/shares`, {
+                username: shareUsername.trim(),
+                role: shareRole,
+            });
+            if (!res.ok) throw new Error('failed');
+            const created = await res.json();
+            setShareList(prev => {
+                const exists = prev.some(item => item.userId === created.userId);
+                return exists ? prev.map(item => item.userId === created.userId ? created : item) : [...prev, created];
+            });
+            setShareUsername('');
+            setShareRole('VIEWER');
+        } catch (err) {
+            console.error('Failed to add share', err);
+            setShareError(t('map.sharing.errors.saveFailed', { defaultValue: 'Unable to save share' }));
+        }
+    }, [resolvedContextId, shareParcelId, shareRole, shareUsername, t]);
+
+    const handleUpdateShare = useCallback(async (userId: number, role: string) => {
+        if (!shareParcelId || !resolvedContextId) return;
+        setShareError('');
+        try {
+            const res = await apiPut(`/farm/${resolvedContextId}/parcels/${shareParcelId}/shares/${userId}`, { role });
+            if (!res.ok) throw new Error('failed');
+            const updated = await res.json();
+            setShareList(prev => prev.map(item => item.userId === userId ? updated : item));
+        } catch (err) {
+            console.error('Failed to update share', err);
+            setShareError(t('map.sharing.errors.saveFailed', { defaultValue: 'Unable to save share' }));
+        }
+    }, [resolvedContextId, shareParcelId, t]);
+
+    const handleRemoveShare = useCallback(async (userId: number) => {
+        if (!shareParcelId || !resolvedContextId) return;
+        setShareError('');
+        try {
+            const res = await apiDelete(`/farm/${resolvedContextId}/parcels/${shareParcelId}/shares/${userId}`);
+            if (!res.ok) throw new Error('failed');
+            setShareList(prev => prev.filter(item => item.userId !== userId));
+        } catch (err) {
+            console.error('Failed to remove share', err);
+            setShareError(t('map.sharing.errors.saveFailed', { defaultValue: 'Unable to save share' }));
+        }
+    }, [resolvedContextId, shareParcelId, t]);
+
     const handleAddOperationLine = useCallback(() => {
         setOperationLines(prev => [...prev, { productId: "", quantity: "", unitId: "", toolId: "" }]);
     }, []);
@@ -753,6 +859,10 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
 
     const handleSaveOperation = useCallback(async () => {
         if (!currentParcelId) return;
+        if (!canEditPolygon(currentParcelId)) {
+            setOperationError(t('operations.errorSave', { defaultValue: 'Not allowed to edit this parcel' }));
+            return;
+        }
         setOperationLoading(true);
         setOperationError(null);
         try {
@@ -783,16 +893,16 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
         } finally {
             setOperationLoading(false);
         }
-    }, [currentParcelId, operationLines, operationTypeId, operationDate, operationDurationMinutes, props.farm_id, loadParcelOperations, resetOperationForm, t]);
+    }, [currentParcelId, operationLines, operationTypeId, operationDate, operationDurationMinutes, props.farm_id, loadParcelOperations, resetOperationForm, t, canEditPolygon]);
 
     const handleOverlapIgnore = useCallback(async () => {
         if (!overlapWarning) return;
-        
+
         if (overlapWarning.isNewPolygon) {
             // For new polygons, create with the original coords
             createdLayerRef.current && getMap()?.removeLayer(createdLayerRef.current);
             createdLayerRef.current = null;
-            
+
             const newPoly: PolygonData = {
                 id: overlapWarning.polygonId,
                 name: areaName || t('map.defaultPolygonName'),
@@ -839,7 +949,7 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
             setSelectedPeriodId("");
         } else {
             // For edited polygons
-            
+
             // Send PUT request to backend to update the polygon
             try {
                 const payload = {
@@ -862,7 +972,7 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
             setEditingId(null);
             getMap()?.closePopup?.();
         }
-        
+
         setOverlapWarning(null);
         setShowPreview(false);
     }, [overlapWarning, areaName, updatePolygon, cleanupEdit, parcelsEndpoint, selectedPeriodId, t]);
@@ -872,15 +982,15 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
             console.error("No overlap warning or fixed coords!");
             return;
         }
-        
+
         console.log("Accepting fixed coords:", overlapWarning.fixedCoords);
         console.log("For polygon:", overlapWarning.polygonId);
-        
+
         if (overlapWarning.isNewPolygon) {
             // For new polygons, create with the fixed coords
             createdLayerRef.current && getMap()?.removeLayer(createdLayerRef.current);
             createdLayerRef.current = null;
-            
+
             const newPoly: PolygonData = {
                 id: overlapWarning.polygonId,
                 name: areaName || t('map.defaultPolygonName'),
@@ -890,7 +1000,7 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
                 color: '#3388ff',
                 periodId: selectedPeriodId ? Number(selectedPeriodId) : null,
             };
-            
+
             console.log("Creating new polygon:", newPoly);
 
             // Send POST request to backend
@@ -959,7 +1069,7 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
             setEditingId(null);
             getMap()?.closePopup?.();
         }
-        
+
         setModal({ open: false, coords: null });
         setAreaName("");
         setSelectedPeriodId("");
@@ -982,11 +1092,11 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
 
     const handleOverlapEditOriginal = useCallback(() => {
         if (!overlapWarning) return;
-        
+
         const polygonId = overlapWarning.polygonId;
         setOverlapWarning(null);
         setShowPreview(false);
-        
+
         // For new polygons, this doesn't make sense, so just cancel
         if (overlapWarning.isNewPolygon) {
             setModal({ open: true, coords: overlapWarning.originalCoords });
@@ -1121,8 +1231,8 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
     // Creation
     const getPointCount = (handler: any) => {
         if (!handler) return 0;
-        return handler._markers?.length || handler._poly?.getLatLngs()[0]?.length || 
-               handler._shape?.getLatLngs()[0]?.length || handler._polyline?.getLatLngs()[0]?.length || 0;
+        return handler._markers?.length || handler._poly?.getLatLngs()[0]?.length ||
+            handler._shape?.getLatLngs()[0]?.length || handler._polyline?.getLatLngs()[0]?.length || 0;
     };
 
     const startCreate = useCallback(() => {
@@ -1205,14 +1315,14 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
     const confirmCreate = useCallback(async () => {
         const coords = modal.coords;
         if (!coords) return;
-        
+
         const tempId = `poly-${Date.now()}`;
         const overlapping = detectOverlaps(tempId, coords);
-        
+
         if (overlapping.length > 0) {
             const otherPolygons = polygons.filter(p => overlapping.some(o => o.id === p.id));
             const fixedCoords = fixOverlap(coords, otherPolygons);
-            
+
             setModal({ open: false, coords: null });
             setOverlapWarning({
                 polygonId: tempId,
@@ -1224,7 +1334,7 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
             setShowPreview(false);
             return;
         }
-        
+
         createdLayerRef.current && getMap()?.removeLayer(createdLayerRef.current);
         createdLayerRef.current = null;
 
@@ -1236,6 +1346,8 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
             visible: true,
             color: '#3388ff',
             periodId: selectedPeriodId ? Number(selectedPeriodId) : null,
+            canEdit: true,
+            canShare: false,
         };
 
         // Send POST request to backend
@@ -1255,6 +1367,8 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
                 const createdParcel = await response.json();
                 // Update the polygon with the backend-generated ID
                 newPoly.id = String(createdParcel.id);
+                newPoly.canEdit = createdParcel.canEdit ?? true;
+                newPoly.canShare = createdParcel.canShare ?? false;
                 setPolygons(prev => [...prev, newPoly]);
             } else {
                 console.error("Failed to create parcel:", response.statusText);
@@ -1337,6 +1451,8 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
                             visible: true,
                             version: 0,
                             color: p.color || '#3388ff',
+                            canEdit: p.canEdit !== undefined ? p.canEdit : true,
+                            canShare: p.canShare ?? false,
                             // Store additional API fields for reference
                             active: p.active,
                             startValidity: p.startValidity,
@@ -1384,6 +1500,8 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
                         visible: true,
                         version: 0,
                         color: p.color || '#3388ff',
+                        canEdit: p.canEdit !== undefined ? p.canEdit : true,
+                        canShare: p.canShare ?? false,
                         active: p.active,
                         farmId: p.farmId,
                         periodId: p.periodId ?? null,
@@ -1444,16 +1562,20 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
             } else if (e.key === 'Delete' || e.key === 'Backspace') {
                 if (editingId) {
                     e.preventDefault();
-                    deletePolygon(editingId);
+                    if (canEditPolygon(editingId)) {
+                        deletePolygon(editingId);
+                    }
                 } else if (selectedId && !renamingId && !pendingDeleteId) {
                     e.preventDefault();
-                    setPendingDeleteId(selectedId);
+                    if (canEditPolygon(selectedId)) {
+                        setPendingDeleteId(selectedId);
+                    }
                 }
             }
         };
         window.addEventListener('keydown', handleKey, { capture: true });
         return () => window.removeEventListener('keydown', handleKey, { capture: true });
-    }, [isCreating, editingId, selectedId, renamingId, pendingDeleteId, contextMenu, polygonContextMenu, createPointCount, overlapWarning, cancelCreate, cancelEdit, finishCreate, finishEdit, deletePolygon, closePolygonContextMenu]);
+    }, [isCreating, editingId, selectedId, renamingId, pendingDeleteId, contextMenu, polygonContextMenu, createPointCount, overlapWarning, cancelCreate, cancelEdit, finishCreate, finishEdit, deletePolygon, closePolygonContextMenu, canEditPolygon]);
 
     useEffect(() => {
         if (!pendingManualEditId) return;
@@ -1594,20 +1716,22 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
                     style={{ left: polygonContextMenu.x, top: polygonContextMenu.y }}
                 >
                     <div className="flex flex-col gap-1 p-1">
-                        <button
-                            type="button"
-                            onClick={() => {
-                                const poly = polygons.find(p => p.id === polygonContextMenu.polygonId);
-                                closePolygonContextMenu();
-                                setRenamingId(polygonContextMenu.polygonId);
-                                setRenameValue(poly?.name || "");
-                                setRenamePeriodId(poly?.periodId ? String(poly.periodId) : "");
-                            }}
-                            className={`${floatingButtonClasses} text-slate-800`}
-                        >
-                            <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-50 text-base text-indigo-600">✏️</span>
-                            {t('map.polygonMenu.rename')}
-                        </button>
+                        {canEditPolygon(polygonContextMenu.polygonId) && (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    const poly = polygons.find(p => p.id === polygonContextMenu.polygonId);
+                                    closePolygonContextMenu();
+                                    setRenamingId(polygonContextMenu.polygonId);
+                                    setRenameValue(poly?.name || "");
+                                    setRenamePeriodId(poly?.periodId ? String(poly.periodId) : "");
+                                }}
+                                className={`${floatingButtonClasses} text-slate-800`}
+                            >
+                                <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-50 text-base text-indigo-600">✏️</span>
+                                {t('map.polygonMenu.rename')}
+                            </button>
+                        )}
                         {contextType === 'farm' && (
                             <button
                                 type="button"
@@ -1625,14 +1749,33 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
                                 {t('operations.title', { defaultValue: 'Parcel operations' })}
                             </button>
                         )}
-                        <button
-                            type="button"
-                            onClick={() => { closePolygonContextMenu(); startEdit(polygonContextMenu.polygonId); }}
-                            className={`${floatingButtonClasses} text-slate-800`}
-                        >
-                            <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-50 text-base text-indigo-600">🔧</span>
-                            {t('map.polygonMenu.edit')}
-                        </button>
+                        {contextType === 'farm' && !isImportMode && canSharePolygon(polygonContextMenu.polygonId) && (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    const { polygonId } = polygonContextMenu;
+                                    closePolygonContextMenu();
+                                    openShareModal(polygonId);
+                                }}
+                                className={`${floatingButtonClasses} text-slate-800`}
+                            >
+                                <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-50 text-base text-indigo-600">🤝</span>
+                                {t('map.sharing.open', { defaultValue: 'Share parcel' })}
+                            </button>
+                        )}
+                        {canEditPolygon(polygonContextMenu.polygonId) && (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    closePolygonContextMenu();
+                                    startEdit(polygonContextMenu.polygonId);
+                                }}
+                                className={`${floatingButtonClasses} text-slate-800`}
+                            >
+                                <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-50 text-base text-indigo-600">🔧</span>
+                                {t('map.polygonMenu.edit')}
+                            </button>
+                        )}
                         {isImportMode && (
                             <button
                                 type="button"
@@ -1643,10 +1786,13 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
                                 {t('imports.map.approveOne', { defaultValue: 'Approve parcel' })}
                             </button>
                         )}
-                        {!showColorPicker ? (
+                        {canEditPolygon(polygonContextMenu.polygonId) && (!showColorPicker ? (
                             <button
                                 type="button"
-                                onClick={() => setShowColorPicker(true)}
+                                onClick={() => {
+                                    if (!canEditPolygon(polygonContextMenu.polygonId)) return;
+                                    setShowColorPicker(true);
+                                }}
                                 className={`${floatingButtonClasses} text-slate-800`}
                             >
                                 <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-50 text-base text-indigo-600">🎨</span>
@@ -1705,22 +1851,24 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
                                     {t('common.cancel')}
                                 </button>
                             </div>
+                        ))}
+                        {canEditPolygon(polygonContextMenu.polygonId) && (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    if (pendingDeleteId === polygonContextMenu.polygonId) {
+                                        deletePolygon(pendingDeleteId);
+                                        closePolygonContextMenu();
+                                    } else {
+                                        setPendingDeleteId(polygonContextMenu.polygonId);
+                                    }
+                                }}
+                                className={`${floatingButtonClasses} ${pendingDeleteId === polygonContextMenu.polygonId ? 'bg-rose-500 text-white hover:!bg-rose-600 hover:!text-white' : 'text-rose-600 hover:bg-rose-50'}`}
+                            >
+                                <span className={`inline-flex h-8 w-8 items-center justify-center rounded-xl text-base ${pendingDeleteId === polygonContextMenu.polygonId ? 'bg-white/20 text-white' : 'bg-rose-50 text-rose-600'}`}>🗑️</span>
+                                {pendingDeleteId === polygonContextMenu.polygonId ? t('common.confirm') : t('common.delete')}
+                            </button>
                         )}
-                        <button
-                            type="button"
-                            onClick={() => {
-                                if (pendingDeleteId === polygonContextMenu.polygonId) {
-                                    deletePolygon(pendingDeleteId);
-                                    closePolygonContextMenu();
-                                } else {
-                                    setPendingDeleteId(polygonContextMenu.polygonId);
-                                }
-                            }}
-                            className={`${floatingButtonClasses} ${pendingDeleteId === polygonContextMenu.polygonId ? 'bg-rose-500 text-white hover:!bg-rose-600 hover:!text-white' : 'text-rose-600 hover:bg-rose-50'}`}
-                        >
-                            <span className={`inline-flex h-8 w-8 items-center justify-center rounded-xl text-base ${pendingDeleteId === polygonContextMenu.polygonId ? 'bg-white/20 text-white' : 'bg-rose-50 text-rose-600'}`}>🗑️</span>
-                            {pendingDeleteId === polygonContextMenu.polygonId ? t('common.confirm') : t('common.delete')}
-                        </button>
                     </div>
                 </div>
             )}
@@ -1811,119 +1959,121 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
                         )}
 
                         <div className="space-y-3">
-                            <select
-                                value={operationTypeId}
-                                onChange={(e) => setOperationTypeId(e.target.value)}
-                                className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-indigo-300"
-                            >
-                                <option value="">{t('operations.selectTypePlaceholder', { defaultValue: 'Select operation type' })}</option>
-                                {operationTypes.map(type => (
-                                    <option key={type.id} value={type.id}>{type.name}</option>
-                                ))}
-                            </select>
-
-                            <div className="grid grid-cols-2 gap-3">
-                                <input
-                                    type="datetime-local"
-                                    value={operationDate}
-                                    onChange={(e) => setOperationDate(e.target.value)}
+                            {canEditPolygon(currentParcelId ?? operationPopup.polygonId) ? <>
+                                <select
+                                    value={operationTypeId}
+                                    onChange={(e) => setOperationTypeId(e.target.value)}
                                     className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-indigo-300"
-                                />
-                                <input
-                                    type="number"
-                                    min="0"
-                                    placeholder={t('operations.durationLabel', { defaultValue: 'Duration (minutes)' })}
-                                    value={operationDurationMinutes}
-                                    onChange={(e) => setOperationDurationMinutes(e.target.value)}
-                                    className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-indigo-300"
-                                />
-                            </div>
-
-                            <div className="flex items-center justify-between text-sm text-slate-100">
-                                <span>{t('operations.productsTools', { defaultValue: 'Products & Tools' })}</span>
-                                <button
-                                    type="button"
-                                    onClick={handleAddOperationLine}
-                                    className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-white hover:bg-white/10"
                                 >
-                                    + {t('common.add', { defaultValue: 'Add' })}
-                                </button>
-                            </div>
+                                    <option value="">{t('operations.selectTypePlaceholder', { defaultValue: 'Select operation type' })}</option>
+                                    {operationTypes.map(type => (
+                                        <option key={type.id} value={type.id}>{type.name}</option>
+                                    ))}
+                                </select>
 
-                            <div className="flex flex-col gap-2">
-                                {operationLines.map((line, index) => (
-                                    <div key={index} className="grid grid-cols-5 gap-2 text-sm">
-                                        <select
-                                            value={line.productId}
-                                            onChange={(e) => updateOperationLine(index, 'productId', e.target.value)}
-                                            className="rounded-md border border-white/10 bg-white/5 px-2 py-2 text-white outline-none focus:border-indigo-300"
-                                        >
-                                            <option value="">{t('common.select', { defaultValue: 'Select' })}</option>
-                                            {products.map(p => (
-                                                <option key={p.id} value={p.id}>{p.name}</option>
-                                            ))}
-                                        </select>
-                                        <input
-                                            type="number"
-                                            min="0"
-                                            placeholder={t('common.quantity', { defaultValue: 'Qty' })}
-                                            value={line.quantity}
-                                            onChange={(e) => updateOperationLine(index, 'quantity', e.target.value)}
-                                            className="rounded-md border border-white/10 bg-white/5 px-2 py-2 text-white outline-none focus:border-indigo-300"
-                                        />
-                                        <select
-                                            value={line.unitId}
-                                            onChange={(e) => updateOperationLine(index, 'unitId', e.target.value)}
-                                            className="rounded-md border border-white/10 bg-white/5 px-2 py-2 text-white outline-none focus:border-indigo-300"
-                                        >
-                                            <option value="">{t('operations.unit', { defaultValue: 'Unit' })}</option>
-                                            {units.map(u => (
-                                                <option key={u.id} value={u.id}>{u.value}</option>
-                                            ))}
-                                        </select>
-                                        <select
-                                            value={line.toolId}
-                                            onChange={(e) => updateOperationLine(index, 'toolId', e.target.value)}
-                                            className="rounded-md border border-white/10 bg-white/5 px-2 py-2 text-white outline-none focus:border-indigo-300"
-                                        >
-                                            <option value="">{t('operations.tool', { defaultValue: 'Tool' })}</option>
-                                            {tools.map(tl => (
-                                                <option key={tl.id} value={tl.id}>{tl.name}</option>
-                                            ))}
-                                        </select>
-                                        <div className="flex items-center justify-end">
-                                            {operationLines.length > 1 && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handleRemoveOperationLine(index)}
-                                                    className="text-xs font-semibold text-rose-200 hover:text-rose-100"
-                                                >
-                                                    {t('common.delete', { defaultValue: 'Remove' })}
-                                                </button>
-                                            )}
+                                <div className="grid grid-cols-2 gap-3">
+                                    <input
+                                        type="datetime-local"
+                                        value={operationDate}
+                                        onChange={(e) => setOperationDate(e.target.value)}
+                                        className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-indigo-300"
+                                    />
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        placeholder={t('operations.durationLabel', { defaultValue: 'Duration (minutes)' })}
+                                        value={operationDurationMinutes}
+                                        onChange={(e) => setOperationDurationMinutes(e.target.value)}
+                                        className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-indigo-300"
+                                    />
+                                </div>
+
+                                <div className="flex items-center justify-between text-sm text-slate-100">
+                                    <span>{t('operations.productsTools', { defaultValue: 'Products & Tools' })}</span>
+                                    <button
+                                        type="button"
+                                        onClick={handleAddOperationLine}
+                                        className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-white hover:bg-white/10"
+                                    >
+                                        + {t('common.add', { defaultValue: 'Add' })}
+                                    </button>
+                                </div>
+
+                                <div className="flex flex-col gap-2">
+                                    {operationLines.map((line, index) => (
+                                        <div key={index} className="grid grid-cols-5 gap-2 text-sm">
+                                            <select
+                                                value={line.productId}
+                                                onChange={(e) => updateOperationLine(index, 'productId', e.target.value)}
+                                                className="rounded-md border border-white/10 bg-white/5 px-2 py-2 text-white outline-none focus:border-indigo-300"
+                                            >
+                                                <option value="">{t('common.select', { defaultValue: 'Select' })}</option>
+                                                {products.map(p => (
+                                                    <option key={p.id} value={p.id}>{p.name}</option>
+                                                ))}
+                                            </select>
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                placeholder={t('common.quantity', { defaultValue: 'Qty' })}
+                                                value={line.quantity}
+                                                onChange={(e) => updateOperationLine(index, 'quantity', e.target.value)}
+                                                className="rounded-md border border-white/10 bg-white/5 px-2 py-2 text-white outline-none focus:border-indigo-300"
+                                            />
+                                            <select
+                                                value={line.unitId}
+                                                onChange={(e) => updateOperationLine(index, 'unitId', e.target.value)}
+                                                className="rounded-md border border-white/10 bg-white/5 px-2 py-2 text-white outline-none focus:border-indigo-300"
+                                            >
+                                                <option value="">{t('operations.unit', { defaultValue: 'Unit' })}</option>
+                                                {units.map(u => (
+                                                    <option key={u.id} value={u.id}>{u.value}</option>
+                                                ))}
+                                            </select>
+                                            <select
+                                                value={line.toolId}
+                                                onChange={(e) => updateOperationLine(index, 'toolId', e.target.value)}
+                                                className="rounded-md border border-white/10 bg-white/5 px-2 py-2 text-white outline-none focus:border-indigo-300"
+                                            >
+                                                <option value="">{t('operations.tool', { defaultValue: 'Tool' })}</option>
+                                                {tools.map(tl => (
+                                                    <option key={tl.id} value={tl.id}>{tl.name}</option>
+                                                ))}
+                                            </select>
+                                            <div className="flex items-center justify-end">
+                                                {operationLines.length > 1 && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleRemoveOperationLine(index)}
+                                                        className="text-xs font-semibold text-rose-200 hover:text-rose-100"
+                                                    >
+                                                        {t('common.delete', { defaultValue: 'Remove' })}
+                                                    </button>
+                                                )}
+                                            </div>
                                         </div>
-                                    </div>
-                                ))}
-                            </div>
+                                    ))}
+                                </div>
 
-                            <div className="flex justify-end gap-2">
-                                <button
-                                    type="button"
-                                    onClick={resetOperationForm}
-                                    disabled={operationLoading}
-                                    className="rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-60"
-                                >
-                                    {t('common.cancel', { defaultValue: 'Cancel' })}
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={handleSaveOperation}
-                                    disabled={!currentParcelId || operationLoading}
-                                    className="rounded-xl border border-indigo-400/70 bg-gradient-to-r from-indigo-500 to-indigo-600 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-indigo-500/25 transition hover:from-indigo-500 hover:to-indigo-500 disabled:opacity-60"
-                                >
-                                    {operationLoading ? t('common.loading', { defaultValue: 'Loading...' }) : t('operations.submit', { defaultValue: 'Save operation' })}
-                                </button>
-                            </div>
+                                <div className="flex justify-end gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={resetOperationForm}
+                                        disabled={operationLoading}
+                                        className="rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-60"
+                                    >
+                                        {t('common.cancel', { defaultValue: 'Cancel' })}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={handleSaveOperation}
+                                        disabled={!currentParcelId || operationLoading || (currentParcelId ? !canEditPolygon(currentParcelId) : false)}
+                                        className="rounded-xl border border-indigo-400/70 bg-gradient-to-r from-indigo-500 to-indigo-600 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-indigo-500/25 transition hover:from-indigo-500 hover:to-indigo-500 disabled:opacity-60"
+                                    >
+                                        {operationLoading ? t('common.loading', { defaultValue: 'Loading...' }) : t('operations.submit', { defaultValue: 'Save operation' })}
+                                    </button>
+                                </div>
+                            </> : <></>}
 
                             <div>
                                 <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-200">{t('operations.history', { defaultValue: 'History' })}</p>
@@ -1974,10 +2124,15 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
                 <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 10001 }}>
                     <div style={{ background: "#fff", padding: "2rem", borderRadius: 8, boxShadow: "0 4px 24px rgba(0,0,0,0.3)", minWidth: 400, display: "flex", flexDirection: "column", gap: "1.5rem" }}>
                         <h2 style={{ margin: 0, color: '#222', fontSize: "1.5rem" }}>{t('map.renameModal.title')}</h2>
-                        <input type="text" value={renameValue} onChange={e => setRenameValue(e.target.value)} onKeyDown={async e => { 
+                        <input type="text" value={renameValue} onChange={e => setRenameValue(e.target.value)} onKeyDown={async e => {
                             if (e.key === "Enter") {
+                                if (!canEditPolygon(renamingId)) {
+                                    setRenamingId(null);
+                                    setRenamePeriodId("");
+                                    return;
+                                }
                                 setPolygons(prev => prev.map(p => p.id === renamingId ? { ...p, name: renameValue, periodId: renamePeriodId ? Number(renamePeriodId) : null } : p));
-                                
+
                                 // Send PUT request to backend to update the name
                                 try {
                                     const payload = {
@@ -1994,8 +2149,8 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
                                 } catch (err) {
                                     console.error("Failed to update parcel name:", err);
                                 }
-                                
-                                setRenamingId(null); 
+
+                                setRenamingId(null);
                                 setRenamePeriodId("");
                             } else if (e.key === "Escape") {
                                 setRenamingId(null);
@@ -2020,8 +2175,13 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
                         <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem", paddingTop: "1rem", borderTop: "1px solid #eee" }}>
                             <button onClick={() => { setRenamingId(null); setRenamePeriodId(""); }} style={{ padding: "0.75rem 1.5rem", borderRadius: 4, border: "1px solid #ccc", background: "#fff", cursor: "pointer", fontWeight: 500, color: "#333" }}>{t('common.cancel', { defaultValue: 'Cancel' })}</button>
                             <button onClick={async () => {
+                                if (!canEditPolygon(renamingId)) {
+                                    setRenamingId(null);
+                                    setRenamePeriodId("");
+                                    return;
+                                }
                                 setPolygons(prev => prev.map(p => p.id === renamingId ? { ...p, name: renameValue, periodId: renamePeriodId ? Number(renamePeriodId) : null } : p));
-                                
+
                                 // Send PUT request to backend to update the name
                                 try {
                                     const payload = {
@@ -2038,7 +2198,7 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
                                 } catch (err) {
                                     console.error("Failed to update parcel name:", err);
                                 }
-                                
+
                                 setRenamingId(null);
                                 setRenamePeriodId("");
                             }} style={{ padding: "0.75rem 1.5rem", borderRadius: 4, border: "none", background: "#007bff", color: "#fff", cursor: "pointer", fontWeight: 500 }}>{t('common.confirm', { defaultValue: 'Confirm' })}</button>
@@ -2046,7 +2206,7 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
                     </div>
                 </div>
             )}
-            
+
             {modal.open && (
                 <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 10001 }}>
                     <div style={{ background: "#fff", padding: "2rem", borderRadius: 8, boxShadow: "0 4px 24px rgba(0,0,0,0.3)", minWidth: 400, display: "flex", flexDirection: "column", gap: "1.5rem" }}>
@@ -2263,11 +2423,11 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
                                                                 return;
                                                             }
                                                             setListFilter(prev => {
-                                                                        const exists = prev.includes(option.key as 'visible' | 'hidden' | 'approved' | 'unapproved' | 'onscreen');
+                                                                const exists = prev.includes(option.key as 'visible' | 'hidden' | 'approved' | 'unapproved' | 'onscreen');
                                                                 if (exists) {
                                                                     return prev.filter(item => item !== option.key);
                                                                 }
-                                                                        return [...prev, option.key as 'visible' | 'hidden' | 'approved' | 'unapproved' | 'onscreen'];
+                                                                return [...prev, option.key as 'visible' | 'hidden' | 'approved' | 'unapproved' | 'onscreen'];
                                                             });
                                                         }}
                                                         style={{
@@ -2347,8 +2507,8 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
                     >
                         <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" maxNativeZoom={20} attribution='&copy; <a href="https://osm.org/copyright">OpenStreetMap</a>' />
                         <ZoomControl position="bottomright" />
-                    <MapEvents />
-                    <style>{`
+                        <MapEvents />
+                        <style>{`
                         .leaflet-control-container .leaflet-draw, .leaflet-draw-toolbar { display: none !important; }
                         
                         /* Smooth transitions for polygon animations */
@@ -2386,136 +2546,136 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
                             animation: polygonDash 1.2s linear infinite, polygonGlow 2.4s ease-in-out infinite;
                         }
                     `}</style>
-                    
-                    <FeatureGroup ref={featureGroupRef}>
-                        <EditControl ref={editControlRef} position="topright" draw={{ rectangle: false, polyline: false, circle: false, marker: false, circlemarker: false, polygon: true }} onCreated={handleCreated} />
-                        
-                        {polygons
-                            .filter(p => p.visible)
-                            .filter(poly => !(showPreview && overlapWarning?.polygonId === poly.id))
-                            .map(poly => {
-                            const isThisEditing = editingId === poly.id;
-                            const isSelected = selectedId === poly.id;
-                            const polyColor = poly.color || '#3388ff';
-                            const showPermanentTooltip = isSelected;
-                            const polygonKey = isThisEditing 
-                                ? `${poly.id}-editing-${poly.version}` 
-                                : `${poly.id}-${isSelected ? 'selected' : 'normal'}`;
-                            
-                            return (
-                                <Polygon
-                                    key={polygonKey}
-                                    positions={poly.coords}
-                                    interactive={!isThisEditing && !editingId}
-                                    pathOptions={{ 
-                                        color: polyColor, 
-                                        opacity: isThisEditing ? 0.9 : (isSelected ? 1 : 0.8), 
-                                        fillOpacity: isSelected ? 0.35 : 0.2, 
-                                        dashArray: isThisEditing ? '8 6' : undefined, 
-                                        weight: isThisEditing ? 4 : (isSelected ? 3 : 2)
-                                    }}
-                                    eventHandlers={{
-                                        add: e => {
-                                            const layer = e.target as L.Polygon;
-                                            (layer.options as any).customId = poly.id;
-                                            polygonLayersRef.current.set(poly.id, layer);
-                                        },
-                                        remove: e => {
-                                            const id = (e.target as any)?.options?.customId;
-                                            if (id) polygonLayersRef.current.delete(id as string);
-                                        },
-                                        click: e => {
-                                            L.DomEvent.stopPropagation(e as any);
-                                            if (!editingId && !isCreating && selectedId !== poly.id) {
-                                                setSelectedId(poly.id);
-                                            }
-                                        },
-                                        contextmenu: e => { 
-                                            L.DomEvent.stopPropagation(e as any); 
-                                            if (!editingId) {
-                                                e.originalEvent.preventDefault();
-                                                const { x, y } = clampToViewport(e.originalEvent.clientX, e.originalEvent.clientY, 260, 260);
-                                                setPolygonContextMenu({ 
-                                                    x, 
-                                                    y, 
-                                                    polygonId: poly.id 
-                                                });
-                                                setSelectedId(poly.id);
-                                            }
-                                        }
-                                    }}
-                                >
-                                    <Tooltip 
-                                        direction="center" 
-                                        offset={[0, 0]} 
-                                        opacity={1}
-                                        permanent={showPermanentTooltip}
-                                        className="polygon-tooltip"
-                                    >
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'center' }}>
-                                            <span style={{ 
-                                                display: 'inline-block',
-                                                padding: '3px 8px',
-                                                fontSize: '0.8rem',
-                                                fontWeight: '600',
-                                                color: '#fff',
-                                                background: polyColor,
-                                                borderRadius: '4px',
-                                                boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
-                                                textTransform: 'uppercase',
-                                                letterSpacing: '0.5px'
-                                            }}>
-                                                {poly.name}
-                                            </span>
-                                            {isImportMode && poly.validationStatus && (
-                                                <span style={{
-                                                    display: 'inline-block',
-                                                    padding: '2px 6px',
-                                                    fontSize: '0.7rem',
-                                                    fontWeight: 600,
-                                                    color: '#0f172a',
-                                                    background: 'rgba(255,255,255,0.85)',
-                                                    borderRadius: '999px',
-                                                    boxShadow: '0 1px 2px rgba(0,0,0,0.2)'
-                                                }}>
-                                                    {poly.validationStatus}
-                                                </span>
-                                            )}
-                                        </div>
-                                    </Tooltip>
-                                </Polygon>
-                            );
-                        })}
 
-                        {/* Preview polygons for overlap fix */}
-                        {overlapWarning && showPreview && (
-                            <>
-                                {previewVisibility.original && (
-                                    <Polygon
-                                        positions={overlapWarning.originalCoords}
-                                        pathOptions={{ 
-                                            color: '#ff5252', 
-                                            opacity: 0.7, 
-                                            fillOpacity: 0.15,
-                                            dashArray: '10 5',
-                                            weight: 3
-                                        }}
-                                    />
-                                )}
-                                {previewVisibility.fixed && overlapWarning.fixedCoords && (
-                                    <Polygon
-                                        positions={overlapWarning.fixedCoords}
-                                        pathOptions={{ 
-                                            color: '#4caf50', 
-                                            opacity: 0.9, 
-                                            fillOpacity: 0.3,
-                                            weight: 3
-                                        }}
-                                    />
-                                )}
-                            </>
-                        )}
-                    </FeatureGroup>
+                        <FeatureGroup ref={featureGroupRef}>
+                            <EditControl ref={editControlRef} position="topright" draw={{ rectangle: false, polyline: false, circle: false, marker: false, circlemarker: false, polygon: true }} onCreated={handleCreated} />
+
+                            {polygons
+                                .filter(p => p.visible)
+                                .filter(poly => !(showPreview && overlapWarning?.polygonId === poly.id))
+                                .map(poly => {
+                                    const isThisEditing = editingId === poly.id;
+                                    const isSelected = selectedId === poly.id;
+                                    const polyColor = poly.color || '#3388ff';
+                                    const showPermanentTooltip = isSelected;
+                                    const polygonKey = isThisEditing
+                                        ? `${poly.id}-editing-${poly.version}`
+                                        : `${poly.id}-${isSelected ? 'selected' : 'normal'}`;
+
+                                    return (
+                                        <Polygon
+                                            key={polygonKey}
+                                            positions={poly.coords}
+                                            interactive={!isThisEditing && !editingId}
+                                            pathOptions={{
+                                                color: polyColor,
+                                                opacity: isThisEditing ? 0.9 : (isSelected ? 1 : 0.8),
+                                                fillOpacity: isSelected ? 0.35 : 0.2,
+                                                dashArray: isThisEditing ? '8 6' : undefined,
+                                                weight: isThisEditing ? 4 : (isSelected ? 3 : 2)
+                                            }}
+                                            eventHandlers={{
+                                                add: e => {
+                                                    const layer = e.target as L.Polygon;
+                                                    (layer.options as any).customId = poly.id;
+                                                    polygonLayersRef.current.set(poly.id, layer);
+                                                },
+                                                remove: e => {
+                                                    const id = (e.target as any)?.options?.customId;
+                                                    if (id) polygonLayersRef.current.delete(id as string);
+                                                },
+                                                click: e => {
+                                                    L.DomEvent.stopPropagation(e as any);
+                                                    if (!editingId && !isCreating && selectedId !== poly.id) {
+                                                        setSelectedId(poly.id);
+                                                    }
+                                                },
+                                                contextmenu: e => {
+                                                    L.DomEvent.stopPropagation(e as any);
+                                                    if (!editingId) {
+                                                        e.originalEvent.preventDefault();
+                                                        const { x, y } = clampToViewport(e.originalEvent.clientX, e.originalEvent.clientY, 260, 260);
+                                                        setPolygonContextMenu({
+                                                            x,
+                                                            y,
+                                                            polygonId: poly.id
+                                                        });
+                                                        setSelectedId(poly.id);
+                                                    }
+                                                }
+                                            }}
+                                        >
+                                            <Tooltip
+                                                direction="center"
+                                                offset={[0, 0]}
+                                                opacity={1}
+                                                permanent={showPermanentTooltip}
+                                                className="polygon-tooltip"
+                                            >
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'center' }}>
+                                                    <span style={{
+                                                        display: 'inline-block',
+                                                        padding: '3px 8px',
+                                                        fontSize: '0.8rem',
+                                                        fontWeight: '600',
+                                                        color: '#fff',
+                                                        background: polyColor,
+                                                        borderRadius: '4px',
+                                                        boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+                                                        textTransform: 'uppercase',
+                                                        letterSpacing: '0.5px'
+                                                    }}>
+                                                        {poly.name}
+                                                    </span>
+                                                    {isImportMode && poly.validationStatus && (
+                                                        <span style={{
+                                                            display: 'inline-block',
+                                                            padding: '2px 6px',
+                                                            fontSize: '0.7rem',
+                                                            fontWeight: 600,
+                                                            color: '#0f172a',
+                                                            background: 'rgba(255,255,255,0.85)',
+                                                            borderRadius: '999px',
+                                                            boxShadow: '0 1px 2px rgba(0,0,0,0.2)'
+                                                        }}>
+                                                            {poly.validationStatus}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </Tooltip>
+                                        </Polygon>
+                                    );
+                                })}
+
+                            {/* Preview polygons for overlap fix */}
+                            {overlapWarning && showPreview && (
+                                <>
+                                    {previewVisibility.original && (
+                                        <Polygon
+                                            positions={overlapWarning.originalCoords}
+                                            pathOptions={{
+                                                color: '#ff5252',
+                                                opacity: 0.7,
+                                                fillOpacity: 0.15,
+                                                dashArray: '10 5',
+                                                weight: 3
+                                            }}
+                                        />
+                                    )}
+                                    {previewVisibility.fixed && overlapWarning.fixedCoords && (
+                                        <Polygon
+                                            positions={overlapWarning.fixedCoords}
+                                            pathOptions={{
+                                                color: '#4caf50',
+                                                opacity: 0.9,
+                                                fillOpacity: 0.3,
+                                                weight: 3
+                                            }}
+                                        />
+                                    )}
+                                </>
+                            )}
+                        </FeatureGroup>
                     </MapContainer>
                 </div>
 
@@ -2776,6 +2936,89 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
                             >
                                 {t('map.searchFilters.apply')}
                             </button>
+                        </div>
+                    </div>
+                )}
+                {shareParcelId && (
+                    <div className="pointer-events-auto fixed inset-0 z-[2300] flex items-center justify-center bg-slate-950/60 px-4">
+                        <div className="w-full max-w-lg rounded-2xl border border-white/10 bg-slate-900/95 p-6 shadow-2xl shadow-black/40">
+                            <div className="flex items-start justify-between">
+                                <div>
+                                    <h3 className="text-lg font-semibold text-white">{t('map.sharing.title')}</h3>
+                                    <p className="text-sm text-slate-300">
+                                        {t('map.sharing.subtitle', { name: allPolygons.find(p => p.id === shareParcelId)?.name || t('map.unnamedParcel') })}
+                                    </p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={closeShareModal}
+                                    className="rounded-full p-1 text-slate-400 hover:bg-slate-800 hover:text-white"
+                                    aria-label={t('map.sharing.close')}
+                                >
+                                    <XMarkIcon className="h-5 w-5" />
+                                </button>
+                            </div>
+
+                            {shareError && (
+                                <div className="mt-3 rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-xs text-rose-100">
+                                    {shareError}
+                                </div>
+                            )}
+
+                            <form className="mt-4 grid gap-3 sm:grid-cols-[1.5fr_1fr_auto]" onSubmit={handleAddShare}>
+                                <input
+                                    type="text"
+                                    value={shareUsername}
+                                    onChange={(event) => setShareUsername(event.target.value)}
+                                    placeholder={t('map.sharing.usernamePlaceholder')}
+                                    className="w-full rounded-lg border border-white/15 bg-slate-900/70 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:border-indigo-400 focus:outline-none"
+                                />
+                                <select
+                                    value={shareRole}
+                                    onChange={(event) => setShareRole(event.target.value)}
+                                    className="w-full rounded-lg border border-white/15 bg-slate-900/70 px-3 py-2 text-sm text-white focus:border-indigo-400 focus:outline-none"
+                                >
+                                    <option value="EDITOR">{t('map.sharing.roles.editor')}</option>
+                                    <option value="VIEWER">{t('map.sharing.roles.viewer')}</option>
+                                </select>
+                                <button
+                                    type="submit"
+                                    className="rounded-lg bg-indigo-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 hover:bg-indigo-400"
+                                >
+                                    {t('map.sharing.add')}
+                                </button>
+                            </form>
+
+                            <div className="mt-4 space-y-2">
+                                {shareLoading && (
+                                    <p className="text-sm text-slate-400">{t('map.sharing.loading')}</p>
+                                )}
+                                {!shareLoading && shareList.length === 0 && (
+                                    <p className="text-sm text-slate-400">{t('map.sharing.empty')}</p>
+                                )}
+                                {shareList.map(share => (
+                                    <div key={share.userId} className="flex flex-wrap items-center gap-3 rounded-xl border border-white/10 bg-slate-900/40 px-3 py-2">
+                                        <div className="flex-1">
+                                            <p className="text-sm font-semibold text-white">{share.username}</p>
+                                        </div>
+                                        <select
+                                            value={share.role}
+                                            onChange={(event) => handleUpdateShare(share.userId, event.target.value)}
+                                            className="rounded-lg border border-white/15 bg-slate-900/70 px-3 py-1.5 text-xs text-white focus:border-indigo-400 focus:outline-none"
+                                        >
+                                            <option value="EDITOR">{t('map.sharing.roles.editor')}</option>
+                                            <option value="VIEWER">{t('map.sharing.roles.viewer')}</option>
+                                        </select>
+                                        <button
+                                            type="button"
+                                            onClick={() => handleRemoveShare(share.userId)}
+                                            className="rounded-lg border border-rose-400/40 bg-rose-500/10 px-3 py-1.5 text-xs font-semibold text-rose-100 hover:bg-rose-500/20"
+                                        >
+                                            {t('map.sharing.remove')}
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     </div>
                 )}
