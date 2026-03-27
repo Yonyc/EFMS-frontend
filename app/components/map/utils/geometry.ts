@@ -90,6 +90,46 @@ export const subtractPolygon = (
     }
 };
 
+export const clipToPolygon = (
+    subject: [number, number][],
+    clip: [number, number][]
+): [number, number][][] => {
+    if (subject.length < 3) return [];
+    if (clip.length < 3) return [subject];
+
+    const subjectRing = ensureClosedRing(subject).map(([lat, lng]) => [lng, lat] as [number, number]);
+    const clipRing = ensureClosedRing(clip).map(([lat, lng]) => [lng, lat] as [number, number]);
+
+    try {
+        const intersection = polyClip.intersection([[subjectRing]], [[clipRing]]);
+        
+        if (!intersection || intersection.length === 0) {
+            return [];
+        }
+
+        const polygons: [number, number][][] = [];
+        
+        for (const multiPoly of intersection) {
+            if (!multiPoly || multiPoly.length === 0) continue;
+            const outerRing = multiPoly[0];
+            
+            const coords: [number, number][] = [];
+            for (let i = 0; i < outerRing.length - 1; i++) {
+                const [lng, lat] = outerRing[i];
+                coords.push([lat, lng]);
+            }
+            if (coords.length >= 3) {
+                polygons.push(coords);
+            }
+        }
+        
+        return polygons.map(removeConsecutiveDuplicates);
+    } catch (e) {
+        console.error("polygon-clipping intersection error:", e);
+        return [subject];
+    }
+};
+
 export const shrinkPolygonAwayFromObstacles = (
     coords: [number, number][],
     otherPolygons: PolygonData[]
@@ -122,18 +162,186 @@ export const shrinkPolygonAwayFromObstacles = (
 
 export const isPointInPolygon = (point: [number, number], polygon: [number, number][]): boolean => {
     let inside = false;
-    const x = point[0], y = point[1];
+    const [lat, lng] = point;
     
+    // Ray-casting (Jordan Curve Theorem)
     for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-        const xi = polygon[i][0], yi = polygon[i][1];
-        const xj = polygon[j][0], yj = polygon[j][1];
+        const [latI, lngI] = polygon[i];
+        const [latJ, lngJ] = polygon[j];
         
-        const intersect = ((yi > y) !== (yj > y))
-            && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+        const intersect = ((lngI > lng) !== (lngJ > lng))
+            && (lat < (latJ - latI) * (lng - lngI) / (lngJ - lngI) + latI + 1e-11); 
         if (intersect) inside = !inside;
     }
     
+    // Boundary check: If not inside, check if we are *on* the edge
+    if (!inside) {
+        const closest = getClosestPointOnPolygon(point, polygon);
+        const distSq = Math.pow(lat - closest[0], 2) + Math.pow(lng - closest[1], 2);
+        if (distSq < 1e-16) return true; // extremely close to edge
+    }
+
     return inside;
+};
+
+export const getClosestPointOnPolygon = (point: [number, number], polygon: [number, number][]): [number, number] => {
+    let minDistance = Infinity;
+    let closestPoint: [number, number] = point;
+
+    for (let i = 0; i < polygon.length; i++) {
+        const p1 = polygon[i];
+        const p2 = polygon[(i + 1) % polygon.length];
+        
+        // Closest point on line segment p1-p2
+        const A = point[0] - p1[0];
+        const B = point[1] - p1[1];
+        const C = p2[0] - p1[0];
+        const D = p2[1] - p1[1];
+
+        const dot = A * C + B * D;
+        const lenSq = C * C + D * D;
+        let param = -1;
+        if (lenSq !== 0) param = dot / lenSq;
+
+        let xx, yy;
+
+        if (param < 0) {
+            xx = p1[0];
+            yy = p1[1];
+        } else if (param > 1) {
+            xx = p2[0];
+            yy = p2[1];
+        } else {
+            xx = p1[0] + param * C;
+            yy = p1[1] + param * D;
+        }
+
+        const dx = point[0] - xx;
+        const dy = point[1] - yy;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist < minDistance) {
+            minDistance = dist;
+            closestPoint = [xx, yy];
+        }
+    }
+
+    return closestPoint;
+};
+
+/**
+ * Returns the index of the vertex starting the closest edge on a polygon boundary to a given point.
+ */
+export const getClosestEdgeIndex = (point: [number, number], polygon: [number, number][]): number => {
+    let minDistance = Infinity;
+    let closestIndex = -1;
+
+    for (let i = 0; i < polygon.length; i++) {
+        const p1 = polygon[i];
+        const p2 = polygon[(i + 1) % polygon.length];
+        
+        const A = point[0] - p1[0];
+        const B = point[1] - p1[1];
+        const C = p2[0] - p1[0];
+        const D = p2[1] - p1[1];
+
+        const dot = A * C + B * D;
+        const lenSq = C * C + D * D;
+        let param = -1;
+        if (lenSq !== 0) param = dot / lenSq;
+
+        let xx, yy;
+        if (param < 0) { xx = p1[0]; yy = p1[1]; }
+        else if (param > 1) { xx = p2[0]; yy = p2[1]; }
+        else { xx = p1[0] + param * C; yy = p1[1] + param * D; }
+
+        const dist = Math.hypot(point[0] - xx, point[1] - yy);
+        if (dist < minDistance) {
+            minDistance = dist;
+            closestIndex = i;
+        }
+    }
+
+    return closestIndex;
+};
+
+export const getLineIntersection = (
+    p1: [number, number], p2: [number, number], 
+    p3: [number, number], p4: [number, number]
+): [number, number] | null => {
+    const [x1, y1] = p1; const [x2, y2] = p2;
+    const [x3, y3] = p3; const [x4, y4] = p4;
+    const denom = (y4 - y3) * (x2 - x1) - (x4 - x3) * (y2 - y1);
+    if (Math.abs(denom) < 1e-12) return null;
+    const ua = ((x4 - x3) * (y1 - y3) - (y4 - y3) * (x1 - x3)) / denom;
+    const ub = ((x2 - x1) * (y1 - y3) - (y2 - y1) * (x1 - x3)) / denom;
+    const eps = 1e-9;
+    if (ua >= -eps && ua <= 1+eps && ub >= -eps && ub <= 1+eps) {
+        return [x1 + ua * (x2 - x1), y1 + ua * (y2 - y1)];
+    }
+    return null;
+};
+
+export const getSegmentPolygonIntersections = (
+    p1: [number, number], 
+    p2: [number, number], 
+    polygon: [number, number][]
+): { point: [number, number], index: number }[] => {
+    const intersections: { point: [number, number], index: number }[] = [];
+    for (let i = 0; i < polygon.length; i++) {
+        const p3 = polygon[i];
+        const p4 = polygon[(i + 1) % polygon.length];
+        const inter = getLineIntersection(p1, p2, p3, p4);
+        if (inter) intersections.push({ point: inter, index: i });
+    }
+    return intersections;
+};
+
+/**
+ * Extracts a path along a polygon boundary between two points. 
+ * Assumes the points are snapped to the boundary edges starting at index1 and index2.
+ */
+export const getPathOnBoundary = (
+    index1: number, 
+    index2: number, 
+    polygon: [number, number][],
+    snapPoint1: [number, number],
+    snapPoint2: [number, number]
+): [number, number][] => {
+    if (index1 === -1 || index2 === -1) return [snapPoint1, snapPoint2];
+    
+    // Path A: forward
+    const pathA: [number, number][] = [snapPoint1];
+    let i = index1;
+    // Entrance is on edge (index1, index1+1). 
+    // Forward path goes to vertex index1+1, then index1+2... until it reaches vertex index2, then snapPoint2.
+    // Note: if index1 === index2 and we go forward, we might be going the long way around or short way.
+    while (i !== index2) {
+        i = (i + 1) % polygon.length;
+        pathA.push(polygon[i]);
+    }
+    pathA.push(snapPoint2);
+
+    // Path B: backward
+    const pathB: [number, number][] = [snapPoint1];
+    let j = index1;
+    // Backward path goes to vertex index1, then index1-1... until it reaches vertex (index2+1)%len, then snapPoint2.
+    while (j !== (index2 + 1) % polygon.length) {
+        pathB.push(polygon[j]);
+        j = (j - 1 + polygon.length) % polygon.length;
+    }
+    pathB.push(snapPoint2);
+
+    // Calculate length of paths to pick the shorter one
+    const getLen = (p: [number, number][]) => {
+        let l = 0;
+        for (let k = 0; k < p.length - 1; k++) {
+            l += Math.hypot(p[k+1][0] - p[k][0], p[k+1][1] - p[k][1]);
+        }
+        return l;
+    };
+
+    return getLen(pathA) <= getLen(pathB) ? pathA : pathB;
 };
 
 export const checkOverlap = (coords1: [number, number][], coords2: [number, number][]): boolean => {
@@ -147,12 +355,16 @@ export const checkOverlap = (coords1: [number, number][], coords2: [number, numb
             return false;
         }
 
-        const ring1 = ensureClosedRing(coords1).map(([lat, lng]) => [lng, lat] as [number, number]);
-        const ring2 = ensureClosedRing(coords2).map(([lat, lng]) => [lng, lat] as [number, number]);
+        const ring1 = ensureClosedRing(removeConsecutiveDuplicates(coords1)).map(([lat, lng]) => [lng, lat] as [number, number]);
+        const ring2 = ensureClosedRing(removeConsecutiveDuplicates(coords2)).map(([lat, lng]) => [lng, lat] as [number, number]);
+
+        if (ring1.length < 4 || ring2.length < 4) return false;
 
         const intersection = polyClip.intersection([[ring1]], [[ring2]]);
         
-        if (!intersection || intersection.length === 0) return false;
+        if (!intersection || intersection.length === 0) {
+            return false;
+        }
 
         // Check if the intersection has any meaningful area (skip tiny slivers / shared borders)
         for (const multiPoly of intersection) {
@@ -162,10 +374,10 @@ export const checkOverlap = (coords1: [number, number][], coords2: [number, numb
             
             // Calculate area of intersection in square meters (approx)
             // Just using the signed area function we already have, which works in degrees.
-            // A threshold of 1e-10 degrees^2 is roughly 1 sq meter at the equator, 
+            // A threshold of 1e-12 degrees^2 is roughly 0.01 sq meter at the equator, 
             // enough to ignore float inaccuracies on shared borders.
             const area = Math.abs(polygonSignedArea(coords));
-            if (area > 1e-10) {
+            if (area > 1e-12) {
                 return true;
             }
         }
@@ -175,6 +387,25 @@ export const checkOverlap = (coords1: [number, number][], coords2: [number, numb
         console.error("Error checking overlap:", e);
         return false;
     }
+};
+
+/**
+ * Checks if a line segment (p1, p2) intersects any edge of a polygon.
+ */
+export const segmentIntersectsPolygon = (p1: [number, number], p2: [number, number], polygon: [number, number][]): boolean => {
+    const ccw = (A: [number, number], B: [number, number], C: [number, number]) => {
+        return (C[1] - A[1]) * (B[0] - A[0]) > (B[1] - A[1]) * (C[0] - A[0]);
+    };
+    const intersect = (A: [number, number], B: [number, number], C: [number, number], D: [number, number]) => {
+        return ccw(A, C, D) !== ccw(B, C, D) && ccw(A, B, C) !== ccw(A, B, D);
+    };
+
+    for (let i = 0; i < polygon.length; i++) {
+        const p3 = polygon[i];
+        const p4 = polygon[(i + 1) % polygon.length];
+        if (intersect(p1, p2, p3, p4)) return true;
+    }
+    return false;
 };
 
 export const fixOverlap = (coords: [number, number][], otherPolygons: PolygonData[]): [number, number][] => {

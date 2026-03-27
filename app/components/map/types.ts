@@ -27,7 +27,9 @@ export interface OverlapWarning {
     overlappingPolygons: { id: string; name: string }[];
     originalCoords: [number, number][];
     fixedCoords: [number, number][] | null;
+    fixedIndices?: number[];
     isNewPolygon?: boolean;
+    isAutoFixEnabled?: boolean;
 }
 
 export interface ManualEditContext {

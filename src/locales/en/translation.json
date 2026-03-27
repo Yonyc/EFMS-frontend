@@ -432,7 +432,9 @@
       "rename": "Rename",
       "edit": "Edit",
       "color": "Color",
-      "delete": "Delete"
+      "delete": "Delete",
+      "selectParent": "Select parent",
+      "addSubparcel": "Add Subparcel"
     },
     "deletePrompt": "Delete \"{{name}}\"?",
     "renameModal": {

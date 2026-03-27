@@ -6,6 +6,7 @@ import {
     useMapEvents,
     Tooltip,
     ZoomControl,
+    CircleMarker
 } from "react-leaflet";
 import { EditControl } from "react-leaflet-draw";
 import L from "leaflet";
@@ -137,6 +138,9 @@ export default function MapWithPolygons(props: MapProps) {
         handleSaveOperation,
         fetchPolygons,
         togglePolygonVisibility,
+        isInspecting,
+        validateInspection,
+        cancelInspection,
         renamePolygonInline,
         closePolygonContextMenu,
         reattachCreatedLayer,
@@ -146,8 +150,8 @@ export default function MapWithPolygons(props: MapProps) {
         handleOverlapIgnore,
         handleOverlapAccept,
         handleShowPreview,
-        handleOverlapManualEdit,
-        handleOverlapEditOriginal,
+        handleOverlapTweakFix,
+        handleToggleAutoFix,
         closeOperationPopup,
         handleAddOperationLine,
         updateOperationLine,
@@ -260,6 +264,36 @@ export default function MapWithPolygons(props: MapProps) {
         return () => window.removeEventListener('keydown', handleKey, { capture: true });
     }, [isCreating, editingId, selectedId, renamingId, pendingDeleteId, contextMenu, polygonContextMenu, createPointCount, overlapWarning, cancelCreate, cancelEdit, finishCreate, finishEdit, deletePolygon, closePolygonContextMenu, handleOverlapCancel, setRenamingId, setRenameValue, setPendingDeleteId, setContextMenu]);
 
+    // Manage z-indices of polygons based on parent/child depth
+    useEffect(() => {
+        if (!polygons || polygons.length === 0) return;
+        
+        const polyDepths: Record<string, number> = {};
+        const getDepth = (id: string, currentDepth = 0): number => {
+            if (polyDepths[id] !== undefined) return polyDepths[id];
+            if (currentDepth > 20) return 20; 
+            const poly = polygons.find(p => p.id === id);
+            if (!poly || !poly.parentId) { polyDepths[id] = 0; return 0; }
+            const depth = getDepth(poly.parentId, currentDepth + 1) + 1;
+            polyDepths[id] = depth;
+            return depth;
+        };
+
+        const sortedIds = [...polygons].sort((a, b) => getDepth(a.id) - getDepth(b.id)).map(p => p.id);
+        
+        // Wait a tick for React to finish rendering DOM nodes
+        const timer = setTimeout(() => {
+            sortedIds.forEach(id => {
+                const layer = polygonLayersRef.current?.get(id);
+                if (layer && (layer as any)._map) {
+                    layer.bringToFront();
+                }
+            });
+        }, 50);
+
+        return () => clearTimeout(timer);
+    }, [polygons, selectedId, isCreating]);
+
     useEffect(() => {
         if (!pendingManualEditId) return;
         const exists = polygons.some(p => p.id === pendingManualEditId);
@@ -304,6 +338,41 @@ export default function MapWithPolygons(props: MapProps) {
         return null;
     }
 
+    // Handle selective styling for auto-fixed vertices
+    useEffect(() => {
+        if (!isInspecting || !createdLayerRef.current) return;
+        const layer = createdLayerRef.current as any;
+        
+        const applyStyles = () => {
+            const indices = (layer.fixedIndices as number[]) || overlapWarning?.fixedIndices || [];
+            const markers = layer.editing?._markers;
+            if (markers && indices) {
+                markers.forEach((marker: any, idx: number) => {
+                    if (marker && marker._icon) {
+                        if (indices.includes(idx)) {
+                            marker._icon.classList.add('leaflet-editing-icon-fixed');
+                        } else {
+                            marker._icon.classList.remove('leaflet-editing-icon-fixed');
+                        }
+                    }
+                });
+            }
+        };
+
+        // Apply immediately and with a slight delay for marker initialization
+        const timer1 = setTimeout(applyStyles, 10);
+        const timer2 = setTimeout(applyStyles, 100);
+        const timer3 = setTimeout(applyStyles, 500); 
+        
+        layer.on('editvertex dragend addvertex', applyStyles);
+        return () => {
+            clearTimeout(timer1);
+            clearTimeout(timer2);
+            clearTimeout(timer3);
+            layer.off('editvertex dragend addvertex', applyStyles);
+        };
+    }, [isInspecting, overlapWarning, createdLayerRef]);
+
     // ── Render ─────────────────────────────────────────────────────────────────
 
     return (
@@ -311,15 +380,15 @@ export default function MapWithPolygons(props: MapProps) {
             {/* Modals */}
             {overlapWarning && !showPreview && (
                 <OverlapModal
-                    warning={overlapWarning}
+                    warning={overlapWarning!}
                     areaName={areaName}
                     onAreaNameChange={setAreaName}
                     onCancel={handleOverlapCancel}
-                    onManualEdit={handleOverlapManualEdit}
-                    onEditOriginal={handleOverlapEditOriginal}
+                    onToggleAutoFix={handleToggleAutoFix}
                     onIgnore={handleOverlapIgnore}
                     onAccept={handleOverlapAccept}
                     onShowPreview={handleShowPreview}
+                    onTweakFix={() => {}} 
                 />
             )}
             {renamingId && (
@@ -375,6 +444,7 @@ export default function MapWithPolygons(props: MapProps) {
                     originalColorRef={originalColorRef}
                     parcelsEndpoint={parcelsEndpoint}
                     closePolygonContextMenu={closePolygonContextMenu}
+                    startCreate={startCreate}
                     startEdit={startEdit}
                     deletePolygon={deletePolygon}
                     approveSingleParcel={approveSingleParcel}
@@ -382,6 +452,7 @@ export default function MapWithPolygons(props: MapProps) {
                     setOperationPopup={setOperationPopup}
                     setPopupCoords={setPopupCoords}
                     setSelectedId={setSelectedId}
+                    setSelectedParentId={setSelectedParentId}
                     setCurrentParcelId={setCurrentParcelId}
                     setRenamingId={setRenamingId}
                     setRenameValue={setRenameValue}
@@ -468,13 +539,20 @@ export default function MapWithPolygons(props: MapProps) {
                 />
 
                 <div data-tour-id="map-canvas" style={{ height: '100%', width: '100%', minHeight: 0 }}>
-                    <MapContainer style={{ height: "100%", width: "100%" }} center={center} zoom={15} maxZoom={19} zoomControl={false}>
+                    <MapContainer 
+                        style={{ height: "100%", width: "100%" }} 
+                        center={center} 
+                        zoom={15} 
+                        maxZoom={19} 
+                        zoomControl={false}
+                        className={isCreating ? "creating-parcel" : ""}
+                    >
                         <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" maxNativeZoom={20} attribution='&copy; <a href="https://osm.org/copyright">OpenStreetMap</a>' />
                         <ZoomControl position="bottomright" />
                         <MapEvents />
                         <style>{`
                             .leaflet-control-container .leaflet-draw, .leaflet-draw-toolbar { display: none !important; }
-                            .leaflet-interactive { transition: filter 0.5s ease-out !important; }
+                            .polygon-tooltip { background: transparent !important; border: none !important; box-shadow: none !important; padding: 0 !important; }
                             .polygon-tooltip { background: transparent !important; border: none !important; box-shadow: none !important; padding: 0 !important; }
                             .polygon-tooltip::before { display: none !important; }
                             .leaflet-tooltip-pane .leaflet-tooltip { background: transparent !important; border: none !important; box-shadow: none !important; }
@@ -485,21 +563,149 @@ export default function MapWithPolygons(props: MapProps) {
                                 100% { filter: drop-shadow(0 0 2px currentColor); }
                             }
                             .leaflet-overlay-pane .polygon-glow { stroke-dasharray: 10 5; animation: polygonDash 1.2s linear infinite, polygonGlow 2.4s ease-in-out infinite; }
+                            
+                            /* Snappy Preview Animation */
+                            @keyframes ringPulse {
+                                0% { transform: scale(0.6); opacity: 1; border-width: 3px; }
+                                50% { transform: scale(1.6); opacity: 0; border-width: 1px; }
+                                100% { transform: scale(0.6); opacity: 1; border-width: 3px; }
+                            }
+                            /* Force standard cursor when drawing */
+                            .creating-parcel, 
+                            .creating-parcel *, 
+                            .leaflet-container.creating-parcel,
+                            .leaflet-container.creating-parcel * {
+                                cursor: default !important;
+                            }
+                            
+                            /* Absolute placement for snapping ring */
+                            .snappy-preview-marker-container {
+                                pointer-events: none !important;
+                                z-index: 2000000 !important;
+                            }
+                            .snappy-preview-ring {
+                                width: 20px;
+                                height: 20px;
+                                border: 4px solid #4f46e5;
+                                border-radius: 50%;
+                                background: rgba(79, 70, 229, 0.4);
+                                box-shadow: 0 0 10px rgba(79, 70, 229, 0.8), 0 0 20px rgba(79, 70, 229, 0.4);
+                                animation: ringPulse 0.8s ease-in-out infinite;
+                                pointer-events: none;
+                            }
+                            @keyframes ringPulse {
+                                0% { transform: scale(0.9); opacity: 1; }
+                                50% { transform: scale(1.3); opacity: 0.3; }
+                                100% { transform: scale(0.9); opacity: 1; }
+                            }
+                            
+                            /* Style Leaflet guide lines to be pretty indigo instead of hiding them */
+                            .leaflet-draw-guide-dash {
+                                stroke: #6366f1 !important;
+                                stroke-opacity: 0.6 !important;
+                            }
+
+                            /* Pretty Drawing Points */
+                            /* Main vertex handles - Blue */
+                            .leaflet-editing-icon:not(.leaflet-editing-icon-ghost) {
+                                background: #fff !important;
+                                border: 2.5px solid #2563eb !important;
+                                border-radius: 50% !important;
+                                box-shadow: 0 3px 8px rgba(15,23,42,0.4) !important;
+                                width: 14px !important;
+                                height: 14px !important;
+                                margin-left: -7px !important;
+                                margin-top: -7px !important;
+                                z-index: 2000 !important;
+                                transition: none !important;
+                            }
+                            /* Intermediate 'Added' handles - Green */
+                            .leaflet-editing-icon-ghost {
+                                background: #fff !important;
+                                border: 2px solid #10b981 !important;
+                                border-radius: 50% !important;
+                                width: 10px !important;
+                                height: 10px !important;
+                                margin-left: -5px !important;
+                                margin-top: -5px !important;
+                                opacity: 0.8 !important;
+                                z-index: 1999 !important;
+                                transition: none !important;
+                            }
+                            .leaflet-editing-icon:hover {
+                                border-color: #3b82f6 !important;
+                                background: #f8fafc !important;
+                            }
+                            .leaflet-draw-guide-dash {
+                                background-color: rgba(79, 70, 229, 0.5) !important;
+                            }
+                            .leaflet-mouse-marker {
+                                background: #fff !important;
+                                border: 2px solid #2563eb !important;
+                                border-radius: 50% !important;
+                                box-shadow: 0 4px 12px rgba(79, 70, 229, 0.4) !important;
+                            }
+                            /* Hide default Leaflet.Draw tooltips */
+                            .leaflet-draw-tooltip {
+                                display: none !important;
+                            }
+                            
+                            /* Original vertices - Consistent Blue */
+                            .leaflet-editing-icon {
+                                border: 2.5px solid #2563eb !important;
+                                border-radius: 50% !important;
+                                background: #fff !important;
+                                box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1) !important;
+                            }
+
+                            /* Fixed/Corrected vertices - Strong Green */
+                            .leaflet-editing-icon-fixed {
+                                border-color: #10b981 !important;
+                                box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.2) !important;
+                            }
+                            .leaflet-editing-icon.leaflet-editing-icon-fixed {
+                                border: 3px solid #10b981 !important;
+                                background: #fff !important;
+                                z-index: 2500 !important;
+                            }
                         `}</style>
 
                         <FeatureGroup ref={featureGroupRef}>
                             <EditControl ref={editControlRef} position="topright" draw={{ rectangle: false, polyline: false, circle: false, marker: false, circlemarker: false, polygon: true }} onCreated={handleCreated} />
 
-                            {polygons
-                                .filter(p => p.visible)
-                                .filter(poly => !(showPreview && overlapWarning?.polygonId === poly.id))
-                                .map(poly => {
-                                    const isThisEditing = editingId === poly.id;
-                                    const isSelected = selectedId === poly.id;
-                                    const polyColor = poly.color || '#3388ff';
-                                    const polygonKey = isThisEditing
-                                        ? `${poly.id}-editing-${poly.version}`
-                                        : `${poly.id}-${isSelected ? 'selected' : 'normal'}`;
+                            {(() => {
+                                // Pre-calculate depth and descendant relationships
+                                const polyDepths: Record<string, number> = {};
+                                const getDepth = (id: string, currentDepth = 0): number => {
+                                    if (polyDepths[id] !== undefined) return polyDepths[id];
+                                    if (currentDepth > 20) return 20; // safe breaker
+                                    const poly = polygons.find(p => p.id === id);
+                                    if (!poly || !poly.parentId) { polyDepths[id] = 0; return 0; }
+                                    const depth = getDepth(poly.parentId, currentDepth + 1) + 1;
+                                    polyDepths[id] = depth;
+                                    return depth;
+                                };
+
+                                const isDescendantOf = (childId: string, parentId: string, currentDepth = 0): boolean => {
+                                    if (currentDepth > 20) return false;
+                                    const poly = polygons.find(p => p.id === childId);
+                                    if (!poly || !poly.parentId) return false;
+                                    if (poly.parentId === parentId) return true;
+                                    return isDescendantOf(poly.parentId, parentId, currentDepth + 1);
+                                };
+
+                                return polygons
+                                    .filter(p => p.visible)
+                                    .filter(poly => !(showPreview && overlapWarning?.polygonId === poly.id))
+                                    .sort((a, b) => getDepth(a.id) - getDepth(b.id)) // Render parents first, children on top
+                                    .map(poly => {
+                                        const isThisEditing = editingId === poly.id;
+                                        const isSelected = selectedId === poly.id;
+                                        const polyColor = poly.color || '#3388ff';
+                                        const depth = getDepth(poly.id);
+                                        const polygonKey = isThisEditing
+                                            ? `${poly.id}-editing-${poly.version}`
+                                            : `${poly.id}-${poly.version}`;
 
                                     return (
                                         <Polygon
@@ -509,7 +715,7 @@ export default function MapWithPolygons(props: MapProps) {
                                             pathOptions={{
                                                 color: polyColor,
                                                 opacity: isThisEditing ? 0.9 : (isSelected ? 1 : 0.8),
-                                                fillOpacity: isSelected ? 0.35 : 0.2,
+                                                fillOpacity: isSelected ? 0.4 : (0.15 + (Math.min(getDepth(poly.id), 3) * 0.1)),
                                                 dashArray: isThisEditing ? '8 6' : undefined,
                                                 weight: isThisEditing ? 4 : (isSelected ? 3 : 2)
                                             }}
@@ -538,13 +744,15 @@ export default function MapWithPolygons(props: MapProps) {
                                                 }
                                             }}
                                         >
-                                            <Tooltip direction="center" offset={[0, 0]} opacity={1} permanent={isSelected} className="polygon-tooltip">
-                                                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'center' }}>
-                                                    <span style={{ display: 'inline-block', padding: '3px 8px', fontSize: '0.8rem', fontWeight: '600', color: '#fff', background: polyColor, borderRadius: '4px', boxShadow: '0 1px 3px rgba(0,0,0,0.3)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                                        {poly.name}
-                                                    </span>
-                                                    {isImportMode && poly.validationStatus && (
-                                                        <span style={{ display: 'inline-block', padding: '2px 6px', fontSize: '0.7rem', fontWeight: 600, color: '#0f172a', background: 'rgba(255,255,255,0.85)', borderRadius: '999px', boxShadow: '0 1px 2px rgba(0,0,0,0.2)' }}>
+                                            <Tooltip sticky className="polygon-tooltip" direction="center">
+                                                <div className="rounded-lg bg-slate-900/90 px-2 py-1 text-xs font-semibold text-white shadow-xl backdrop-blur-sm">
+                                                    {poly.name}
+                                                    {poly.validationStatus && (
+                                                        <span className={`ml-2 rounded px-1.5 py-0.5 text-[10px] ${
+                                                            poly.validationStatus === 'APPROVED' ? 'bg-emerald-500/20 text-emerald-300' :
+                                                                poly.validationStatus === 'REJECTED' ? 'bg-rose-500/20 text-rose-300' :
+                                                                    'bg-amber-500/20 text-amber-300'
+                                                        }`}>
                                                             {poly.validationStatus}
                                                         </span>
                                                     )}
@@ -552,18 +760,28 @@ export default function MapWithPolygons(props: MapProps) {
                                             </Tooltip>
                                         </Polygon>
                                     );
-                                })}
+                                });
+                            })()}
 
                             {overlapWarning && showPreview && (
                                 <>
                                     {previewVisibility.original && (
-                                        <Polygon positions={overlapWarning.originalCoords} pathOptions={{ color: '#ff5252', opacity: 0.7, fillOpacity: 0.15, dashArray: '10 5', weight: 3 }} />
+                                        <>
+                                            <Polygon positions={overlapWarning.originalCoords} pathOptions={{ color: '#ff5252', opacity: 0.7, fillOpacity: 0.15, dashArray: '10 5', weight: 3 }} />
+                                            {overlapWarning.originalCoords.map((coord, i) => (
+                                                <CircleMarker 
+                                                    key={`orig-point-${i}`} 
+                                                    center={coord} 
+                                                    radius={6} 
+                                                    pathOptions={{ color: '#fff', weight: 2, fillColor: '#ff5252', fillOpacity: 1, interactive: false }} 
+                                                />
+                                            ))}
+                                        </>
                                     )}
-                                    {previewVisibility.fixed && overlapWarning.fixedCoords && (
-                                        <Polygon positions={overlapWarning.fixedCoords} pathOptions={{ color: '#4caf50', opacity: 0.9, fillOpacity: 0.3, weight: 3 }} />
-                                    )}
+                                    {/* Redundant React-rendered fixed preview removed to fix "doubled ghost" and lag */}
                                 </>
                             )}
+
                         </FeatureGroup>
                     </MapContainer>
                 </div>
@@ -581,11 +799,14 @@ export default function MapWithPolygons(props: MapProps) {
                     setPreviewVisibility={setPreviewVisibility}
                     editingId={editingId}
                     isCreating={isCreating}
+                    isInspecting={isInspecting}
                     createPointCount={createPointCount}
                     createHandlerRef={createHandlerRef}
                     startCreate={startCreate}
                     finishCreate={finishCreate}
                     cancelCreate={cancelCreate}
+                    validateInspection={validateInspection}
+                    cancelInspection={cancelInspection}
                     finishEdit={finishEdit}
                     cancelEdit={cancelEdit}
                 />

@@ -16,6 +16,7 @@ interface PolygonContextMenuProps {
     originalColorRef: React.MutableRefObject<string | null>;
     parcelsEndpoint: string;
     closePolygonContextMenu: () => void;
+    startCreate: () => void;
     startEdit: (id: string) => void;
     deletePolygon: (id: string) => void;
     approveSingleParcel: (id: string) => void;
@@ -23,6 +24,7 @@ interface PolygonContextMenuProps {
     setOperationPopup: React.Dispatch<React.SetStateAction<{ x: number; y: number; polygonId: string } | null>>;
     setPopupCoords: React.Dispatch<React.SetStateAction<{ left: number; top: number } | null>>;
     setSelectedId: React.Dispatch<React.SetStateAction<string | null>>;
+    setSelectedParentId: React.Dispatch<React.SetStateAction<string | null>>;
     setCurrentParcelId: React.Dispatch<React.SetStateAction<string | null>>;
     setRenamingId: React.Dispatch<React.SetStateAction<string | null>>;
     setRenameValue: React.Dispatch<React.SetStateAction<string>>;
@@ -47,6 +49,7 @@ export function PolygonContextMenu({
     originalColorRef,
     parcelsEndpoint,
     closePolygonContextMenu,
+    startCreate,
     startEdit,
     deletePolygon,
     approveSingleParcel,
@@ -54,6 +57,7 @@ export function PolygonContextMenu({
     setOperationPopup,
     setPopupCoords,
     setSelectedId,
+    setSelectedParentId,
     setCurrentParcelId,
     setRenamingId,
     setRenameValue,
@@ -101,6 +105,27 @@ export function PolygonContextMenu({
                     </button>
                 )}
 
+                {(() => {
+                    const poly = polygons.find(p => p.id === polygonId);
+                    // Ensure parentId is a valid non-empty string and not explicitly "null"
+                    if (poly?.parentId && poly.parentId !== "null" && poly.parentId !== "") {
+                        return (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    closePolygonContextMenu();
+                                    setSelectedId(poly.parentId!);
+                                }}
+                                className={`${floatingButtonClasses} text-slate-800`}
+                            >
+                                <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-50 text-base text-indigo-600">⬆️</span>
+                                {t('map.polygonMenu.selectParent')}
+                            </button>
+                        );
+                    }
+                    return null;
+                })()}
+
                 <button
                     type="button"
                     onClick={() => { closePolygonContextMenu(); startEdit(polygonId); }}
@@ -109,6 +134,21 @@ export function PolygonContextMenu({
                     <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-50 text-base text-indigo-600">🔧</span>
                     {t('map.polygonMenu.edit')}
                 </button>
+
+                {!isImportMode && (
+                    <button
+                        type="button"
+                        onClick={() => { 
+                            setSelectedParentId(polygonId);
+                            closePolygonContextMenu(); 
+                            startCreate(); 
+                        }}
+                        className={`${floatingButtonClasses} text-slate-800`}
+                    >
+                        <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-50 text-base text-indigo-600">+</span>
+                        {t('map.polygonMenu.addSubparcel')}
+                    </button>
+                )}
 
                 {isImportMode && (
                     <button

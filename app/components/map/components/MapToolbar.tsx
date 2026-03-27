@@ -16,11 +16,14 @@ interface MapToolbarProps {
     setPreviewVisibility: React.Dispatch<React.SetStateAction<{ original: boolean; fixed: boolean }>>;
     editingId: string | null;
     isCreating: boolean;
+    isInspecting: boolean;
     createPointCount: number;
     createHandlerRef: React.RefObject<any>;
     startCreate: () => void;
     finishCreate: () => void;
     cancelCreate: () => void;
+    validateInspection: () => void;
+    cancelInspection: () => void;
     finishEdit: () => void;
     cancelEdit: () => void;
 }
@@ -40,11 +43,14 @@ export function MapToolbar({
     setPreviewVisibility,
     editingId,
     isCreating,
+    isInspecting,
     createPointCount,
     createHandlerRef,
     startCreate,
     finishCreate,
     cancelCreate,
+    validateInspection,
+    cancelInspection,
     finishEdit,
     cancelEdit,
 }: MapToolbarProps) {
@@ -107,6 +113,27 @@ export function MapToolbar({
                     +
                 </button>
             ))}
+
+            {allowCreate && isInspecting && !overlapWarning && (
+                <>
+                    <button
+                        type="button"
+                        onClick={validateInspection}
+                        title={t('map.toolbar.confirmInspection')}
+                        className={`${toolbarButtonBase} border-emerald-500 bg-emerald-500 text-white hover:-translate-y-0.5 hover:bg-emerald-400`}
+                    >
+                        {t('common.confirm')} ✓
+                    </button>
+                    <button
+                        type="button"
+                        onClick={cancelInspection}
+                        title={t('map.toolbar.cancelInspection')}
+                        className={`${toolbarButtonBase} border-rose-500 bg-rose-500 text-white hover:-translate-y-0.5 hover:bg-rose-400`}
+                    >
+                        ✕
+                    </button>
+                </>
+            )}
 
             {allowCreate && isCreating && (
                 <>
