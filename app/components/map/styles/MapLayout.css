@@ -1,0 +1,53 @@
+/* Leaflet.draw toolbar hide */
+.leaflet-control-container .leaflet-draw, 
+.leaflet-draw-toolbar { 
+    display: none !important; 
+}
+
+/* Smooth transitions for polygon animations */
+.leaflet-interactive {
+    transition: filter 0.5s ease-out !important;
+}
+
+/* Polygon Tooltip Styles */
+.polygon-tooltip {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+}
+.polygon-tooltip::before {
+    display: none !important;
+}
+
+/* General Leaflet Tooltip Overrides */
+.leaflet-tooltip-pane .leaflet-tooltip {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+/* Pulse dash animation for active manual editing */
+@keyframes pulseDash {
+    0% { stroke-dashoffset: 0; }
+    100% { stroke-dashoffset: -20; }
+}
+.pulse-dash {
+    animation: pulseDash 1s linear infinite;
+}
+
+/* Polygon Glow Animations */
+@keyframes polygonDash {
+    to { stroke-dashoffset: -60; }
+}
+
+@keyframes polygonGlow {
+    0% { filter: drop-shadow(0 0 2px currentColor); }
+    50% { filter: drop-shadow(0 0 8px currentColor); }
+    100% { filter: drop-shadow(0 0 2px currentColor); }
+}
+
+.leaflet-overlay-pane .polygon-glow {
+    stroke-dasharray: 10 5;
+    animation: polygonDash 1.2s linear infinite, polygonGlow 2.4s ease-in-out infinite;
+}

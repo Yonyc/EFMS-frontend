@@ -94,6 +94,19 @@ export async function apiPut(
   });
 }
 
+// quick patch request
+export async function apiPatch(
+  endpoint: string,
+  data?: any,
+  options: ApiRequestOptions = {}
+) {
+  return apiRequest(endpoint, {
+    ...options,
+    method: 'PATCH',
+    body: data ? JSON.stringify(data) : undefined,
+  });
+}
+
 /**
  * Convenience method for DELETE requests
  */

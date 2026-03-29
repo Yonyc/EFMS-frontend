@@ -1,5 +1,5 @@
 import L from "leaflet";
-import { diff as martinezDiff } from "martinez-polygon-clipping";
+import { diff as martinezDiff, intersection as martinezIntersection } from "martinez-polygon-clipping";
 import type { PolygonData } from "../types";
 
 export type MartinezMultiPolygon = number[][][][];
@@ -144,36 +144,59 @@ export const isPointInPolygon = (point: [number, number], polygon: [number, numb
     return inside;
 };
 
+// check if line segments cross
+const intersectSegments = (p1: [number, number], p2: [number, number], p3: [number, number], p4: [number, number]): boolean => {
+    const [y1, x1] = p1, [y2, x2] = p2, [y3, x3] = p3, [y4, x4] = p4;
+    const det = (x2 - x1) * (y4 - y3) - (y2 - y1) * (x4 - x3);
+    if (det === 0) return false;
+    const lambda = ((y4 - y3) * (x4 - x1) + (x3 - x4) * (y4 - y1)) / det;
+    const gamma = ((y1 - y2) * (x4 - x1) + (x2 - x1) * (y4 - y1)) / det;
+    return (0 < lambda && lambda < 1) && (0 < gamma && gamma < 1);
+};
+
+export const doEdgesIntersect = (poly1: [number, number][], poly2: [number, number][]): boolean => {
+    const r1 = ensureClosedRing(poly1);
+    const r2 = ensureClosedRing(poly2);
+    for (let i = 0; i < r1.length - 1; i++) {
+        for (let j = 0; j < r2.length - 1; j++) {
+            if (intersectSegments(r1[i], r1[i + 1], r2[j], r2[j + 1])) return true;
+        }
+    }
+    return false;
+};
+
 export const checkOverlap = (coords1: [number, number][], coords2: [number, number][]): boolean => {
     try {
+        if (coords1.length < 3 || coords2.length < 3) return false;
+        
+        // 1. bounds check
         const poly1 = L.polygon(coords1);
         const poly2 = L.polygon(coords2);
-        const bounds1 = poly1.getBounds();
-        const bounds2 = poly2.getBounds();
-        
-        if (!bounds1.intersects(bounds2)) {
-            return false;
+        if (!poly1.getBounds().intersects(poly2.getBounds())) return false;
+
+        // 2. fast vertex check
+        for (const point of coords1) {
+            if (isPointInPolygon(point, coords2)) return true;
+        }
+        for (const point of coords2) {
+            if (isPointInPolygon(point, coords1)) return true;
         }
 
-        for (const point of coords1) {
-            const latLng = L.latLng(point[0], point[1]);
-            if (poly2.getBounds().contains(latLng)) {
-                const inside = isPointInPolygon(point, coords2);
-                if (inside) return true;
-            }
-        }
-        
-        for (const point of coords2) {
-            const latLng = L.latLng(point[0], point[1]);
-            if (poly1.getBounds().contains(latLng)) {
-                const inside = isPointInPolygon(point, coords1);
-                if (inside) return true;
-            }
+        // 3. edge crossing for thin overlaps
+        if (doEdgesIntersect(coords1, coords2)) return true;
+
+        // 4. martinez intersection
+        const s1 = [[coordsToMartinezRing(coords1)]];
+        const s2 = [[coordsToMartinezRing(coords2)]];
+        const inter = martinezIntersection(s1, s2) as MartinezMultiPolygon | null;
+        if (inter && inter.length > 0) {
+            const polys = martinezToPolygons(inter);
+            if (polys.some(p => Math.abs(polygonSignedArea(p)) > 1e-12)) return true;
         }
         
         return false;
     } catch (e) {
-        console.error("Error checking overlap:", e);
+        console.error("Error in checkOverlap:", e);
         return false;
     }
 };
