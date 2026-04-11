@@ -39,7 +39,7 @@ const MapToolbar = React.memo((props: MapToolbarProps) => {
         setIsSearchOpen, hasActiveSearchFilters, isImportMode
     } = props;
 
-    const toolbarButtonBase = "inline-flex items-center justify-center rounded-2xl border px-3 py-2 text-sm font-semibold shadow-lg shadow-slate-900/10 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-200";
+    const toolbarButtonBase = "inline-flex items-center justify-center gap-1.5 rounded-2xl border px-3 py-2 text-sm font-semibold shadow-lg shadow-slate-900/10 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-200";
 
     return (
         <div className="pointer-events-auto flex flex-col items-center gap-2">
@@ -106,7 +106,7 @@ const MapToolbar = React.memo((props: MapToolbarProps) => {
                         title={t('map.toolbar.toggleAutoCorrect', { defaultValue: 'Toggle auto overlap correction' })}
                         className={`${toolbarButtonBase} ${autoCorrectEnabled ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-300 bg-white text-slate-600'} hover:-translate-y-0.5`}
                     >
-                        {autoCorrectEnabled ? 'AC: ON' : 'AC: OFF'}
+                        {autoCorrectEnabled ? t('map.toolbar.autoCorrectOn') : t('map.toolbar.autoCorrectOff')}
                     </button>
                     <button
                         type="button"
@@ -114,7 +114,7 @@ const MapToolbar = React.memo((props: MapToolbarProps) => {
                         title={t('map.toolbar.toggleCloseLoopMidpoint', { defaultValue: 'Toggle cursor add point on closing edge' })}
                         className={`${toolbarButtonBase} ${closeLoopMidpointEnabled ? 'border-amber-500 bg-amber-50 text-amber-700' : 'border-slate-300 bg-white text-slate-600'} hover:-translate-y-0.5`}
                     >
-                        {closeLoopMidpointEnabled ? 'Add Point: ON' : 'Add Point: OFF'}
+                        {closeLoopMidpointEnabled ? t('map.toolbar.closeLoopMidpointOn') : t('map.toolbar.closeLoopMidpointOff')}
                     </button>
                     <button
                         type="button"
@@ -123,7 +123,8 @@ const MapToolbar = React.memo((props: MapToolbarProps) => {
                         disabled={createPointCount < 3}
                         className={`${toolbarButtonBase} border-emerald-500 bg-emerald-500 text-white ${createPointCount < 3 ? 'cursor-not-allowed opacity-60' : 'hover:-translate-y-0.5 hover:bg-emerald-400'}`}
                     >
-                        ✓
+                        <span aria-hidden>✓</span>
+                        <span>{t('map.toolbar.finishDrawing')}</span>
                     </button>
                     <button
                         type="button"
@@ -131,7 +132,8 @@ const MapToolbar = React.memo((props: MapToolbarProps) => {
                         title={t('map.toolbar.cancelDrawing')}
                         className={`${toolbarButtonBase} border-rose-500 bg-rose-500 text-white hover:-translate-y-0.5 hover:bg-rose-400`}
                     >
-                        ✕
+                        <span aria-hidden>✕</span>
+                        <span>{t('map.toolbar.cancelDrawing')}</span>
                     </button>
                     <button
                         type="button"
@@ -139,7 +141,8 @@ const MapToolbar = React.memo((props: MapToolbarProps) => {
                         title={t('map.toolbar.removeLastPoint')}
                         className={`${toolbarButtonBase} border-slate-300 bg-white text-slate-600 hover:-translate-y-0.5 hover:bg-slate-50`}
                     >
-                        -
+                        <span aria-hidden>-</span>
+                        <span>{t('map.toolbar.removeLastPoint')}</span>
                     </button>
                 </>
             )}
@@ -151,7 +154,7 @@ const MapToolbar = React.memo((props: MapToolbarProps) => {
                         title={t('map.toolbar.toggleAutoCorrect', { defaultValue: 'Toggle auto overlap correction' })}
                         className={`${toolbarButtonBase} ${autoCorrectEnabled ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-300 bg-white text-slate-600'} hover:-translate-y-0.5`}
                     >
-                        {autoCorrectEnabled ? 'AC: ON' : 'AC: OFF'}
+                        {autoCorrectEnabled ? t('map.toolbar.autoCorrectOn') : t('map.toolbar.autoCorrectOff')}
                     </button>
                     <button
                         type="button"
@@ -159,7 +162,7 @@ const MapToolbar = React.memo((props: MapToolbarProps) => {
                         title={t('map.toolbar.toggleCloseLoopMidpoint', { defaultValue: 'Toggle cursor add point on closing edge' })}
                         className={`${toolbarButtonBase} ${closeLoopMidpointEnabled ? 'border-amber-500 bg-amber-50 text-amber-700' : 'border-slate-300 bg-white text-slate-600'} hover:-translate-y-0.5`}
                     >
-                        {closeLoopMidpointEnabled ? 'Add Point: ON' : 'Add Point: OFF'}
+                        {closeLoopMidpointEnabled ? t('map.toolbar.closeLoopMidpointOn') : t('map.toolbar.closeLoopMidpointOff')}
                     </button>
                     <button
                         type="button"
@@ -167,7 +170,8 @@ const MapToolbar = React.memo((props: MapToolbarProps) => {
                         title={t('map.toolbar.saveEdit')}
                         className={`${toolbarButtonBase} border-emerald-500 bg-emerald-500 text-white hover:-translate-y-0.5 hover:bg-emerald-400`}
                     >
-                        ✓
+                        <span aria-hidden>✓</span>
+                        <span>{t('map.toolbar.saveEdit')}</span>
                     </button>
                     <button
                         type="button"
@@ -175,7 +179,8 @@ const MapToolbar = React.memo((props: MapToolbarProps) => {
                         title={t('map.toolbar.cancelEdit')}
                         className={`${toolbarButtonBase} border-rose-500 bg-rose-500 text-white hover:-translate-y-0.5 hover:bg-rose-400`}
                     >
-                        ✕
+                        <span aria-hidden>✕</span>
+                        <span>{t('map.toolbar.cancelEdit')}</span>
                     </button>
                     <button
                         type="button"
@@ -183,7 +188,8 @@ const MapToolbar = React.memo((props: MapToolbarProps) => {
                         title={t('map.toolbar.removeLastPoint')}
                         className={`${toolbarButtonBase} border-slate-300 bg-white text-slate-600 hover:-translate-y-0.5 hover:bg-slate-50`}
                     >
-                        -
+                        <span aria-hidden>-</span>
+                        <span>{t('map.toolbar.removeLastPoint')}</span>
                     </button>
                 </>
             )}

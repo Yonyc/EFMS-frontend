@@ -33,7 +33,9 @@
       "untitled": "Lot sans nom",
       "polygons": "Polygones",
       "source": "Source",
-      "open": "Ouvrir pour validation"
+      "open": "Ouvrir pour validation",
+      "rename": "Renommer",
+      "delete": "Supprimer"
     },
     "map": {
       "title": "Validation d'import",
@@ -60,6 +62,17 @@
       "helper": "Importez un fichier ZIP pour créer une nouvelle liste d'importation.",
       "success": "Téléversement terminé. Traitement en cours…",
       "error": "Échec du téléversement. Veuillez réessayer."
+    },
+    "rename": {
+      "prompt": "Saisissez un nouveau nom pour cette liste d'importation :",
+      "empty": "Le nom ne peut pas être vide.",
+      "success": "Liste d'importation renommée.",
+      "error": "Impossible de renommer cette importation."
+    },
+    "delete": {
+      "confirm": "Supprimer cette liste d'importation ? Cette action est irréversible.",
+      "success": "Liste d'importation supprimée.",
+      "error": "Impossible de supprimer cette importation."
     }
   },
   "languages": {
@@ -188,7 +201,10 @@
     "cancel": "Annuler",
     "confirm": "Confirmer",
     "save": "Enregistrer",
+    "add": "Ajouter",
     "delete": "Supprimer",
+    "select": "Sélectionner",
+    "quantity": "Quantité",
     "loading": "Chargement...",
     "yes": "Oui",
     "no": "Non"
@@ -324,6 +340,10 @@
     "selectTypePlaceholder": "Sélectionner un type (optionnel)",
     "dateLabel": "Date",
     "durationLabel": "Durée (minutes)",
+    "productsTools": "Produits et outils",
+    "unit": "Unité",
+    "tool": "Outil",
+    "product": "Produit",
     "submit": "Ajouter l'opération",
     "update": "Enregistrer les modifications",
     "edit": "Modifier",
@@ -333,9 +353,26 @@
     "emptyHistory": "Aucune opération enregistrée pour cette parcelle.",
     "noParcel": "Sélectionnez une parcelle pour voir ou ajouter des opérations.",
     "readOnly": "Vous pouvez consulter les opérations mais vous ne pouvez pas en ajouter pour cette parcelle.",
+    "errorLoad": "Impossible de charger les opérations",
+    "errorCreate": "Impossible d'enregistrer l'opération",
+    "errorSave": "Vous n'êtes pas autorisé à modifier cette parcelle",
     "refreshFarms": "Actualiser les fermes",
     "refreshParcels": "Recharger les parcelles",
     "pinTopRight": "Ouvrir en haut à droite"
+  },
+  "periods": {
+    "title": "Gérer les périodes",
+    "subtitle": "Créez et mettez à jour les périodes annuelles pour l'exploitation sélectionnée.",
+    "selectFarm": "Sélectionnez une exploitation pour gérer ses périodes.",
+    "createTitle": "Nouvelle période",
+    "namePlaceholder": "Nom (optionnel)",
+    "createAction": "Créer la période",
+    "listTitle": "Périodes existantes",
+    "saveAction": "Enregistrer",
+    "empty": "Aucune période créée pour le moment.",
+    "errorLoad": "Impossible de charger les périodes",
+    "errorCreate": "Impossible de créer la période",
+    "errorUpdate": "Impossible de mettre à jour la période"
   },
   "profile": {
     "title": "Profil",
@@ -433,6 +470,8 @@
       "close": "Fermer les filtres",
       "periodLabel": "Période",
       "anyPeriod": "Toute période",
+      "typeLabel": "Type d'opération",
+      "anyType": "Tout type",
       "toolLabel": "Outil utilisé",
       "productLabel": "Produit",
       "anyTool": "Tout outil",
@@ -473,6 +512,8 @@
     "polygonMenu": {
       "rename": "Renommer",
       "edit": "Modifier",
+      "addChild": "Ajouter une sous-parcelle",
+      "selectParent": "Sélectionner la parcelle parente",
       "color": "Couleur",
       "delete": "Supprimer"
     },
@@ -485,6 +526,8 @@
       "add": "Partager",
       "loading": "Chargement des partages...",
       "empty": "Aucun partage pour l'instant.",
+      "currentShares": "Personnes ayant accès",
+      "noShares": "Pas encore partagé",
       "remove": "Retirer",
       "roles": {
         "editor": "Éditeur",
@@ -516,6 +559,12 @@
     },
     "toolbar": {
       "addTitle": "Ajouter",
+      "toggleAutoCorrect": "Activer/désactiver la correction automatique des chevauchements",
+      "toggleCloseLoopMidpoint": "Activer/désactiver l'ajout de point sur le bord de fermeture",
+      "autoCorrectOn": "Correction auto : activée",
+      "autoCorrectOff": "Correction auto : désactivée",
+      "closeLoopMidpointOn": "Point de fermeture : activé",
+      "closeLoopMidpointOff": "Point de fermeture : désactivé",
       "finishDrawing": "Terminer le dessin",
       "cancelDrawing": "Annuler le dessin",
       "removeLastPoint": "Supprimer le dernier point",

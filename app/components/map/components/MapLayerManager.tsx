@@ -13,7 +13,7 @@ import { EditControl } from "react-leaflet-draw";
 import L from "leaflet";
 import { useEffect, useRef } from "react";
 import type { PolygonData, OverlapWarning } from "../types";
-import { getSafeMenuPosition } from "../utils/mapUtils";
+import { clampToRect, getSafeMenuPosition } from "../utils/mapUtils";
 import { isPointInPolygon } from "../utils/geometry";
 
 interface MapLayerManagerProps {
@@ -32,7 +32,7 @@ interface MapLayerManagerProps {
     featureGroupRef: React.RefObject<L.FeatureGroup>;
     editControlRef: React.RefObject<any>;
     polygonLayersRef: React.MutableRefObject<Map<string, L.Polygon>>;
-    setPolygonContextMenu: (m: { x: number; y: number; polygonId: string } | null) => void;
+    setPolygonContextMenu: (m: { x: number; y: number; polygonId: string; mapRect?: { left: number; top: number; right: number; bottom: number } } | null) => void;
     setRenamingId: (id: string | null) => void;
     setRenameValue: (s: string) => void;
     setPendingDeleteId: (id: string | null) => void;
@@ -105,6 +105,8 @@ export default function MapLayerManager({
 }: MapLayerManagerProps) {
 
     const POPUP_PADDING = 12;
+    const MAP_MENU_WIDTH = 240;
+    const MAP_MENU_HEIGHT = 200;
     const draggingMidpointRef = useRef<{ edgeIndex: number; lastLatLng: [number, number] } | null>(null);
     const isDraggingHandleRef = useRef(false);
     const suppressMidpointClickUntilRef = useRef(0);
@@ -169,7 +171,23 @@ export default function MapLayerManager({
             contextmenu: e => {
                 if (!editingId && !isCreating) {
                     e.originalEvent.preventDefault();
-                    const { x, y } = getSafeMenuPosition(e.originalEvent.clientX, e.originalEvent.clientY, 240, 200, POPUP_PADDING);
+                    const mapRect = (e.target as L.Map)?.getContainer?.()?.getBoundingClientRect?.();
+                    const { x, y } = mapRect
+                        ? clampToRect(
+                            e.originalEvent.clientX,
+                            e.originalEvent.clientY,
+                            MAP_MENU_WIDTH,
+                            MAP_MENU_HEIGHT,
+                            mapRect,
+                            POPUP_PADDING
+                        )
+                        : getSafeMenuPosition(
+                            e.originalEvent.clientX,
+                            e.originalEvent.clientY,
+                            MAP_MENU_WIDTH,
+                            MAP_MENU_HEIGHT,
+                            POPUP_PADDING
+                        );
                     setContextMenu({ x, y });
                 }
             },
@@ -209,7 +227,7 @@ export default function MapLayerManager({
             const el = target.getElement();
             if (el) el.classList.remove('polygon-glow');
         };
-    }, [selectedId, polygonLayersRef]);
+    }, [selectedId, polygonLayersRef, polygons]);
 
     return (
         <MapContainer
@@ -264,6 +282,14 @@ export default function MapLayerManager({
                                         const layer = e.target as L.Polygon;
                                         (layer.options as any).customId = poly.id;
                                         polygonLayersRef.current.set(poly.id, layer);
+
+                                        // Preserve selection glow when the selected layer is recreated.
+                                        if (selectedId === poly.id) {
+                                            layer.setStyle({ dashArray: '10 5' });
+                                            const el = layer.getElement();
+                                            if (el) el.classList.add('polygon-glow');
+                                        }
+
                                         // Force to front if it's a child
                                         if (poly.parentId) layer.bringToFront();
                                     },
@@ -286,6 +312,7 @@ export default function MapLayerManager({
                                         L.DomEvent.stopPropagation(e as any);
                                         if (editingId || isCreating) return;
                                         const clickPt: [number, number] = [e.latlng.lat, e.latlng.lng];
+                                        const nativeEvent = (e as any).originalEvent as MouseEvent | undefined;
 
                                         let menuTargetId = poly.id;
 
@@ -300,7 +327,21 @@ export default function MapLayerManager({
                                         }
 
                                         setSelectedId(menuTargetId);
-                                        setPolygonContextMenu({ x: (e as any).originalEvent.pageX, y: (e as any).originalEvent.pageY, polygonId: menuTargetId });
+                                        if (!nativeEvent) return;
+                                        const mapRect = ((e.target as any)?._map as L.Map | undefined)?.getContainer?.()?.getBoundingClientRect?.();
+                                        setPolygonContextMenu({
+                                            x: nativeEvent.clientX + 2,
+                                            y: nativeEvent.clientY + 2,
+                                            polygonId: menuTargetId,
+                                            mapRect: mapRect
+                                                ? {
+                                                    left: mapRect.left,
+                                                    top: mapRect.top,
+                                                    right: mapRect.right,
+                                                    bottom: mapRect.bottom,
+                                                }
+                                                : undefined,
+                                        });
                                     }
                                 }}
                             >

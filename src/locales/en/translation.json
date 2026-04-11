@@ -33,7 +33,9 @@
       "untitled": "Untitled batch",
       "polygons": "Polygons",
       "source": "Source",
-      "open": "Open for validation"
+      "open": "Open for validation",
+      "rename": "Rename",
+      "delete": "Delete"
     },
     "map": {
       "title": "Import validation",
@@ -60,6 +62,17 @@
       "helper": "Upload a ZIP export to create a new import list.",
       "success": "Upload complete. Processing import…",
       "error": "Upload failed. Please try again."
+    },
+    "rename": {
+      "prompt": "Enter a new name for this import list:",
+      "empty": "Name cannot be empty.",
+      "success": "Import list renamed.",
+      "error": "Unable to rename this import."
+    },
+    "delete": {
+      "confirm": "Delete this import list? This cannot be undone.",
+      "success": "Import list deleted.",
+      "error": "Unable to delete this import."
     }
   },
   "languages": {
@@ -188,7 +201,10 @@
     "cancel": "Cancel",
     "confirm": "Confirm",
     "save": "Save",
+    "add": "Add",
     "delete": "Delete",
+    "select": "Select",
+    "quantity": "Quantity",
     "loading": "Loading...",
     "yes": "Yes",
     "no": "No"
@@ -324,6 +340,10 @@
     "selectTypePlaceholder": "Select a type (optional)",
     "dateLabel": "Date",
     "durationLabel": "Duration (minutes)",
+    "productsTools": "Products & tools",
+    "unit": "Unit",
+    "tool": "Tool",
+    "product": "Product",
     "submit": "Add operation",
     "update": "Save changes",
     "edit": "Edit",
@@ -333,9 +353,26 @@
     "emptyHistory": "No operations recorded for this parcel yet.",
     "noParcel": "Select a parcel to view or add operations.",
     "readOnly": "You can view operations but cannot add new ones for this parcel.",
+    "errorLoad": "Unable to load operations",
+    "errorCreate": "Failed to save operation",
+    "errorSave": "Not allowed to edit this parcel",
     "refreshFarms": "Refresh farms",
     "refreshParcels": "Reload parcels",
     "pinTopRight": "Open top-right"
+  },
+  "periods": {
+    "title": "Manage periods",
+    "subtitle": "Create and update yearly parcel periods for the selected farm.",
+    "selectFarm": "Select a farm to manage its periods.",
+    "createTitle": "New period",
+    "namePlaceholder": "Name (optional)",
+    "createAction": "Create period",
+    "listTitle": "Existing periods",
+    "saveAction": "Save changes",
+    "empty": "No periods created yet.",
+    "errorLoad": "Unable to load periods",
+    "errorCreate": "Unable to create period",
+    "errorUpdate": "Unable to update period"
   },
   "profile": {
     "title": "Profile",
@@ -433,6 +470,8 @@
       "close": "Close filters",
       "periodLabel": "Period",
       "anyPeriod": "Any period",
+      "typeLabel": "Operation type",
+      "anyType": "Any type",
       "toolLabel": "Tool used",
       "productLabel": "Product",
       "anyTool": "Any tool",
@@ -473,6 +512,8 @@
     "polygonMenu": {
       "rename": "Rename",
       "edit": "Edit",
+      "addChild": "Add child parcel",
+      "selectParent": "Select parent",
       "color": "Color",
       "delete": "Delete"
     },
@@ -485,6 +526,8 @@
       "add": "Share",
       "loading": "Loading shares...",
       "empty": "No shares yet.",
+      "currentShares": "People with access",
+      "noShares": "Not shared with anyone yet",
       "remove": "Remove",
       "roles": {
         "editor": "Editor",
@@ -516,6 +559,12 @@
     },
     "toolbar": {
       "addTitle": "Add",
+      "toggleAutoCorrect": "Toggle auto overlap correction",
+      "toggleCloseLoopMidpoint": "Toggle cursor add point on closing edge",
+      "autoCorrectOn": "Auto-correct: on",
+      "autoCorrectOff": "Auto-correct: off",
+      "closeLoopMidpointOn": "Close-edge point: on",
+      "closeLoopMidpointOff": "Close-edge point: off",
       "finishDrawing": "Finish drawing",
       "cancelDrawing": "Cancel drawing",
       "removeLastPoint": "Remove last point",

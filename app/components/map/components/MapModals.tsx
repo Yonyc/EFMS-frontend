@@ -23,7 +23,7 @@ interface MapModalsProps {
     handleAreaCancel: () => void;
     // share modal
     shareParcelId: string | null;
-    setShareParcelId: (val: string | null) => void;
+    closeShareModal: () => void;
     shareList: ParcelShareDto[];
     shareUsername: string;
     setShareUsername: (val: string) => void;
@@ -42,7 +42,7 @@ const MapModals = React.memo((props: MapModalsProps) => {
         t,
         renamingId, setRenamingId, renameValue, setRenameValue, renamePeriodId, setRenamePeriodId, handleRenameConfirm, periods,
         isAreaModalOpen, areaName, setAreaName, selectedPeriodId, setSelectedPeriodId, handleAreaConfirm, handleAreaCancel,
-        shareParcelId, setShareParcelId, shareList, shareUsername, setShareUsername, shareRole, setShareRole, shareError, shareLoading,
+        shareParcelId, closeShareModal, shareList, shareUsername, setShareUsername, shareRole, setShareRole, shareError, shareLoading,
         handleAddShare, handleUpdateShare, handleRemoveShare, allPolygons
     } = props;
 
@@ -119,7 +119,7 @@ const MapModals = React.memo((props: MapModalsProps) => {
             {/* Share Modal */}
             {shareParcelId && (
                 <div className="fixed inset-0 z-[110000] flex items-center justify-center p-4">
-                    <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={() => setShareParcelId(null)} />
+                    <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={closeShareModal} />
                     <div className="relative w-full max-w-[32rem] overflow-hidden rounded-3xl border border-white/10 bg-slate-900 shadow-2xl shadow-black/50">
                         <div className="border-b border-white/5 bg-white/5 p-6 sm:p-8">
                             <div className="flex items-center justify-between">
@@ -130,7 +130,7 @@ const MapModals = React.memo((props: MapModalsProps) => {
                                     </p>
                                 </div>
                                 <button
-                                    onClick={() => setShareParcelId(null)}
+                                    onClick={closeShareModal}
                                     className="rounded-xl p-2 text-slate-400 hover:bg-white/5 hover:text-white"
                                 >
                                     <XMarkIcon className="h-6 w-6" />
@@ -161,9 +161,8 @@ const MapModals = React.memo((props: MapModalsProps) => {
                                         onChange={(e) => setShareRole(e.target.value)}
                                         className="h-12 rounded-2xl border border-white/10 bg-white/5 px-4 text-white outline-none focus:border-indigo-500"
                                     >
-                                        <option value="VIEWER">Viewer</option>
-                                        <option value="EDITOR">Editor</option>
-                                        <option value="OWNER">Owner</option>
+                                        <option value="VIEWER">{t('map.sharing.roles.viewer', { defaultValue: 'Viewer' })}</option>
+                                        <option value="EDITOR">{t('map.sharing.roles.editor', { defaultValue: 'Editor' })}</option>
                                     </select>
                                     <button
                                         onClick={handleAddShare}
@@ -194,9 +193,8 @@ const MapModals = React.memo((props: MapModalsProps) => {
                                                     onChange={(event) => handleUpdateShare(share.userId, event.target.value)}
                                                     className="rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-xs text-white outline-none focus:border-indigo-500"
                                                 >
-                                                    <option value="VIEWER">Viewer</option>
-                                                    <option value="EDITOR">Editor</option>
-                                                    <option value="OWNER">Owner</option>
+                                                    <option value="VIEWER">{t('map.sharing.roles.viewer', { defaultValue: 'Viewer' })}</option>
+                                                    <option value="EDITOR">{t('map.sharing.roles.editor', { defaultValue: 'Editor' })}</option>
                                                 </select>
                                                 <button
                                                     onClick={() => handleRemoveShare(share.userId)}

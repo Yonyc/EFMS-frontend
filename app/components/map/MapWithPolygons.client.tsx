@@ -83,7 +83,12 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
     const [areaName, setAreaName] = useState("");
     const [selectedPeriodId, setSelectedPeriodId] = useState<string>("");
     const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
-    const [polygonContextMenu, setPolygonContextMenu] = useState<{ x: number; y: number; polygonId: string } | null>(null);
+    const [polygonContextMenu, setPolygonContextMenu] = useState<{
+        x: number;
+        y: number;
+        polygonId: string;
+        mapRect?: { left: number; top: number; right: number; bottom: number };
+    } | null>(null);
     const [showColorPicker, setShowColorPicker] = useState(false);
     const [periods, setPeriods] = useState<PeriodDto[]>([]);
     const [preferTopRight, setPreferTopRight] = useState<boolean>(!!user?.operationsPopupTopRight);
@@ -360,7 +365,7 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
             <MapModals
                 t={t} renamingId={renamingId} setRenamingId={setRenamingId} renameValue={renameValue} setRenameValue={setRenameValue} renamePeriodId={renamePeriodId} setRenamePeriodId={setRenamePeriodId} handleRenameConfirm={handleRenameConfirm} periods={periods}
                 isAreaModalOpen={modal.open} areaName={areaName} setAreaName={setAreaName} selectedPeriodId={selectedPeriodId} setSelectedPeriodId={setSelectedPeriodId} handleAreaConfirm={confirmCreate} handleAreaCancel={cancelModal}
-                shareParcelId={shareParcelId} setShareParcelId={setShareParcelId} shareList={shareList} shareUsername={shareUsername} setShareUsername={setShareUsername} shareRole={shareRole} setShareRole={setShareRole} shareError={shareError} shareLoading={shareLoading}
+                shareParcelId={shareParcelId} closeShareModal={closeShareModal} shareList={shareList} shareUsername={shareUsername} setShareUsername={setShareUsername} shareRole={shareRole} setShareRole={setShareRole} shareError={shareError} shareLoading={shareLoading}
                 handleAddShare={() => sharing.handleAddShare({ preventDefault: () => {} } as any)} handleUpdateShare={handleUpdateShare} handleRemoveShare={handleRemoveShare} allPolygons={allPolygons}
             />
 
