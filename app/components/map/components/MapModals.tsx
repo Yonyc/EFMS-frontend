@@ -1,6 +1,6 @@
 import React from "react";
-import type { PeriodDto, PolygonData, ParcelShareDto, OverlapWarning } from "../types";
-import { XMarkIcon, ExclamationTriangleIcon, CheckIcon, EyeIcon, PencilIcon, WrenchIcon } from "@heroicons/react/24/outline";
+import type { PeriodDto, PolygonData, ParcelShareDto } from "../types";
+import { XMarkIcon } from "@heroicons/react/24/outline";
 
 interface MapModalsProps {
     t: any;
@@ -35,13 +35,6 @@ interface MapModalsProps {
     handleUpdateShare: (userId: number, role: string) => Promise<void>;
     handleRemoveShare: (userId: number) => Promise<void>;
     allPolygons: PolygonData[];
-    // overlaps
-    overlapWarning: OverlapWarning | null;
-    onOverlapAccept: () => void;
-    onOverlapManualEdit: () => void;
-    showPreview: boolean;
-    onShowPreview: () => void;
-    previewVisibility: { original: boolean; fixed: boolean };
 }
 
 const MapModals = React.memo((props: MapModalsProps) => {
@@ -50,158 +43,76 @@ const MapModals = React.memo((props: MapModalsProps) => {
         renamingId, setRenamingId, renameValue, setRenameValue, renamePeriodId, setRenamePeriodId, handleRenameConfirm, periods,
         isAreaModalOpen, areaName, setAreaName, selectedPeriodId, setSelectedPeriodId, handleAreaConfirm, handleAreaCancel,
         shareParcelId, setShareParcelId, shareList, shareUsername, setShareUsername, shareRole, setShareRole, shareError, shareLoading,
-        handleAddShare, handleUpdateShare, handleRemoveShare, allPolygons,
-        overlapWarning, onOverlapAccept, onOverlapManualEdit, showPreview, onShowPreview, previewVisibility
+        handleAddShare, handleUpdateShare, handleRemoveShare, allPolygons
     } = props;
-
-    const renderOverlapWarning = () => {
-        if (!overlapWarning) return null;
-        
-        const overlapCount = overlapWarning.overlappingPolygons.length;
-        const verticesCount = overlapWarning.fixedCoords?.length ?? 0;
-        const areaPercentage = Math.round(
-            ((overlapWarning.fixedCoords?.length ?? 0) / (overlapWarning.originalCoords?.length || 1)) * 100
-        );
-
-        return (
-            <div style={{ display: "flex", flexDirection: "column", gap: "1rem", marginTop: "1rem", padding: "1.5rem", background: "#fff9f9", border: "1px solid #ffcccc", borderRadius: 8 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", color: "#d32f2f" }}>
-                    <ExclamationTriangleIcon className="h-6 w-6" />
-                    <h3 style={{ margin: 0, fontSize: "1.1rem", fontWeight: 700 }}>{t('map.overlap.title')}</h3>
-                </div>
-                
-                <p style={{ margin: 0, color: '#555', fontSize: "0.95rem", lineHeight: 1.5 }}>
-                    {t('map.overlap.description', { count: overlapCount })}
-                </p>
-                
-                <ul style={{ margin: 0, paddingLeft: "1.25rem", color: '#d32f2f', fontSize: "0.9rem", fontWeight: 600 }}>
-                    {overlapWarning.overlappingPolygons.map(op => (
-                        <li key={op.id}>{op.name}</li>
-                    ))}
-                </ul>
-
-                <div style={{ padding: '0.75rem', background: '#e8f5e9', border: '1px solid #4caf50', borderRadius: 6, color: '#2e7d32', fontSize: '0.85rem' }}>
-                    <strong>✓ {t('map.overlap.autoFixTitle')}</strong> {t('map.overlap.autoFixMessage', { vertices: verticesCount, percentage: areaPercentage })}
-                </div>
-
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
-                    <button 
-                        onClick={onShowPreview}
-                        style={{ padding: "0.5rem 0.75rem", borderRadius: 6, border: "1px solid #007bff", background: showPreview ? "#e3f2fd" : "transparent", color: "#007bff", cursor: "pointer", fontSize: "0.85rem", display: "flex", alignItems: "center", gap: "0.4rem" }}
-                    >
-                        <EyeIcon className="h-4 w-4" />
-                        {t('map.overlap.previewButton')}
-                    </button>
-                    <button 
-                        onClick={onOverlapManualEdit}
-                        style={{ padding: "0.5rem 0.75rem", borderRadius: 6, border: "1px solid #2196f3", background: "#fff", color: "#2196f3", cursor: "pointer", fontSize: "0.85rem", display: "flex", alignItems: "center", gap: "0.4rem" }}
-                    >
-                        <WrenchIcon className="h-4 w-4" />
-                        {t('map.overlap.manualEdit')}
-                    </button>
-                    <button 
-                        onClick={() => {
-                            if (renamingId) handleRenameConfirm(true, true);
-                            else handleAreaConfirm(true, true);
-                        }}
-                        style={{ padding: "0.5rem 0.75rem", borderRadius: 6, border: "1px solid #ff9800", background: "transparent", color: "#ff9800", cursor: "pointer", fontSize: "0.85rem" }}
-                    >
-                        {t('map.overlap.allowOverlap', { defaultValue: 'Allow overlap' })}
-                    </button>
-                </div>
-            </div>
-        );
-    };
 
     return (
         <>
             {/* Rename Modal */}
             {renamingId && (
-                <div style={{ position: "fixed", inset: 0, background: showPreview ? "transparent" : "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 10001, pointerEvents: showPreview ? 'none' : 'auto' }}>
-                    {showPreview ? (
-                        <div style={{ position: 'absolute', bottom: '2rem', left: '50%', transform: 'translateX(-50%)', pointerEvents: 'auto' }}>
-                            <button 
-                                onClick={onShowPreview}
-                                style={{ padding: "0.75rem 1.5rem", borderRadius: 30, border: "none", background: "#007bff", color: "#fff", cursor: "pointer", fontWeight: 600, boxShadow: '0 4px 12px rgba(0,0,0,0.2)', display: "flex", alignItems: "center", gap: "0.5rem" }}
+                <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 10001 }}>
+                    <div style={{ background: "#fff", padding: "2rem", borderRadius: 8, boxShadow: "0 4px 24px rgba(0,0,0,0.3)", minWidth: 400, display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+                        <h2 style={{ margin: 0, color: '#222', fontSize: "1.5rem" }}>{t('map.renameModal.title')}</h2>
+                        <input type="text" value={renameValue} onChange={e => setRenameValue(e.target.value)} onKeyDown={async e => {
+                            if (e.key === "Enter") handleRenameConfirm(true);
+                        }} placeholder={t('map.renameModal.placeholder')} style={{ padding: "0.75rem", fontSize: "1rem", borderRadius: 4, border: "1px solid #ccc", color: "#222" }} autoFocus />
+                        <label style={{ display: "flex", flexDirection: "column", gap: "0.5rem", fontSize: "0.95rem", color: "#333" }}>
+                            {t('map.areaModal.periodLabel', { defaultValue: 'Period' })}
+                            <select
+                                value={renamePeriodId}
+                                onChange={(e) => setRenamePeriodId(e.target.value)}
+                                style={{ padding: "0.7rem", fontSize: "1rem", borderRadius: 4, border: "1px solid #ccc", color: "#222" }}
                             >
-                                <EyeIcon className="h-5 w-5" />
-                                {t('map.overlap.backToOptions', { defaultValue: 'Back to options' })}
+                                <option value="">{t('map.areaModal.periodPlaceholder', { defaultValue: 'No period' })}</option>
+                                {periods.map(period => (
+                                    <option key={period.id} value={String(period.id)}>
+                                        {period.name || `${period.startDate || ''} - ${period.endDate || ''}`}
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
+                        <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem", paddingTop: "1rem", borderTop: "1px solid #eee" }}>
+                            <button onClick={() => { setRenamingId(null); setRenamePeriodId(""); }} style={{ padding: "0.75rem 1.5rem", borderRadius: 4, border: "1px solid #ccc", background: "#fff", cursor: "pointer", fontWeight: 500, color: "#333" }}>{t('common.cancel', { defaultValue: 'Cancel' })}</button>
+                            <button onClick={() => handleRenameConfirm(true)} style={{ padding: "0.75rem 1.5rem", borderRadius: 4, border: "none", background: "#007bff", color: "#fff", cursor: "pointer", fontWeight: 500 }}>
+                                {t('common.confirm', { defaultValue: 'Confirm' })}
                             </button>
                         </div>
-                    ) : (
-                        <div style={{ background: "#fff", padding: "2rem", borderRadius: 8, boxShadow: "0 4px 24px rgba(0,0,0,0.3)", minWidth: 400, display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-                            <h2 style={{ margin: 0, color: '#222', fontSize: "1.5rem" }}>{t('map.renameModal.title')}</h2>
-                            <input type="text" value={renameValue} onChange={e => setRenameValue(e.target.value)} onKeyDown={async e => {
-                                if (e.key === "Enter") handleRenameConfirm(true);
-                            }} placeholder={t('map.renameModal.placeholder')} style={{ padding: "0.75rem", fontSize: "1rem", borderRadius: 4, border: "1px solid #ccc", color: "#222" }} autoFocus />
-                            <label style={{ display: "flex", flexDirection: "column", gap: "0.5rem", fontSize: "0.95rem", color: "#333" }}>
-                                {t('map.areaModal.periodLabel', { defaultValue: 'Period' })}
-                                <select
-                                    value={renamePeriodId}
-                                    onChange={(e) => setRenamePeriodId(e.target.value)}
-                                    style={{ padding: "0.7rem", fontSize: "1rem", borderRadius: 4, border: "1px solid #ccc", color: "#222" }}
-                                >
-                                    <option value="">{t('map.areaModal.periodPlaceholder', { defaultValue: 'No period' })}</option>
-                                    {periods.map(period => (
-                                        <option key={period.id} value={String(period.id)}>
-                                            {period.name || `${period.startDate || ''} - ${period.endDate || ''}`}
-                                        </option>
-                                    ))}
-                                </select>
-                            </label>
-                            {renderOverlapWarning()}
-                            <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem", paddingTop: "1rem", borderTop: "1px solid #eee" }}>
-                                <button onClick={() => { setRenamingId(null); setRenamePeriodId(""); }} style={{ padding: "0.75rem 1.5rem", borderRadius: 4, border: "1px solid #ccc", background: "#fff", cursor: "pointer", fontWeight: 500, color: "#333" }}>{t('common.cancel', { defaultValue: 'Cancel' })}</button>
-                                <button onClick={() => overlapWarning ? onOverlapAccept() : handleRenameConfirm(true)} style={{ padding: "0.75rem 1.5rem", borderRadius: 4, border: "none", background: overlapWarning ? "#4caf50" : "#007bff", color: "#fff", cursor: "pointer", fontWeight: 500 }}>
-                                    {overlapWarning ? t('map.overlap.applyShrink', { defaultValue: 'Confirm & Shrink' }) : t('common.confirm', { defaultValue: 'Confirm' })}
-                                </button>
-                            </div>
-                        </div>
-                    )}
+                    </div>
                 </div>
             )}
 
             {/* Area Modal */}
             {isAreaModalOpen && (
-                <div style={{ position: "fixed", inset: 0, background: showPreview ? "transparent" : "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 10001, pointerEvents: showPreview ? 'none' : 'auto' }}>
-                    {showPreview ? (
-                        <div style={{ position: 'absolute', bottom: '2rem', left: '50%', transform: 'translateX(-50%)', pointerEvents: 'auto' }}>
-                            <button 
-                                onClick={onShowPreview}
-                                style={{ padding: "0.75rem 1.5rem", borderRadius: 30, border: "none", background: "#007bff", color: "#fff", cursor: "pointer", fontWeight: 600, boxShadow: '0 4px 12px rgba(0,0,0,0.2)', display: "flex", alignItems: "center", gap: "0.5rem" }}
+                <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 10001 }}>
+                    <div style={{ background: "#fff", padding: "2rem", borderRadius: 8, boxShadow: "0 4px 24px rgba(0,0,0,0.3)", maxWidth: 500, width: "100%", display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+                        <h2 style={{ margin: 0, color: '#222', fontSize: "1.5rem" }}>{t('map.areaModal.title')}</h2>
+                        <input type="text" value={areaName} onChange={e => setAreaName(e.target.value)} onKeyDown={e => e.key === "Enter" && handleAreaConfirm(true)} placeholder={t('map.areaModal.placeholder')} style={{ padding: "0.75rem", fontSize: "1rem", borderRadius: 4, border: "1px solid #ccc", color: "#222" }} autoFocus />
+                        <label style={{ display: "flex", flexDirection: "column", gap: "0.5rem", fontSize: "0.95rem", color: "#333" }}>
+                            {t('map.areaModal.periodLabel', { defaultValue: 'Period' })}
+                            <select
+                                value={selectedPeriodId}
+                                onChange={(e) => setSelectedPeriodId(e.target.value)}
+                                style={{ padding: "0.7rem", fontSize: "1rem", borderRadius: 4, border: "1px solid #ccc", color: "#222" }}
                             >
-                                <EyeIcon className="h-5 w-5" />
-                                {t('map.overlap.backToOptions', { defaultValue: 'Back to options' })}
+                                <option value="">{t('map.areaModal.periodPlaceholder', { defaultValue: 'No period' })}</option>
+                                {periods.map(period => (
+                                    <option key={period.id} value={String(period.id)}>
+                                        {period.name || `${period.startDate || ''} - ${period.endDate || ''}`}
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
+                        
+                        <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem", paddingTop: "1rem", borderTop: "1px solid #eee" }}>
+                            <button onClick={handleAreaCancel} style={{ padding: "0.75rem 1.5rem", borderRadius: 4, border: "1px solid #ccc", background: "#fff", cursor: "pointer", fontWeight: 500, color: "#333" }}>{t('common.cancel')}</button>
+                            <button 
+                                onClick={() => handleAreaConfirm(true)} 
+                                style={{ padding: "0.75rem 1.5rem", borderRadius: 4, border: "none", background: "#007bff", color: "#fff", cursor: "pointer", fontWeight: 500 }}
+                            >
+                                {t('common.confirm')}
                             </button>
                         </div>
-                    ) : (
-                        <div style={{ background: "#fff", padding: "2rem", borderRadius: 8, boxShadow: "0 4px 24px rgba(0,0,0,0.3)", minWidth: 400, display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-                            <h2 style={{ margin: 0, color: '#222', fontSize: "1.5rem" }}>{t('map.areaModal.title')}</h2>
-                            <input type="text" value={areaName} onChange={e => setAreaName(e.target.value)} onKeyDown={e => e.key === "Enter" && handleAreaConfirm(true)} placeholder={t('map.areaModal.placeholder')} style={{ padding: "0.75rem", fontSize: "1rem", borderRadius: 4, border: "1px solid #ccc", color: "#222" }} autoFocus />
-                            <label style={{ display: "flex", flexDirection: "column", gap: "0.5rem", fontSize: "0.95rem", color: "#333" }}>
-                                {t('map.areaModal.periodLabel', { defaultValue: 'Period' })}
-                                <select
-                                    value={selectedPeriodId}
-                                    onChange={(e) => setSelectedPeriodId(e.target.value)}
-                                    style={{ padding: "0.7rem", fontSize: "1rem", borderRadius: 4, border: "1px solid #ccc", color: "#222" }}
-                                >
-                                    <option value="">{t('map.areaModal.periodPlaceholder', { defaultValue: 'No period' })}</option>
-                                    {periods.map(period => (
-                                        <option key={period.id} value={String(period.id)}>
-                                            {period.name || `${period.startDate || ''} - ${period.endDate || ''}`}
-                                        </option>
-                                    ))}
-                                </select>
-                            </label>
-                            {renderOverlapWarning()}
-                            <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem", paddingTop: "1rem", borderTop: "1px solid #eee" }}>
-                                <button onClick={handleAreaCancel} style={{ padding: "0.75rem 1.5rem", borderRadius: 4, border: "1px solid #ccc", background: "#fff", cursor: "pointer", fontWeight: 500, color: "#333" }}>{t('common.cancel', { defaultValue: 'Cancel' })}</button>
-                                <button onClick={() => handleAreaConfirm(true)} style={{ padding: "0.75rem 1.5rem", borderRadius: 4, border: "none", background: overlapWarning ? "#4caf50" : "#007bff", color: "#fff", cursor: "pointer", fontWeight: 500 }}>
-                                    {overlapWarning ? t('map.overlap.applyShrink', { defaultValue: 'Confirm & Shrink' }) : t('common.confirm', { defaultValue: 'Confirm' })}
-                                </button>
-                            </div>
-                        </div>
-                    )}
+                    </div>
                 </div>
             )}
 

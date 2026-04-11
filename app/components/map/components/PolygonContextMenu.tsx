@@ -28,6 +28,8 @@ interface PolygonContextMenuProps {
     pendingDeleteId: string | null;
     setPendingDeleteId: (id: string | null) => void;
     deletePolygon: (id: string) => Promise<void>;
+    addChild: (parentId: string) => void;
+    selectParent: (childId: string) => void;
 }
 
 const PolygonContextMenu = React.memo((props: PolygonContextMenuProps) => {
@@ -39,7 +41,7 @@ const PolygonContextMenu = React.memo((props: PolygonContextMenuProps) => {
         startEdit, approveSingleParcel,
         showColorPicker, setShowColorPicker,
         handleColorSelect, handleColorHover, handleColorLeave,
-        t, pendingDeleteId, setPendingDeleteId, deletePolygon
+        t, pendingDeleteId, setPendingDeleteId, deletePolygon, addChild, selectParent
     } = props;
 
     const floatingMenuClasses = "pointer-events-auto absolute z-[1100] min-w-[220px] rounded-2xl border border-slate-200 bg-white/95 p-1.5 shadow-2xl shadow-slate-900/15 backdrop-blur-md transition-all duration-200";
@@ -84,20 +86,36 @@ const PolygonContextMenu = React.memo((props: PolygonContextMenuProps) => {
                         {t('operations.title', { defaultValue: 'Parcel operations' })}
                     </button>
                 )}
-                {contextType === 'farm' && !isImportMode && canSharePolygon(polygonContextMenu.polygonId) && (
+                {contextType === 'farm' && !isImportMode && (
                     <button
                         type="button"
                         onClick={() => {
-                            const { polygonId } = polygonContextMenu;
                             closePolygonContextMenu();
-                            openShareModal(polygonId);
+                            addChild(polygonContextMenu.polygonId);
                         }}
                         className={`${floatingButtonClasses} text-slate-800`}
                     >
-                        <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-50 text-base text-indigo-600">🤝</span>
-                        {t('map.sharing.open', { defaultValue: 'Share parcel' })}
+                        <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-50 text-base text-indigo-600">➕</span>
+                        {t('map.polygonMenu.addChild', { defaultValue: 'Add child parcel' })}
                     </button>
                 )}
+                {(() => {
+                    const poly = polygons.find(p => p.id === polygonContextMenu.polygonId);
+                    if (!poly?.parentId) return null;
+                    return (
+                        <button
+                            type="button"
+                            onClick={() => {
+                                closePolygonContextMenu();
+                                selectParent(polygonContextMenu.polygonId);
+                            }}
+                            className={`${floatingButtonClasses} text-slate-800`}
+                        >
+                            <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-amber-50 text-base text-amber-600">⬆️</span>
+                            {t('map.polygonMenu.selectParent', { defaultValue: 'Select parent' })}
+                        </button>
+                    );
+                })()}
                 {canEditPolygon(polygonContextMenu.polygonId) && (
                     <button
                         type="button"

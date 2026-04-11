@@ -65,6 +65,7 @@ export interface PolygonData {
     canShare?: boolean;
     validationStatus?: string;
     convertedParcelId?: number | null;
+    parentId?: string | null;
 }
 
 export interface EditState {

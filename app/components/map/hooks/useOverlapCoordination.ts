@@ -4,6 +4,11 @@ import { coordsToWKT } from "../utils/mapUtils";
 import { apiPost, apiPut, apiPatch } from "~/utils/api";
 import type { PolygonData, OverlapWarning, ManualEditContext, MapContextType } from "../types";
 
+const normalizeParentParcelId = (value: unknown): number | null => {
+    const n = Number(value);
+    return Number.isFinite(n) && n > 0 ? n : null;
+};
+
 interface UseOverlapCoordinationProps {
     parcelsEndpoint: string;
     polygons: PolygonData[];
@@ -35,6 +40,10 @@ interface UseOverlapCoordinationProps {
     setIsCreating: (c: boolean) => void;
     contextType: MapContextType;
     resolvedContextId: string;
+    selectedParentId: string | null;
+    setSelectedParentId: (id: string | null) => void;
+    setAreaName: (val: string) => void;
+    autoCorrectEnabled: boolean;
     t: any;
 }
 
@@ -45,7 +54,7 @@ export function useOverlapCoordination({
     showPreview, setShowPreview, setPendingManualEditId, setManualEditContext,
     setRenamingId, masterCleanup, detachCreatedLayer, getMap,
     detectOverlaps, updatePolygon, startEditSimple, createHandlerRef, createdLayerRef, setIsCreating,
-    contextType, resolvedContextId, t
+    contextType, resolvedContextId, selectedParentId, setSelectedParentId, setAreaName, autoCorrectEnabled, t
 }: UseOverlapCoordinationProps) {
 
     const handleOverlapCancel = useCallback(() => {
@@ -89,6 +98,7 @@ export function useOverlapCoordination({
                         name: resolvedName || t('map.defaultPolygonName'),
                         active: true,
                         periodId: (periodIdNum && periodIdNum > 0) ? periodIdNum : null,
+                        parentParcelId: normalizeParentParcelId(currentPoly?.parentId),
                         startValidity: new Date().toISOString(),
                         endValidity: null
                     };
@@ -182,8 +192,14 @@ export function useOverlapCoordination({
         } else if (!force && !allowOverlap) {
             const overlapping = detectOverlaps(tempId, coords);
             if (overlapping.length > 0) {
-                const otherPolygons = polygons.filter(p => overlapping.some(o => o.id === p.id));
-                const fixedCoords = fixOverlap(coords, otherPolygons);
+                // only subtract siblings that intersect with parent
+                const parent = selectedParentId ? polygons.find(p => p.id === selectedParentId) : null;
+                const normalizedParent = selectedParentId ? String(selectedParentId) : null;
+                const siblings = polygons.filter(p => 
+                    overlapping.some(o => o.id === p.id) && 
+                    (p.parentId ? String(p.parentId) : null) === normalizedParent
+                );
+                const fixedCoords = autoCorrectEnabled ? fixOverlap(coords, siblings, parent?.coords) : coords;
 
                 setOverlapWarning({
                     polygonId: tempId,
@@ -201,6 +217,7 @@ export function useOverlapCoordination({
 
         setOverlapWarning(null);
         setModal({ open: false, coords: null });
+        masterCleanup(); // This clears ghosts and drawing layers
 
         const resolvedName = (areaNameRef.current || areaName || overlapWarning?.areaNameSnapshot || t('map.defaultPolygonName')).trim() || t('map.defaultPolygonName');
 
@@ -214,9 +231,10 @@ export function useOverlapCoordination({
             periodId: selectedPeriodId ? Number(selectedPeriodId) : null,
             canEdit: true,
             canShare: false,
+            parentId: selectedParentId,
         };
 
-        const postPayload = {
+        const postPayload: any = {
             name: newPoly.name,
             active: true,
             startValidity: new Date().toISOString(),
@@ -224,6 +242,7 @@ export function useOverlapCoordination({
             geodata: coordsToWKT(newPoly.coords),
             color: newPoly.color,
             periodId: selectedPeriodId ? Number(selectedPeriodId) : undefined,
+            parentParcelId: normalizeParentParcelId(selectedParentId) ?? undefined,
         };
 
         try {
@@ -233,6 +252,9 @@ export function useOverlapCoordination({
                 newPoly.id = String(createdParcel.id);
                 newPoly.canEdit = createdParcel.canEdit ?? true;
                 newPoly.canShare = createdParcel.canShare ?? false;
+                // Clear the naming state for next create
+                areaNameRef.current = "";
+                setAreaName("");
                 setPolygons(prev => [...prev.filter(p => p.id !== tempId), newPoly]);
                 setAllPolygons(prev => [...prev.filter(p => p.id !== tempId), newPoly]);
             } else {
@@ -241,8 +263,10 @@ export function useOverlapCoordination({
             }
         } catch (err) {
             console.error("Failed to create parcel:", err);
+        } finally {
+            setSelectedParentId(null);
         }
-    }, [masterCleanup, modal.coords, overlapWarning, detectOverlaps, polygons, setOverlapWarning, setShowPreview, setModal, areaName, selectedPeriodId, areaNameRef, t, parcelsEndpoint, setPolygons, setAllPolygons]);
+    }, [masterCleanup, modal.coords, overlapWarning, detectOverlaps, polygons, setOverlapWarning, setShowPreview, setModal, areaName, selectedPeriodId, areaNameRef, t, parcelsEndpoint, setPolygons, setAllPolygons, selectedParentId, setSelectedParentId, autoCorrectEnabled]);
 
     const handleCreated = useCallback((e: any) => {
         try {
@@ -252,10 +276,15 @@ export function useOverlapCoordination({
             
             const tempId = `poly-${Date.now()}`;
             const overlapping = detectOverlaps(tempId, coords);
-            
             if (overlapping.length > 0) {
-                const otherPolygons = polygons.filter(p => overlapping.some(o => o.id === p.id));
-                const fixedCoords = fixOverlap(coords, otherPolygons);
+                // calculate fixed coords but only show as warning in naming modal
+                const parent = selectedParentId ? polygons.find(p => p.id === selectedParentId) : null;
+                const normalizedParent = selectedParentId ? String(selectedParentId) : null;
+                const siblings = polygons.filter(p => 
+                    overlapping.some(o => o.id === p.id) && 
+                    (p.parentId ? String(p.parentId) : null) === normalizedParent
+                );
+                const fixedCoords = autoCorrectEnabled ? fixOverlap(coords, siblings, parent?.coords) : coords;
                 setOverlapWarning({
                     polygonId: tempId,
                     overlappingPolygons: overlapping,
@@ -265,7 +294,7 @@ export function useOverlapCoordination({
                     areaNameSnapshot: areaNameRef.current,
                     selectedPeriodIdSnapshot: selectedPeriodId
                 });
-                setShowPreview(false);
+                // We DON'T set setShowPreview(false) here because we want the ghost to stay visible
                 setModal({ open: true, coords: fixedCoords || coords });
             } else {
                 setOverlapWarning(null);
@@ -278,7 +307,7 @@ export function useOverlapCoordination({
             console.error("Error in handleCreated geometry processing:", err);
             setModal({ open: true, coords: [] });
         }
-    }, [detectOverlaps, polygons, setOverlapWarning, areaNameRef, selectedPeriodId, setShowPreview, setModal, createHandlerRef, setIsCreating]);
+    }, [detectOverlaps, polygons, setOverlapWarning, areaNameRef, selectedPeriodId, setShowPreview, setModal, createHandlerRef, setIsCreating, selectedParentId, autoCorrectEnabled]);
 
     return {
         handleOverlapCancel, handleOverlapAccept, handleOverlapManualEdit, confirmCreate, handleCreated

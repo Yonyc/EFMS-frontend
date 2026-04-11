@@ -26,6 +26,7 @@ import { useDraggablePopup } from "./hooks/useDraggablePopup";
 import { useMapSidebarControls } from "./hooks/useMapSidebarControls";
 import { useMapApiActions } from "./hooks/useMapApiActions";
 import { useOverlapCoordination } from "./hooks/useOverlapCoordination";
+import { useSnappyEditing } from "./hooks/useSnappyEditing";
 
 import "./styles/MapLayout.css";
 
@@ -34,6 +35,11 @@ import type {
     PeriodDto, ParcelSearchFilters
 } from "./types";
 import { parseWktCoords, clampToViewport } from "./utils/mapUtils";
+
+const normalizeParentId = (value: unknown): string | null => {
+    const n = Number(value);
+    return Number.isFinite(n) && n > 0 ? String(n) : null;
+};
 
 if (typeof window !== "undefined") {
     (window as any).type = (window as any).type || undefined;
@@ -84,6 +90,7 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
     const [isMobile, setIsMobile] = useState(false);
     const [isApproving, setIsApproving] = useState(false);
     const [approveFeedback, setApproveFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+    const [selectedParentId, setSelectedParentId] = useState<string | null>(null);
 
     // refs
     const originalColorRef = useRef<string | null>(null);
@@ -92,7 +99,6 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
     const viewportDebounceRef = useRef<number | null>(null);
     const featureGroupRef = useRef<L.FeatureGroup>(null);
     const editControlRef = useRef<any>(null);
-    const createRafRef = useRef<number | null>(null);
     const areaNameRef = useRef<string>("");
     const renameValueRef = useRef<string>("");
 
@@ -102,9 +108,12 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
 
     const getMap = useCallback(() => (featureGroupRef.current as any)?._map || (featureGroupRef.current as any)?.getMap?.(), []);
 
+    const { updateGhost, clearGhost, setSnapPreview } = useSnappyEditing({ polygons, getMap });
+
     // init hooks
     const editor = usePolygonEditor({
-        polygons, setPolygons, setAllPolygons, parcelsEndpoint, contextType, getMap, t, areaName, setAreaName, setModal, setRenamingId, setSelectedPeriodId, setRenameValue, setRenamePeriodId
+        polygons, setPolygons, setAllPolygons, parcelsEndpoint, contextType, getMap, t, areaName, setAreaName, setModal, setRenamingId, setSelectedPeriodId, setRenameValue, setRenamePeriodId,
+        selectedParentId, setSelectedParentId, updateGhost, clearGhost, setSnapPreview
     });
     const search = useParcelSearch({ parcelsEndpoint, contextType, isImportMode, getMap, defaultSearchFilters });
     const operations = useParcelOperations({ farmId: Number(props.farm_id), resolvedContextId, contextType, canEditPolygon: (id: string) => (polygons.find(p => p.id === id) || allPolygons.find(p => p.id === id))?.canEdit !== false, t });
@@ -123,7 +132,7 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
         showPreview: editor.showPreview, setShowPreview: editor.setShowPreview, setPendingManualEditId: editor.setPendingManualEditId, setManualEditContext: editor.setManualEditContext, setRenamingId,
         masterCleanup: () => masterCleanup(), detachCreatedLayer: () => detachCreatedLayer(), getMap, detectOverlaps: editor.detectOverlaps, updatePolygon: editor.updatePolygon, startEditSimple: (id, coords) => startEditSimple(id, coords), 
         createHandlerRef: editor.createHandlerRef, createdLayerRef: editor.createdLayerRef, setIsCreating: editor.setIsCreating,
-        contextType, resolvedContextId, t
+        contextType, resolvedContextId, selectedParentId, setSelectedParentId, setAreaName, autoCorrectEnabled: editor.autoCorrectEnabled, t
     });
 
     // grab hook stuff
@@ -137,7 +146,7 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
     const { shareParcelId, setShareParcelId, shareList, shareUsername, setShareUsername, shareRole, setShareRole, shareError, setShareError, shareLoading, openShareModal, closeShareModal, handleUpdateShare, handleRemoveShare } = sharing;
     const { isListCollapsed, setIsListCollapsed, listFilter, setListFilter, showFilterMenu, setShowFilterMenu, searchQuery, setSearchQuery, filterOptions, activeFilterLabel, filteredPolygons } = sidebarControl;
     const { loadPeriods, handleApproveAll, approveSingleParcel, handleRenameConfirm, togglePolygonVisibility, renamePolygonInline } = apiActions;
-    const { handleOverlapCancel, handleOverlapAccept, handleOverlapManualEdit, confirmCreate, handleCreated } = coordination;
+    const { confirmCreate, handleCreated } = coordination;
 
     // helpers
     const detachCreatedLayer = useCallback(() => {
@@ -153,11 +162,12 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
         setModal({ open: false, coords: null });
         setAreaName("");
         setSelectedPeriodId("");
-    }, [getMap, createdLayerRef]);
+        setSelectedParentId(null);
+    }, [getMap, createdLayerRef, setSelectedParentId]);
 
     const onDeleteLastVertex = useCallback(() => {
-        if (createHandlerRef.current?.removeLastPoint) createHandlerRef.current.removeLastPoint();
-    }, [createHandlerRef]);
+        editor.removeLastSketchPoint();
+    }, [editor]);
 
     const focusPolygon = useCallback(async (id: string) => {
         const map = getMap();
@@ -181,13 +191,6 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
         editor.startEdit(id, canEdit, coords);
     }, [polygons, allPolygons, editor]);
 
-    const handleShowPreview = useCallback(() => {
-        if (!overlapWarning) return;
-        if (overlapWarning.isNewPolygon) detachCreatedLayer();
-        setPreviewVisibility({ original: false, fixed: true });
-        setShowPreview(true);
-    }, [overlapWarning, detachCreatedLayer, setShowPreview, setPreviewVisibility]);
-
     const masterCleanup = useCallback(() => {
         detachCreatedLayer();
         editor.cleanupEdit();
@@ -195,7 +198,6 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
             const h = (editControlRef.current as any)._tool;
             if (h?.disable) h.disable();
         }
-        editor.setEditingId(null);
         editor.setIsCreating(false);
         editor.setCreatePointCount(0);
         const map = getMap();
@@ -212,8 +214,6 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
         setPolygonContextMenu(null); setPendingDeleteId(null); setShowColorPicker(false); originalColorRef.current = null;
     }, []);
 
-    const finishCreate = useCallback(() => { createHandlerRef.current?.completeShape(); }, [createHandlerRef]);
-
     const canSharePolygon = useCallback((id: string) => (polygons.find(p => p.id === id) || allPolygons.find(p => p.id === id))?.canShare === true, [allPolygons, polygons]);
 
     // effects
@@ -227,6 +227,7 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
                         id: String(p.id), name: p.name || t('map.unnamedParcel'), coords: p.geodata ? parseWktCoords(p.geodata) : [],
                         visible: true, version: 0, color: p.color || '#3388ff', canEdit: p.canEdit ?? true, canShare: p.canShare ?? false,
                         active: p.active, startValidity: p.startValidity, endValidity: p.endValidity, farmId: p.farmId, periodId: p.periodId ?? null, validationStatus: p.validationStatus, convertedParcelId: p.convertedParcelId ?? null,
+                        parentId: normalizeParentId(p.parentParcelId),
                     }));
                     setPolygons(parsed);
                     setAllPolygons(prev => {
@@ -244,15 +245,8 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
 
     useEffect(() => {
         if (!isCreating) return;
-        const tick = () => {
-            const h = createHandlerRef.current;
-            const count = h ? (h._markers ? h._markers.length : (h._poly ? h._poly.getLatLngs().length : 0)) : 0;
-            setCreatePointCount(count);
-            createRafRef.current = requestAnimationFrame(tick);
-        };
-        createRafRef.current = requestAnimationFrame(tick);
-        return () => { if (createRafRef.current) cancelAnimationFrame(createRafRef.current); };
-    }, [isCreating, setCreatePointCount, createHandlerRef]);
+        setCreatePointCount(editor.drawingPoints.length);
+    }, [isCreating, editor.drawingPoints.length, setCreatePointCount]);
 
     useEffect(() => { if (!showPreview && overlapWarning?.isNewPolygon) reattachCreatedLayer(); }, [showPreview, overlapWarning, reattachCreatedLayer]);
 
@@ -275,16 +269,27 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
                 else if (pendingDeleteId) setPendingDeleteId(null);
                 else setContextMenu(null);
                 closePolygonContextMenu();
-            } else if (e.key === 'Enter') {
+            } else if (e.key === 'Enter' || e.key === 'v' || e.key === 'V') {
                 if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return;
                 if (pendingDeleteId) { deletePolygonSimple(pendingDeleteId); setPendingDeleteId(null); }
-                else if (isCreating && createPointCount >= 3) finishCreate();
+                else if (isCreating && createPointCount >= 3) editor.finishCreate(handleCreated);
                 else if (editingId) editor.finishEdit();
+            } else if (e.key === 'Delete' || e.key === 'Backspace') {
+                if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return;
+                if ((isCreating || !!editingId) && e.key === 'Backspace') {
+                    e.preventDefault();
+                    editor.removeLastSketchPoint();
+                    return;
+                }
+                if (selectedId && !editingId && !isCreating) {
+                    const canEdit = (polygons.find(p => p.id === selectedId) || allPolygons.find(p => p.id === selectedId))?.canEdit !== false;
+                    if (canEdit) setPendingDeleteId(selectedId);
+                }
             }
         };
         window.addEventListener('keydown', handleKey);
         return () => window.removeEventListener('keydown', handleKey);
-    }, [isCreating, editingId, renamingId, pendingDeleteId, createPointCount, overlapWarning, editor, closePolygonContextMenu, deletePolygonSimple, finishCreate]);
+    }, [isCreating, editingId, renamingId, pendingDeleteId, createPointCount, overlapWarning, editor, closePolygonContextMenu, deletePolygonSimple, handleCreated]);
 
     useEffect(() => {
         if (!pendingManualEditId) return;
@@ -302,7 +307,7 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
         <div className="relative h-full w-full">
             {allowCreate && contextMenu && (
                 <div className="fixed z-[10000] min-w-[14rem] rounded-2xl border border-slate-200 bg-white/95 p-1 shadow-2xl backdrop-blur" style={{ left: contextMenu.x, top: contextMenu.y }}>
-                    <button type="button" onClick={() => { setContextMenu(null); editor.startCreate(); }} className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-indigo-700 hover:bg-slate-100">
+                    <button type="button" onClick={() => { setContextMenu(null); setSelectedParentId(null); editor.startCreate(); }} className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-indigo-700 hover:bg-slate-100">
                         <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">+</span>
                         {t('map.contextMenu.addPolygon')}
                     </button>
@@ -315,6 +320,22 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
                     canEditPolygon={(id) => (polygons.find(p => p.id === id) || allPolygons.find(p => p.id === id))?.canEdit !== false}
                     closePolygonContextMenu={closePolygonContextMenu} setRenamingId={setRenamingId} setRenameValue={setRenameValue} setRenamePeriodId={setRenamePeriodId} contextType={contextType} setSelectedId={setSelectedId} setCurrentParcelId={setCurrentParcelId} loadParcelOperations={loadParcelOperations} setOperationPopup={setOperationPopup} canSharePolygon={canSharePolygon} openShareModal={openShareModal} startEdit={startEditSimple} approveSingleParcel={approveSingleParcel}
                     handleColorSelect={async (c) => { await renamePolygonInline(polygonContextMenu.polygonId, c); }} handleColorHover={() => {}} handleColorLeave={() => {}} pendingDeleteId={pendingDeleteId} setPendingDeleteId={setPendingDeleteId} deletePolygon={deletePolygonSimple}
+                    addChild={(parentId) => {
+                        setSelectedParentId(parentId);
+                        editor.startCreate();
+                    }}
+                    selectParent={(childId) => {
+                        const child = polygons.find(p => String(p.id) === String(childId));
+                        if (child?.parentId) {
+                            const pId = String(child.parentId);
+                            setSelectedId(pId);
+                            const parentLayer = polygonLayersRef.current.get(pId);
+                            if (parentLayer) {
+                                const map = getMap();
+                                if (map) map.fitBounds(parentLayer.getBounds(), { padding: [50, 50] });
+                            }
+                        }
+                    }}
                 />
             )}
 
@@ -341,7 +362,6 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
                 isAreaModalOpen={modal.open} areaName={areaName} setAreaName={setAreaName} selectedPeriodId={selectedPeriodId} setSelectedPeriodId={setSelectedPeriodId} handleAreaConfirm={confirmCreate} handleAreaCancel={cancelModal}
                 shareParcelId={shareParcelId} setShareParcelId={setShareParcelId} shareList={shareList} shareUsername={shareUsername} setShareUsername={setShareUsername} shareRole={shareRole} setShareRole={setShareRole} shareError={shareError} shareLoading={shareLoading}
                 handleAddShare={() => sharing.handleAddShare({ preventDefault: () => {} } as any)} handleUpdateShare={handleUpdateShare} handleRemoveShare={handleRemoveShare} allPolygons={allPolygons}
-                overlapWarning={overlapWarning} onOverlapAccept={handleOverlapAccept} onOverlapManualEdit={handleOverlapManualEdit} showPreview={showPreview} onShowPreview={handleShowPreview} previewVisibility={previewVisibility}
             />
 
             <div className="flex h-full w-full min-h-0 relative">
@@ -356,14 +376,27 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
                 <div data-tour-id="map-canvas" className="h-full w-full min-h-0">
                     <MapLayerManager
                         center={center} polygons={polygons} editingId={editingId} selectedId={selectedId} setSelectedId={setSelectedId} isCreating={isCreating} drawOptions={drawOptions} handleCreated={handleCreated} overlapWarning={overlapWarning} showPreview={showPreview} previewVisibility={previewVisibility} pendingManualEditId={pendingManualEditId}
-                        featureGroupRef={featureGroupRef as any} editControlRef={editControlRef} polygonLayersRef={polygonLayersRef} setPolygonContextMenu={setPolygonContextMenu} setRenamingId={setRenamingId} setRenameValue={setRenameValue} setPendingDeleteId={setPendingDeleteId} setContextMenu={setContextMenu} closePolygonContextMenu={closePolygonContextMenu} viewportDebounceRef={viewportDebounceRef} setViewportBounds={setViewportBounds} hasActiveSearchFilters={hasActiveSearchFilters} isImportMode={isImportMode} contextType={contextType} getMap={getMap}
+                        featureGroupRef={featureGroupRef as any} editControlRef={editControlRef} polygonLayersRef={polygonLayersRef} setPolygonContextMenu={setPolygonContextMenu} setRenamingId={setRenamingId} setRenameValue={setRenameValue} setPendingDeleteId={setPendingDeleteId} setContextMenu={setContextMenu} closePolygonContextMenu={closePolygonContextMenu} viewportDebounceRef={viewportDebounceRef} setViewportBounds={setViewportBounds} hasActiveSearchFilters={hasActiveSearchFilters} isImportMode={isImportMode} contextType={contextType}
+                        drawingPoints={editor.drawingPoints}
+                        ghostCoords={editor.ghostCoords}
+                        createPreviewPoint={editor.createPreviewPoint}
+                        autoCorrectEnabled={editor.autoCorrectEnabled}
+                        setIsHoveringSketchHandle={editor.setIsHoveringSketchHandle}
+                        suppressSketchClickTemporarily={editor.suppressSketchClickTemporarily}
+                        moveSketchPoint={editor.moveSketchPoint}
+                        insertSketchPoint={editor.insertSketchPoint}
+                        removeSketchPoint={editor.removeSketchPoint}
                     />
                 </div>
 
                 <div data-tour-id="map-toolbar" className="pointer-events-auto absolute top-4 right-4 z-[2000] flex flex-wrap justify-end gap-2">
                     <MapToolbar
                         showPreview={showPreview} setShowPreview={setShowPreview} overlapWarning={overlapWarning} setPreviewVisibility={setPreviewVisibility} previewVisibility={previewVisibility} allowCreate={allowCreate} editingId={editingId} isCreating={isCreating} createPointCount={createPointCount} 
-                        startCreate={() => editor.startCreate()} finishCreate={finishCreate} cancelCreate={() => editor.cancelCreate()} finishEdit={() => editor.finishEdit()} cancelEdit={() => editor.cancelEdit()} isSearchOpen={isSearchOpen} setIsSearchOpen={setIsSearchOpen} hasActiveSearchFilters={hasActiveSearchFilters} onDeleteLastVertex={onDeleteLastVertex} t={t}
+                        startCreate={() => { setSelectedParentId(null); editor.startCreate(); }} finishCreate={() => editor.finishCreate(handleCreated)} cancelCreate={() => editor.cancelCreate()} finishEdit={() => editor.finishEdit()} cancelEdit={() => editor.cancelEdit()} setIsSearchOpen={setIsSearchOpen} hasActiveSearchFilters={hasActiveSearchFilters} onDeleteLastVertex={onDeleteLastVertex} t={t}
+                        autoCorrectEnabled={editor.autoCorrectEnabled}
+                        toggleAutoCorrect={() => editor.setAutoCorrectEnabled(!editor.autoCorrectEnabled)}
+                        closeLoopMidpointEnabled={editor.closeLoopMidpointEnabled}
+                        toggleCloseLoopMidpoint={() => editor.setCloseLoopMidpointEnabled(!editor.closeLoopMidpointEnabled)}
                     />
                 </div>
             </div>
@@ -371,6 +404,7 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
             <MapSearchFilters
                 isSearchOpen={isSearchOpen} isImportMode={isImportMode} searchDraft={searchDraft} setSearchDraft={setSearchDraft} tools={tools} products={products} periods={periods} operationTypes={operationTypes} searchAreaCoords={searchAreaCoords} isSearchDrawing={isSearchDrawing}
                 startSearchPolygon={() => startSearchPolygon(isCreating, editingId)} cancelSearchPolygon={cancelSearchPolygon} clearSearchPolygon={clearSearchPolygon} clearSearchFilters={clearSearchFilters} applySearchFilters={applySearchFilters} t={t}
+                disabled={isCreating || !!editingId}
             />
         </div>
     );

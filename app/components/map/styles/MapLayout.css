@@ -51,3 +51,72 @@
     stroke-dasharray: 10 5;
     animation: polygonDash 1.2s linear infinite, polygonGlow 2.4s ease-in-out infinite;
 }
+
+/* Rework Leaflet.Draw vertex squares to circles */
+.leaflet-editing-icon {
+    width: 12px !important;
+    height: 12px !important;
+    margin-left: -6px !important;
+    margin-top: -6px !important;
+    background-image: none !important;
+    border-radius: 50% !important;
+    background: #ffffff !important;
+    border: 2px solid #2563eb !important;
+    box-shadow: 0 0 4px rgba(0, 0, 0, 0.4), 0 0 10px rgba(37, 99, 235, 0.2) !important;
+    transition: transform 0.1s ease-out, box-shadow 0.2s ease-in-out !important;
+}
+
+.custom-midpoint-icon {
+    pointer-events: auto;
+    background: transparent !important;
+    border: none !important;
+}
+
+.custom-midpoint-icon .midpoint-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 9999px;
+    background: rgba(16, 185, 129, 0.2);
+    border: 2px solid rgba(16, 185, 129, 0.72);
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.95), 0 0 8px rgba(16, 185, 129, 0.28);
+    transition: transform 0.12s ease-out, background-color 0.15s ease-out, border-color 0.15s ease-out;
+}
+
+.custom-midpoint-icon:hover .midpoint-dot {
+    transform: scale(1.12);
+    background: rgba(16, 185, 129, 0.34);
+    border-color: rgba(5, 150, 105, 0.95);
+}
+
+.leaflet-editing-icon:hover {
+    transform: none !important;
+    background: #ffffff !important;
+    border-color: #2563eb !important;
+    box-shadow: 0 0 4px rgba(0, 0, 0, 0.4), 0 0 10px rgba(37, 99, 235, 0.2) !important;
+    z-index: 1000 !important;
+}
+
+.leaflet-draw-tooltip {
+    display: none !important;
+}
+
+/* Snap preview indicator style */
+.snap-preview-dot {
+    pointer-events: none !important;
+    filter: drop-shadow(0 0 4px rgba(37, 99, 235, 0.8));
+    z-index: 2000 !important;
+}
+
+/* Ghost point style */
+.ghost-point-dot {
+    pointer-events: none !important;
+    fill-opacity: 0.8 !important;
+    filter: drop-shadow(0 0 2px rgba(16, 185, 129, 0.4));
+}
+
+/* Disable vertex jump animations */
+.leaflet-marker-icon,
+.leaflet-marker-shadow,
+.leaflet-editing-icon {
+    transition: none !important;
+}

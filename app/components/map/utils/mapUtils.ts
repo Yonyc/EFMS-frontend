@@ -62,3 +62,20 @@ export const clampToRect = (left: number, top: number, width: number, height: nu
     const y = Math.max(rect.top + padding, Math.min(top, rect.bottom - height - padding));
     return { x, y };
 };
+
+export const getSafeMenuPosition = (x: number, y: number, width: number, height: number, padding: number = 10, offset: number = 2) => {
+    if (typeof window === 'undefined') return { x, y };
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    
+    let fx = x + offset;
+    let fy = y + offset;
+
+    if (fx + width > vw - padding) fx = x - width - offset;
+    if (fy + height > vh - padding) fy = y - height - offset;
+    
+    return {
+        x: Math.max(padding, Math.min(fx, vw - width - padding)),
+        y: Math.max(padding, Math.min(fy, vh - height - padding))
+    };
+};

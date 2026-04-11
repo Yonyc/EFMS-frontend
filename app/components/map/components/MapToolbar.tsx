@@ -15,11 +15,14 @@ interface MapToolbarProps {
     cancelCreate: () => void;
     createPointCount: number;
     onDeleteLastVertex: () => void;
+    autoCorrectEnabled: boolean;
+    toggleAutoCorrect: () => void;
+    closeLoopMidpointEnabled: boolean;
+    toggleCloseLoopMidpoint: () => void;
     finishEdit: () => void;
     cancelEdit: () => void;
     t: any;
     // search props
-    isSearchOpen?: boolean;
     setIsSearchOpen?: (val: boolean | ((prev: boolean) => boolean)) => void;
     hasActiveSearchFilters?: boolean;
     isImportMode?: boolean;
@@ -30,8 +33,10 @@ const MapToolbar = React.memo((props: MapToolbarProps) => {
         showPreview, setShowPreview, overlapWarning, setPreviewVisibility,
         previewVisibility, allowCreate, editingId, isCreating,
         startCreate, finishCreate, cancelCreate, createPointCount,
-        onDeleteLastVertex, finishEdit, cancelEdit, t,
-        isSearchOpen, setIsSearchOpen, hasActiveSearchFilters, isImportMode
+        onDeleteLastVertex, autoCorrectEnabled, toggleAutoCorrect,
+        closeLoopMidpointEnabled, toggleCloseLoopMidpoint,
+        finishEdit, cancelEdit, t,
+        setIsSearchOpen, hasActiveSearchFilters, isImportMode
     } = props;
 
     const toolbarButtonBase = "inline-flex items-center justify-center rounded-2xl border px-3 py-2 text-sm font-semibold shadow-lg shadow-slate-900/10 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-200";
@@ -43,7 +48,8 @@ const MapToolbar = React.memo((props: MapToolbarProps) => {
                     type="button"
                     onClick={() => setIsSearchOpen(prev => !prev)}
                     title={t('map.searchFilters.title')}
-                    className={`${toolbarButtonBase} border-slate-200 bg-white text-slate-700 hover:-translate-y-0.5 hover:bg-slate-50`}
+                    disabled={isCreating || !!editingId}
+                    className={`${toolbarButtonBase} border-slate-200 bg-white text-slate-700 hover:-translate-y-0.5 hover:bg-slate-50 ${(isCreating || !!editingId) ? 'cursor-not-allowed opacity-50 hover:translate-y-0 hover:bg-white' : ''}`}
                 >
                     <span className="text-base text-slate-500">🔍</span>
                     <span className="hidden sm:inline">{t('map.searchFilters.button')}</span>
@@ -96,6 +102,22 @@ const MapToolbar = React.memo((props: MapToolbarProps) => {
                 <>
                     <button
                         type="button"
+                        onClick={toggleAutoCorrect}
+                        title={t('map.toolbar.toggleAutoCorrect', { defaultValue: 'Toggle auto overlap correction' })}
+                        className={`${toolbarButtonBase} ${autoCorrectEnabled ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-300 bg-white text-slate-600'} hover:-translate-y-0.5`}
+                    >
+                        {autoCorrectEnabled ? 'AC: ON' : 'AC: OFF'}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={toggleCloseLoopMidpoint}
+                        title={t('map.toolbar.toggleCloseLoopMidpoint', { defaultValue: 'Toggle cursor add point on closing edge' })}
+                        className={`${toolbarButtonBase} ${closeLoopMidpointEnabled ? 'border-amber-500 bg-amber-50 text-amber-700' : 'border-slate-300 bg-white text-slate-600'} hover:-translate-y-0.5`}
+                    >
+                        {closeLoopMidpointEnabled ? 'Add Point: ON' : 'Add Point: OFF'}
+                    </button>
+                    <button
+                        type="button"
                         onClick={finishCreate}
                         title={t('map.toolbar.finishDrawing')}
                         disabled={createPointCount < 3}
@@ -125,6 +147,22 @@ const MapToolbar = React.memo((props: MapToolbarProps) => {
                 <>
                     <button
                         type="button"
+                        onClick={toggleAutoCorrect}
+                        title={t('map.toolbar.toggleAutoCorrect', { defaultValue: 'Toggle auto overlap correction' })}
+                        className={`${toolbarButtonBase} ${autoCorrectEnabled ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-300 bg-white text-slate-600'} hover:-translate-y-0.5`}
+                    >
+                        {autoCorrectEnabled ? 'AC: ON' : 'AC: OFF'}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={toggleCloseLoopMidpoint}
+                        title={t('map.toolbar.toggleCloseLoopMidpoint', { defaultValue: 'Toggle cursor add point on closing edge' })}
+                        className={`${toolbarButtonBase} ${closeLoopMidpointEnabled ? 'border-amber-500 bg-amber-50 text-amber-700' : 'border-slate-300 bg-white text-slate-600'} hover:-translate-y-0.5`}
+                    >
+                        {closeLoopMidpointEnabled ? 'Add Point: ON' : 'Add Point: OFF'}
+                    </button>
+                    <button
+                        type="button"
                         onClick={() => finishEdit()}
                         title={t('map.toolbar.saveEdit')}
                         className={`${toolbarButtonBase} border-emerald-500 bg-emerald-500 text-white hover:-translate-y-0.5 hover:bg-emerald-400`}
@@ -138,6 +176,14 @@ const MapToolbar = React.memo((props: MapToolbarProps) => {
                         className={`${toolbarButtonBase} border-rose-500 bg-rose-500 text-white hover:-translate-y-0.5 hover:bg-rose-400`}
                     >
                         ✕
+                    </button>
+                    <button
+                        type="button"
+                        onClick={onDeleteLastVertex}
+                        title={t('map.toolbar.removeLastPoint')}
+                        className={`${toolbarButtonBase} border-slate-300 bg-white text-slate-600 hover:-translate-y-0.5 hover:bg-slate-50`}
+                    >
+                        -
                     </button>
                 </>
             )}
