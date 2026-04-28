@@ -179,6 +179,14 @@ export default function Navbar({ currentLocale }: NavbarProps) {
                                             {t('nav.periods')}
                                         </Link>
                                     </MenuItem>
+                                    <MenuItem>
+                                        <Link
+                                            to={localizedPath('farm-shares')}
+                                            className="block px-4 py-2 text-sm text-gray-300 data-focus:bg-white/5 data-focus:outline-hidden"
+                                        >
+                                            {t('nav.farm_shares', { defaultValue: 'Farm shares' })}
+                                        </Link>
+                                    </MenuItem>
                                     <div className="my-1 h-px bg-white/10" />
                                     <MenuItem>
                                         <Link

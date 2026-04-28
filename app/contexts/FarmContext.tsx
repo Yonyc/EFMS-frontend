@@ -54,7 +54,9 @@ export function FarmProvider({ children }: { children: ReactNode }) {
     setError(null);
 
     try {
-      const response = await apiGet('/farm/my-farms');
+      const response = await apiGet('/farm/my-farms', {
+        suppressUnauthorizedRedirect: true,
+      });
       
       if (!response.ok) {
         throw new Error('Failed to fetch farms');

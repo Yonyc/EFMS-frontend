@@ -14,7 +14,8 @@
     "sign_out": "Sign out",
     "sign_in": "Sign In",
     "create_farm": "Manage Farms",
-    "periods": "Periods"
+    "periods": "Periods",
+    "farm_shares": "Farm shares"
   },
   "imports": {
     "title": "Import lists",
@@ -265,6 +266,65 @@
       "showDescription": "Show description",
       "showLocation": "Show location",
       "missing": "Not provided"
+    }
+  },
+  "farmShares": {
+    "title": "Farm shares",
+    "subtitle": "Manage user access and share links for the selected farm.",
+    "selectFarm": "Select a farm to manage shares.",
+    "noAccess": "You do not have permission to manage shares for this farm.",
+    "errors": {
+      "load": "Unable to load farm shares.",
+      "save": "Unable to save share changes.",
+      "copy": "Could not copy share link."
+    },
+    "parcel": {
+      "title": "Parcel shares",
+      "empty": "No parcel shares found."
+    },
+    "research": {
+      "title": "Research share links",
+      "empty": "No research shares found.",
+      "assignedTo": "Assigned to",
+      "linkShare": "Link-based share",
+      "copyLink": "Copy link",
+      "accessUsers": "Users with access",
+      "periods": "Periods",
+      "tools": "Tools",
+      "products": "Products",
+      "any": "Any",
+      "none": "none",
+      "now": "now",
+      "noEnd": "no end",
+      "unknown": "unknown",
+      "filterWindow": "Filter window",
+      "windowLabel": "Share window",
+      "createdAt": "Created",
+      "userCap": "Users: {{claimed}} / {{max}}",
+      "userCapUnlimited": "Users: unlimited",
+      "window": "Window: {{start}} -> {{end}}"
+    },
+    "enrolled": {
+      "title": "My enrolled shares",
+      "subtitle": "Shares you can currently use.",
+      "empty": "You are not enrolled in any research share for this farm.",
+      "leave": "Leave share"
+    },
+    "edit": {
+      "subtitle": "Update constraints, timing, or revoke this share.",
+      "direct": "Direct user",
+      "link": "Link-based",
+      "username": "Username",
+      "maxUsers": "Maximum users (empty means unlimited)",
+      "filterStart": "Filter start date",
+      "filterEnd": "Filter end date",
+      "shareStart": "Share start",
+      "shareEnd": "Share end",
+      "revoke": "Revoke Access",
+      "save": "Save changes"
+    },
+    "common": {
+      "noEntries": "No entries"
     }
   },
   "publicFarms": {

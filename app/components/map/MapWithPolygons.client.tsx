@@ -51,11 +51,30 @@ interface ParcelOperationDto {
 
 interface PeriodDto { id: number; name?: string; startDate?: string; endDate?: string; }
 interface ParcelShareDto { userId: number; username: string; role: string; }
+interface ResearchZoneShareDto {
+    id: number;
+    userId?: number | null;
+    username?: string | null;
+    shareToken: string;
+    zoneWkt: string;
+    periodId?: number | null;
+    periodIds?: number[];
+    toolId?: number | null;
+    toolIds?: number[];
+    productId?: number | null;
+    productIds?: number[];
+    filterStartDate?: string | null;
+    filterEndDate?: string | null;
+    shareStartAt?: string | null;
+    shareEndAt?: string | null;
+    maxUsers?: number | null;
+    claimedUsers?: number | null;
+}
 
 interface ParcelSearchFilters {
-    periodId: string;
-    toolId: string;
-    productId: string;
+    periodIds: string[];
+    toolIds: string[];
+    productIds: string[];
     startDate: string;
     endDate: string;
     useMapArea: boolean;
@@ -122,10 +141,32 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
     const [shareRole, setShareRole] = useState('VIEWER');
     const [shareError, setShareError] = useState('');
     const [shareLoading, setShareLoading] = useState(false);
+    const [researchShares, setResearchShares] = useState<ResearchZoneShareDto[]>([]);
+    const [researchShareUsername, setResearchShareUsername] = useState('');
+    const [researchSharePeriodIds, setResearchSharePeriodIds] = useState<string[]>([]);
+    const [researchShareToolIds, setResearchShareToolIds] = useState<string[]>([]);
+    const [researchShareProductIds, setResearchShareProductIds] = useState<string[]>([]);
+    const [researchShareFilterStartDate, setResearchShareFilterStartDate] = useState('');
+    const [researchShareFilterEndDate, setResearchShareFilterEndDate] = useState('');
+    const [researchShareStartAt, setResearchShareStartAt] = useState('');
+    const [researchShareEndAt, setResearchShareEndAt] = useState('');
+    const [researchShareMode, setResearchShareMode] = useState<'direct' | 'link'>('direct');
+    const [researchShareMaxUsers, setResearchShareMaxUsers] = useState('');
+    const [researchShareFeedback, setResearchShareFeedback] = useState('');
+    const [researchShareLastLink, setResearchShareLastLink] = useState('');
+    const [researchShareLoading, setResearchShareLoading] = useState(false);
+    const [quickShareLink, setQuickShareLink] = useState('');
+    const [quickShareFeedback, setQuickShareFeedback] = useState('');
+    const [filterShareModalOpen, setFilterShareModalOpen] = useState(false);
+    const [filterShareZoneWkt, setFilterShareZoneWkt] = useState<string | null>(null);
+    const researchShareToken = useMemo(() => {
+        if (typeof window === 'undefined') return '';
+        return new URLSearchParams(window.location.search).get('researchShareToken') || '';
+    }, []);
     const defaultSearchFilters = useMemo<ParcelSearchFilters>(() => ({
-        periodId: '',
-        toolId: '',
-        productId: '',
+        periodIds: [],
+        toolIds: [],
+        productIds: [],
         startDate: '',
         endDate: '',
         useMapArea: false,
@@ -202,6 +243,18 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
         const ring = coords[0][0] === coords[coords.length - 1][0] && coords[0][1] === coords[coords.length - 1][1]
             ? coords
             : [...coords, coords[0]];
+        const points = ring.map(([lat, lng]) => `${lng} ${lat}`).join(', ');
+        return `POLYGON((${points}))`;
+    }, []);
+
+    const boundsToWktPolygon = useCallback((bounds: { minLat: number; minLng: number; maxLat: number; maxLng: number }) => {
+        const ring: [number, number][] = [
+            [bounds.minLat, bounds.minLng],
+            [bounds.minLat, bounds.maxLng],
+            [bounds.maxLat, bounds.maxLng],
+            [bounds.maxLat, bounds.minLng],
+            [bounds.minLat, bounds.minLng],
+        ];
         const points = ring.map(([lat, lng]) => `${lng} ${lat}`).join(', ');
         return `POLYGON((${points}))`;
     }, []);
@@ -319,9 +372,9 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
     }, [allPolygons, listFilter, polygons, searchQuery]);
 
     const hasActiveSearchFilters = useMemo(() => (
-        Boolean(appliedFilters.periodId) ||
-        Boolean(appliedFilters.toolId) ||
-        Boolean(appliedFilters.productId) ||
+        appliedFilters.periodIds.length > 0 ||
+        appliedFilters.toolIds.length > 0 ||
+        appliedFilters.productIds.length > 0 ||
         Boolean(appliedFilters.startDate) ||
         Boolean(appliedFilters.endDate) ||
         appliedFilters.useMapArea ||
@@ -330,15 +383,17 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
 
     const searchEndpoint = useMemo(() => {
         if (!hasActiveSearchFilters) {
-            return parcelsEndpoint;
+            if (!researchShareToken) return parcelsEndpoint;
+            return `${parcelsEndpoint}?shareToken=${encodeURIComponent(researchShareToken)}`;
         }
         const params = new URLSearchParams();
-        if (appliedFilters.periodId) params.set('periodId', appliedFilters.periodId);
-        if (appliedFilters.toolId) params.set('toolId', appliedFilters.toolId);
-        if (appliedFilters.productId) params.set('productId', appliedFilters.productId);
+        for (const periodId of appliedFilters.periodIds) params.append('periodIds', periodId);
+        for (const toolId of appliedFilters.toolIds) params.append('toolIds', toolId);
+        for (const productId of appliedFilters.productIds) params.append('productIds', productId);
         if (appliedFilters.startDate) params.set('startDate', appliedFilters.startDate);
         if (appliedFilters.endDate) params.set('endDate', appliedFilters.endDate);
         if (appliedFilters.usePolygon && appliedPolygonWkt) params.set('polygonWkt', appliedPolygonWkt);
+        if (researchShareToken) params.set('shareToken', researchShareToken);
         if (appliedFilters.useMapArea && appliedBounds) {
             params.set('minLat', String(appliedBounds.minLat));
             params.set('minLng', String(appliedBounds.minLng));
@@ -347,7 +402,7 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
         }
         const query = params.toString();
         return `${parcelsEndpoint}/search${query ? `?${query}` : ''}`;
-    }, [appliedBounds, appliedFilters, appliedPolygonWkt, hasActiveSearchFilters, parcelsEndpoint]);
+    }, [appliedBounds, appliedFilters, appliedPolygonWkt, hasActiveSearchFilters, parcelsEndpoint, researchShareToken]);
 
     const viewportEndpoint = useMemo(() => {
         if (!viewportBounds || contextType !== 'farm' || isImportMode || hasActiveSearchFilters) return null;
@@ -357,8 +412,141 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
             maxLat: String(viewportBounds.maxLat),
             maxLng: String(viewportBounds.maxLng),
         });
+        if (researchShareToken) params.set('shareToken', researchShareToken);
         return `${parcelsEndpoint}/viewport?${params.toString()}`;
-    }, [contextType, hasActiveSearchFilters, isImportMode, parcelsEndpoint, viewportBounds]);
+    }, [contextType, hasActiveSearchFilters, isImportMode, parcelsEndpoint, researchShareToken, viewportBounds]);
+
+    const buildResearchShareUrl = useCallback((token: string) => {
+        if (typeof window === 'undefined') return '';
+        const shareUrl = new URL(window.location.href);
+        shareUrl.searchParams.set('researchShareToken', token);
+        return shareUrl.toString();
+    }, []);
+
+    const copyToClipboard = useCallback(async (text: string) => {
+        if (!text) return false;
+        try {
+            await navigator.clipboard.writeText(text);
+            return true;
+        } catch {
+            return false;
+        }
+    }, []);
+
+    const applyCurrentFiltersToShareRules = useCallback(() => {
+        const source = hasActiveSearchFilters ? appliedFilters : searchDraft;
+        setResearchSharePeriodIds([...source.periodIds]);
+        setResearchShareToolIds([...source.toolIds]);
+        setResearchShareProductIds([...source.productIds]);
+        setResearchShareFilterStartDate(source.startDate || '');
+        setResearchShareFilterEndDate(source.endDate || '');
+        setResearchShareFeedback('Share rules prefilled from current filter settings.');
+    }, [appliedFilters, hasActiveSearchFilters, searchDraft]);
+
+    const handleQuickShareCurrentFilter = useCallback(async () => {
+        if (contextType !== 'farm' || !resolvedContextId || isImportMode) return;
+
+        let zoneWkt: string | null = null;
+        if (searchDraft.usePolygon && searchAreaCoords.length) {
+            zoneWkt = toWktPolygon(searchAreaCoords);
+        } else if (searchDraft.useMapArea && viewportBounds) {
+            zoneWkt = boundsToWktPolygon(viewportBounds);
+        }
+
+        if (!zoneWkt) {
+            setQuickShareFeedback('To share this filter, draw a polygon or enable map area first.');
+            return;
+        }
+
+        setQuickShareFeedback('');
+
+        setFilterShareZoneWkt(zoneWkt);
+        setResearchShareMode('link');
+        setResearchShareUsername('');
+        setResearchShareMaxUsers('');
+        setResearchSharePeriodIds([...searchDraft.periodIds]);
+        setResearchShareToolIds([...searchDraft.toolIds]);
+        setResearchShareProductIds([...searchDraft.productIds]);
+        setResearchShareFilterStartDate(searchDraft.startDate || '');
+        setResearchShareFilterEndDate(searchDraft.endDate || '');
+        setResearchShareStartAt('');
+        setResearchShareEndAt('');
+        setResearchShareFeedback('');
+        setResearchShareLastLink('');
+        setFilterShareModalOpen(true);
+    }, [boundsToWktPolygon, contextType, isImportMode, resolvedContextId, searchAreaCoords, searchDraft, toWktPolygon, viewportBounds]);
+
+    const handleCreateFilterResearchShare = useCallback(async (e: FormEvent) => {
+        e.preventDefault();
+        if (!resolvedContextId || !filterShareZoneWkt) return;
+
+        setResearchShareLoading(true);
+        setResearchShareFeedback('');
+        try {
+            const basePayload = {
+                zoneWkt: filterShareZoneWkt,
+                periodIds: researchSharePeriodIds.length ? researchSharePeriodIds.map(Number) : undefined,
+                toolIds: researchShareToolIds.length ? researchShareToolIds.map(Number) : undefined,
+                productIds: researchShareProductIds.length ? researchShareProductIds.map(Number) : undefined,
+                periodId: researchSharePeriodIds.length === 1 ? Number(researchSharePeriodIds[0]) : undefined,
+                toolId: researchShareToolIds.length === 1 ? Number(researchShareToolIds[0]) : undefined,
+                productId: researchShareProductIds.length === 1 ? Number(researchShareProductIds[0]) : undefined,
+                filterStartDate: researchShareFilterStartDate || undefined,
+                filterEndDate: researchShareFilterEndDate || undefined,
+                shareStartAt: researchShareStartAt ? new Date(researchShareStartAt).toISOString() : undefined,
+                shareEndAt: researchShareEndAt ? new Date(researchShareEndAt).toISOString() : undefined,
+            };
+
+            if (researchShareMode === 'direct') {
+                const usernames = researchShareUsername
+                    .split(/[\n,;]+/)
+                    .map((value) => value.trim())
+                    .filter(Boolean);
+
+                if (!usernames.length) {
+                    setResearchShareFeedback('Please provide at least one username for direct sharing.');
+                    return;
+                }
+
+                for (const username of usernames) {
+                    const res = await apiPost(`/farm/${resolvedContextId}/research-shares`, {
+                        ...basePayload,
+                        username,
+                        maxUsers: undefined,
+                    });
+                    if (!res.ok) throw new Error('failed');
+                }
+
+                setResearchShareUsername('');
+                setResearchShareLastLink('');
+                setResearchShareFeedback(`${usernames.length} direct share(s) created.`);
+            } else {
+                const payload = {
+                    ...basePayload,
+                    username: undefined,
+                    maxUsers: researchShareMaxUsers ? Number(researchShareMaxUsers) : undefined,
+                };
+
+                const res = await apiPost(`/farm/${resolvedContextId}/research-shares`, payload);
+                if (!res.ok) throw new Error('failed');
+                const created = await res.json();
+                const link = buildResearchShareUrl(created.shareToken);
+                setQuickShareLink(link);
+                setResearchShareLastLink(link);
+                if (link) {
+                    const copied = await copyToClipboard(link);
+                    setResearchShareFeedback(copied ? 'Share link created and copied to clipboard.' : `Share created. Link: ${link}`);
+                } else {
+                    setResearchShareFeedback(`Share created. Token: ${created.shareToken}`);
+                }
+            }
+        } catch (err) {
+            console.error('Failed to create filter research share', err);
+            setResearchShareFeedback('Unable to create research share.');
+        } finally {
+            setResearchShareLoading(false);
+        }
+    }, [buildResearchShareUrl, copyToClipboard, filterShareZoneWkt, researchShareEndAt, researchShareFilterEndDate, researchShareFilterStartDate, researchShareMaxUsers, researchShareMode, researchSharePeriodIds, researchShareProductIds, researchShareStartAt, researchShareToolIds, researchShareUsername, resolvedContextId]);
 
     useEffect(() => {
         if (!approveFeedback) return;
@@ -382,7 +570,10 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
     }, [props.onApproveAll, props.approveLabel, t]);
 
     const applySearchFilters = useCallback(() => {
-        setAppliedFilters(searchDraft);
+        const normalizedDraft = searchDraft.startDate && searchDraft.endDate
+            ? { ...searchDraft, periodIds: [] }
+            : searchDraft;
+        setAppliedFilters(normalizedDraft);
         if (searchDraft.usePolygon) {
             setAppliedPolygonWkt(toWktPolygon(searchAreaCoords));
         } else {
@@ -776,12 +967,37 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
         }
     }, [contextType, resolvedContextId, t]);
 
+    const loadResearchShares = useCallback(async () => {
+        if (contextType !== 'farm' || !resolvedContextId) return;
+        try {
+            const res = await apiGet(`/farm/${resolvedContextId}/research-shares`);
+            if (!res.ok) throw new Error('failed');
+            const data = await res.json();
+            setResearchShares(data);
+        } catch (err) {
+            console.error('Failed to load research shares', err);
+        }
+    }, [contextType, resolvedContextId]);
+
     const openShareModal = useCallback(async (parcelId: string) => {
         setShareParcelId(parcelId);
         setShareUsername('');
         setShareRole('VIEWER');
+        setResearchShareUsername('');
+        setResearchSharePeriodIds([]);
+        setResearchShareToolIds([]);
+        setResearchShareProductIds([]);
+        setResearchShareFilterStartDate('');
+        setResearchShareFilterEndDate('');
+        setResearchShareStartAt('');
+        setResearchShareEndAt('');
+        setResearchShareMaxUsers('');
+        setResearchShareMode('direct');
+        setResearchShareFeedback('');
+        setResearchShareLastLink('');
         await loadParcelShares(parcelId);
-    }, [loadParcelShares]);
+        await loadResearchShares();
+    }, [loadParcelShares, loadResearchShares]);
 
     const closeShareModal = useCallback(() => {
         setShareParcelId(null);
@@ -789,6 +1005,19 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
         setShareUsername('');
         setShareRole('VIEWER');
         setShareError('');
+        setResearchShares([]);
+        setResearchShareUsername('');
+        setResearchSharePeriodIds([]);
+        setResearchShareToolIds([]);
+        setResearchShareProductIds([]);
+        setResearchShareFilterStartDate('');
+        setResearchShareFilterEndDate('');
+        setResearchShareStartAt('');
+        setResearchShareEndAt('');
+        setResearchShareMode('direct');
+        setResearchShareMaxUsers('');
+        setResearchShareFeedback('');
+        setResearchShareLastLink('');
     }, []);
 
     const handleAddShare = useCallback(async (e: FormEvent) => {
@@ -844,6 +1073,103 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
             setShareError(t('map.sharing.errors.saveFailed', { defaultValue: 'Unable to save share' }));
         }
     }, [resolvedContextId, shareParcelId, t]);
+
+    const handleCreateResearchShare = useCallback(async (e: FormEvent) => {
+        e.preventDefault();
+        if (!shareParcelId || !resolvedContextId) return;
+        const zone = allPolygons.find(p => p.id === shareParcelId);
+        if (!zone || !zone.coords.length) {
+            setResearchShareFeedback('Unable to create share: parcel zone is missing geometry.');
+            return;
+        }
+        const zoneWkt = toWktPolygon(zone.coords);
+        if (!zoneWkt) {
+            setResearchShareFeedback('Unable to create share: invalid polygon geometry.');
+            return;
+        }
+
+        setResearchShareLoading(true);
+        setResearchShareFeedback('');
+        try {
+            const basePayload = {
+                zoneWkt,
+                periodIds: researchSharePeriodIds.length ? researchSharePeriodIds.map(Number) : undefined,
+                toolIds: researchShareToolIds.length ? researchShareToolIds.map(Number) : undefined,
+                productIds: researchShareProductIds.length ? researchShareProductIds.map(Number) : undefined,
+                periodId: researchSharePeriodIds.length === 1 ? Number(researchSharePeriodIds[0]) : undefined,
+                toolId: researchShareToolIds.length === 1 ? Number(researchShareToolIds[0]) : undefined,
+                productId: researchShareProductIds.length === 1 ? Number(researchShareProductIds[0]) : undefined,
+                filterStartDate: researchShareFilterStartDate || undefined,
+                filterEndDate: researchShareFilterEndDate || undefined,
+                shareStartAt: researchShareStartAt ? new Date(researchShareStartAt).toISOString() : undefined,
+                shareEndAt: researchShareEndAt ? new Date(researchShareEndAt).toISOString() : undefined,
+            };
+
+            if (researchShareMode === 'direct') {
+                const usernames = researchShareUsername
+                    .split(/[\n,;]+/)
+                    .map((value) => value.trim())
+                    .filter(Boolean);
+
+                if (!usernames.length) {
+                    setResearchShareFeedback('Please provide at least one username for direct sharing.');
+                    return;
+                }
+
+                const createdShares: ResearchZoneShareDto[] = [];
+                for (const username of usernames) {
+                    const res = await apiPost(`/farm/${resolvedContextId}/research-shares`, {
+                        ...basePayload,
+                        username,
+                        maxUsers: undefined,
+                    });
+                    if (!res.ok) throw new Error('failed');
+                    const created = await res.json();
+                    createdShares.push(created);
+                }
+
+                setResearchShares(prev => [...createdShares, ...prev]);
+                setResearchShareUsername('');
+                setResearchShareLastLink('');
+                setResearchShareFeedback(`${createdShares.length} direct share(s) created.`);
+            } else {
+                const payload = {
+                    ...basePayload,
+                    username: undefined,
+                    maxUsers: researchShareMaxUsers ? Number(researchShareMaxUsers) : undefined,
+                };
+                const res = await apiPost(`/farm/${resolvedContextId}/research-shares`, payload);
+                if (!res.ok) throw new Error('failed');
+                const created = await res.json();
+                setResearchShares(prev => [created, ...prev]);
+                const link = buildResearchShareUrl(created.shareToken);
+                setResearchShareLastLink(link);
+                if (link) {
+                    const copied = await copyToClipboard(link);
+                    setResearchShareFeedback(copied ? 'Share link created and copied to clipboard.' : `Share created. Link: ${link}`);
+                } else {
+                    setResearchShareFeedback(`Share created. Token: ${created.shareToken}`);
+                }
+            }
+        } catch (err) {
+            console.error('Failed to create research share', err);
+            setResearchShareFeedback('Unable to create research share.');
+        } finally {
+            setResearchShareLoading(false);
+        }
+    }, [allPolygons, buildResearchShareUrl, copyToClipboard, researchShareEndAt, researchShareFilterEndDate, researchShareFilterStartDate, researchShareMaxUsers, researchShareMode, researchSharePeriodIds, researchShareProductIds, researchShareStartAt, researchShareToolIds, researchShareUsername, resolvedContextId, shareParcelId, toWktPolygon]);
+
+    const handleRemoveResearchShare = useCallback(async (shareId: number) => {
+        if (!resolvedContextId) return;
+        try {
+            const res = await apiDelete(`/farm/${resolvedContextId}/research-shares/${shareId}`);
+            if (!res.ok) throw new Error('failed');
+            setResearchShares(prev => prev.filter(item => item.id !== shareId));
+        } catch (err) {
+            console.error('Failed to delete research share', err);
+            setResearchShareFeedback('Unable to delete research share.');
+        }
+    }, [resolvedContextId]);
 
     const handleAddOperationLine = useCallback(() => {
         setOperationLines(prev => [...prev, { productId: "", quantity: "", unitId: "", toolId: "" }]);
@@ -1423,13 +1749,19 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
     useEffect(() => {
         const fetchPolygons = async () => {
             try {
-                if (contextType === 'farm' && !isImportMode && !hasActiveSearchFilters && !viewportEndpoint) {
-                    return;
-                }
                 const endpoint = viewportEndpoint || searchEndpoint;
                 const response = await apiGet(endpoint);
                 if (response.ok) {
-                    const data = await response.json();
+                    let data = await response.json();
+                    // If initial viewport query yields no rows, fall back to full-access query.
+                    // This prevents shared users from seeing an empty map when their shared zones
+                    // are outside the current map bounds.
+                    if (!hasActiveSearchFilters && viewportEndpoint && Array.isArray(data) && data.length === 0) {
+                        const fallbackResponse = await apiGet(searchEndpoint);
+                        if (fallbackResponse.ok) {
+                            data = await fallbackResponse.json();
+                        }
+                    }
                     const parsed: PolygonData[] = data.map((p: any) => {
                         // Parse geodata WKT string to coordinates
                         let coords: [number, number][] = [];
@@ -1490,7 +1822,8 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
         if (contextType !== 'farm' || !resolvedContextId || isImportMode) return;
         const fetchAll = async () => {
             try {
-                const response = await apiGet(`/farm/${resolvedContextId}/parcels/all`);
+                const tokenQuery = researchShareToken ? `?shareToken=${encodeURIComponent(researchShareToken)}` : '';
+                const response = await apiGet(`/farm/${resolvedContextId}/parcels/all${tokenQuery}`);
                 if (response.ok) {
                     const data = await response.json();
                     const parsed: PolygonData[] = data.map((p: any) => ({
@@ -1518,7 +1851,7 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
         };
 
         fetchAll();
-    }, [contextType, resolvedContextId, isImportMode, t]);
+    }, [contextType, resolvedContextId, isImportMode, researchShareToken, t]);
 
     useEffect(() => {
         if (!isCreating) return;
@@ -1677,6 +2010,114 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
             }
         };
     }, [selectedId]);
+
+    const isPreciseDateRangeSelected = Boolean(searchDraft.startDate && searchDraft.endDate);
+
+    const periodFilterOptions = useMemo(() => periods.map((period) => ({
+        value: String(period.id),
+        label: period.name || `${period.startDate || ''} - ${period.endDate || ''}`,
+    })), [periods]);
+
+    const toolFilterOptions = useMemo(() => tools.map((tool) => ({
+        value: String(tool.id),
+        label: tool.name,
+    })), [tools]);
+
+    const productFilterOptions = useMemo(() => products.map((product) => ({
+        value: String(product.id),
+        label: product.name,
+    })), [products]);
+
+    function MultiSelectCombobox({
+        label,
+        options,
+        selectedValues,
+        onChange,
+        placeholder,
+        disabled = false,
+    }: {
+        label: string;
+        options: Array<{ value: string; label: string }>;
+        selectedValues: string[];
+        onChange: (next: string[]) => void;
+        placeholder: string;
+        disabled?: boolean;
+    }) {
+        const [open, setOpen] = useState(false);
+        const [query, setQuery] = useState('');
+
+        const selectedSet = useMemo(() => new Set(selectedValues), [selectedValues]);
+        const selectedLabels = useMemo(
+            () => options.filter((option) => selectedSet.has(option.value)).map((option) => option.label),
+            [options, selectedSet]
+        );
+        const filteredOptions = useMemo(() => {
+            const needle = query.trim().toLowerCase();
+            if (!needle) return options;
+            return options.filter((option) => option.label.toLowerCase().includes(needle));
+        }, [options, query]);
+
+        useEffect(() => {
+            if (disabled && open) {
+                setOpen(false);
+            }
+        }, [disabled, open]);
+
+        return (
+            <label className={`block text-xs font-semibold uppercase tracking-wide ${disabled ? 'text-slate-400' : 'text-slate-500'}`}>
+                {label}
+                <div className="relative mt-1">
+                    <button
+                        type="button"
+                        onClick={() => !disabled && setOpen((prev) => !prev)}
+                        disabled={disabled}
+                        className={`w-full rounded-xl border px-3 py-2 text-left text-sm focus:outline-none ${disabled
+                            ? 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400'
+                            : 'border-slate-200 bg-white text-slate-700 focus:border-indigo-300'
+                            }`}
+                    >
+                        {selectedLabels.length > 0 ? selectedLabels.join(', ') : placeholder}
+                    </button>
+                    {open && (
+                        <div className="absolute left-0 right-0 top-[calc(100%+0.35rem)] z-20 rounded-xl border border-slate-200 bg-white p-2 shadow-xl shadow-slate-900/10">
+                            <input
+                                type="search"
+                                value={query}
+                                onChange={(event) => setQuery(event.target.value)}
+                                placeholder={t('map.polygonList.searchPlaceholder', { defaultValue: 'Search polygons' })}
+                                className="mb-2 w-full rounded-lg border border-slate-200 px-2 py-1.5 text-xs text-slate-700 focus:border-indigo-300 focus:outline-none"
+                            />
+                            <div className="max-h-40 overflow-auto">
+                                {filteredOptions.map((option) => {
+                                    const checked = selectedSet.has(option.value);
+                                    return (
+                                        <label key={option.value} className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-slate-700 hover:bg-slate-50">
+                                            <input
+                                                type="checkbox"
+                                                checked={checked}
+                                                onChange={() => {
+                                                    if (checked) {
+                                                        onChange(selectedValues.filter((value) => value !== option.value));
+                                                    } else {
+                                                        onChange([...selectedValues, option.value]);
+                                                    }
+                                                }}
+                                                className="h-3.5 w-3.5 rounded border-slate-300 text-indigo-600"
+                                            />
+                                            <span>{option.label}</span>
+                                        </label>
+                                    );
+                                })}
+                                {filteredOptions.length === 0 && (
+                                    <p className="px-2 py-1.5 text-xs text-slate-400">No match</p>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </label>
+        );
+    }
 
     return (
         <div className="relative h-full w-full">
@@ -2800,48 +3241,35 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
                         </div>
 
                         <div className="space-y-3">
-                            <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                                {t('map.searchFilters.periodLabel')}
-                                <select
-                                    value={searchDraft.periodId}
-                                    onChange={(event) => setSearchDraft(prev => ({ ...prev, periodId: event.target.value }))}
-                                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:border-indigo-300 focus:outline-none"
-                                >
-                                    <option value="">{t('map.searchFilters.anyPeriod')}</option>
-                                    {periods.map((period) => (
-                                        <option key={period.id} value={String(period.id)}>
-                                            {period.name || `${period.startDate || ''} - ${period.endDate || ''}`}
-                                        </option>
-                                    ))}
-                                </select>
-                            </label>
-                            <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                                {t('map.searchFilters.toolLabel')}
-                                <select
-                                    value={searchDraft.toolId}
-                                    onChange={(event) => setSearchDraft(prev => ({ ...prev, toolId: event.target.value }))}
-                                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:border-indigo-300 focus:outline-none"
-                                >
-                                    <option value="">{t('map.searchFilters.anyTool')}</option>
-                                    {tools.map((tool) => (
-                                        <option key={tool.id} value={String(tool.id)}>{tool.name}</option>
-                                    ))}
-                                </select>
-                            </label>
+                            <MultiSelectCombobox
+                                label={t('map.searchFilters.periodLabel')}
+                                options={periodFilterOptions}
+                                selectedValues={searchDraft.periodIds}
+                                onChange={(next) => setSearchDraft(prev => ({ ...prev, periodIds: next }))}
+                                placeholder={t('map.searchFilters.anyPeriod')}
+                                disabled={isPreciseDateRangeSelected}
+                            />
+                            {isPreciseDateRangeSelected && (
+                                <p className="-mt-1 text-xs text-slate-400">
+                                    {t('map.searchFilters.periodDisabledByDateRange', { defaultValue: 'Period filter is disabled while a precise date range is selected.' })}
+                                </p>
+                            )}
 
-                            <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                                {t('map.searchFilters.productLabel')}
-                                <select
-                                    value={searchDraft.productId}
-                                    onChange={(event) => setSearchDraft(prev => ({ ...prev, productId: event.target.value }))}
-                                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:border-indigo-300 focus:outline-none"
-                                >
-                                    <option value="">{t('map.searchFilters.anyProduct')}</option>
-                                    {products.map((product) => (
-                                        <option key={product.id} value={String(product.id)}>{product.name}</option>
-                                    ))}
-                                </select>
-                            </label>
+                            <MultiSelectCombobox
+                                label={t('map.searchFilters.toolLabel')}
+                                options={toolFilterOptions}
+                                selectedValues={searchDraft.toolIds}
+                                onChange={(next) => setSearchDraft(prev => ({ ...prev, toolIds: next }))}
+                                placeholder={t('map.searchFilters.anyTool')}
+                            />
+
+                            <MultiSelectCombobox
+                                label={t('map.searchFilters.productLabel')}
+                                options={productFilterOptions}
+                                selectedValues={searchDraft.productIds}
+                                onChange={(next) => setSearchDraft(prev => ({ ...prev, productIds: next }))}
+                                placeholder={t('map.searchFilters.anyProduct')}
+                            />
 
                             <div className="grid grid-cols-2 gap-3">
                                 <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -2929,18 +3357,211 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
                             >
                                 {t('map.searchFilters.clear')}
                             </button>
-                            <button
-                                type="button"
-                                onClick={applySearchFilters}
-                                className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-indigo-500/20 hover:bg-indigo-500"
-                            >
-                                {t('map.searchFilters.apply')}
-                            </button>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    onClick={handleQuickShareCurrentFilter}
+                                    className="rounded-xl border border-cyan-300 bg-cyan-50 px-3 py-2 text-sm font-semibold text-cyan-700 shadow-sm hover:bg-cyan-100"
+                                >
+                                    Share Filter
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={applySearchFilters}
+                                    className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-indigo-500/20 hover:bg-indigo-500"
+                                >
+                                    {t('map.searchFilters.apply')}
+                                </button>
+                            </div>
                         </div>
+
+                        {quickShareFeedback && (
+                            <div className="mt-2 rounded-lg border border-cyan-300/70 bg-cyan-50 px-3 py-2 text-xs text-cyan-800 break-all">
+                                {quickShareFeedback}
+                            </div>
+                        )}
+
                     </div>
                 )}
-                {shareParcelId && (
-                    <div className="pointer-events-auto fixed inset-0 z-[2300] flex items-center justify-center bg-slate-950/60 px-4">
+                {filterShareModalOpen && typeof document !== 'undefined' && createPortal((
+                    <div className="pointer-events-auto fixed inset-0 z-[6500] flex items-center justify-center bg-slate-950/60 px-4">
+                        <div className="w-full max-w-xl rounded-2xl border border-white/10 bg-slate-900/95 p-6 shadow-2xl shadow-black/40">
+                            <div className="flex items-start justify-between">
+                                <div>
+                                    <h3 className="text-lg font-semibold text-white">Share Current Filter</h3>
+                                    <p className="text-sm text-slate-300">
+                                        Define permissions, user limits, and optional time window before generating the share.
+                                    </p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setFilterShareModalOpen(false);
+                                        setFilterShareZoneWkt(null);
+                                    }}
+                                    className="rounded-full p-1 text-slate-400 hover:bg-slate-800 hover:text-white"
+                                    aria-label="Close"
+                                >
+                                    <XMarkIcon className="h-5 w-5" />
+                                </button>
+                            </div>
+
+                            <form className="mt-4 grid gap-2" onSubmit={handleCreateFilterResearchShare}>
+                                <div className="grid grid-cols-2 gap-2 rounded-lg border border-white/10 bg-slate-950/40 p-1">
+                                    <button
+                                        type="button"
+                                        onClick={() => setResearchShareMode('direct')}
+                                        className={`rounded-md px-3 py-2 text-xs font-semibold transition ${researchShareMode === 'direct' ? 'bg-indigo-500 text-white' : 'text-slate-300 hover:bg-white/5'}`}
+                                    >
+                                        Share directly to user(s)
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setResearchShareMode('link')}
+                                        className={`rounded-md px-3 py-2 text-xs font-semibold transition ${researchShareMode === 'link' ? 'bg-indigo-500 text-white' : 'text-slate-300 hover:bg-white/5'}`}
+                                    >
+                                        Create link with user limit
+                                    </button>
+                                </div>
+
+                                {researchShareMode === 'direct' ? (
+                                    <label className="text-xs text-slate-300">
+                                        Usernames (comma or new line separated)
+                                        <textarea
+                                            value={researchShareUsername}
+                                            onChange={(event) => setResearchShareUsername(event.target.value)}
+                                            rows={3}
+                                            placeholder="alice, bob"
+                                            className="mt-1 w-full rounded-lg border border-white/15 bg-slate-900/70 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:border-indigo-400 focus:outline-none"
+                                        />
+                                    </label>
+                                ) : (
+                                    <label className="text-xs text-slate-300">
+                                        Maximum number of users for this link
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            value={researchShareMaxUsers}
+                                            onChange={(event) => setResearchShareMaxUsers(event.target.value)}
+                                            placeholder="Unlimited"
+                                            className="mt-1 w-full rounded-lg border border-white/15 bg-slate-900/70 px-3 py-2 text-xs text-white placeholder:text-slate-500 focus:border-indigo-400 focus:outline-none"
+                                        />
+                                    </label>
+                                )}
+
+                                <div className="grid gap-2 sm:grid-cols-3">
+                                    <MultiSelectCombobox
+                                        label="Periods"
+                                        options={periodFilterOptions}
+                                        selectedValues={researchSharePeriodIds}
+                                        onChange={setResearchSharePeriodIds}
+                                        placeholder="Any period"
+                                    />
+                                    <MultiSelectCombobox
+                                        label="Tools"
+                                        options={toolFilterOptions}
+                                        selectedValues={researchShareToolIds}
+                                        onChange={setResearchShareToolIds}
+                                        placeholder="Any tool"
+                                    />
+                                    <MultiSelectCombobox
+                                        label="Products"
+                                        options={productFilterOptions}
+                                        selectedValues={researchShareProductIds}
+                                        onChange={setResearchShareProductIds}
+                                        placeholder="Any product"
+                                    />
+                                </div>
+
+                                <div className="grid gap-2 sm:grid-cols-2">
+                                    <label className="text-xs text-slate-300">
+                                        Filter start date
+                                        <input
+                                            type="date"
+                                            value={researchShareFilterStartDate}
+                                            onChange={(event) => setResearchShareFilterStartDate(event.target.value)}
+                                            className="mt-1 w-full rounded-lg border border-white/15 bg-slate-900/70 px-3 py-2 text-xs text-white focus:border-indigo-400 focus:outline-none"
+                                        />
+                                    </label>
+                                    <label className="text-xs text-slate-300">
+                                        Filter end date
+                                        <input
+                                            type="date"
+                                            value={researchShareFilterEndDate}
+                                            onChange={(event) => setResearchShareFilterEndDate(event.target.value)}
+                                            className="mt-1 w-full rounded-lg border border-white/15 bg-slate-900/70 px-3 py-2 text-xs text-white focus:border-indigo-400 focus:outline-none"
+                                        />
+                                    </label>
+                                </div>
+
+                                <div className="grid gap-2 sm:grid-cols-2">
+                                    <label className="text-xs text-slate-300">
+                                        Share starts at
+                                        <input
+                                            type="datetime-local"
+                                            value={researchShareStartAt}
+                                            onChange={(event) => setResearchShareStartAt(event.target.value)}
+                                            className="mt-1 w-full rounded-lg border border-white/15 bg-slate-900/70 px-3 py-2 text-xs text-white focus:border-indigo-400 focus:outline-none"
+                                        />
+                                    </label>
+                                    <label className="text-xs text-slate-300">
+                                        Share ends at
+                                        <input
+                                            type="datetime-local"
+                                            value={researchShareEndAt}
+                                            onChange={(event) => setResearchShareEndAt(event.target.value)}
+                                            className="mt-1 w-full rounded-lg border border-white/15 bg-slate-900/70 px-3 py-2 text-xs text-white focus:border-indigo-400 focus:outline-none"
+                                        />
+                                    </label>
+                                </div>
+
+                                <div className="mt-1 flex items-center justify-end gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setFilterShareModalOpen(false);
+                                            setFilterShareZoneWkt(null);
+                                        }}
+                                        className="rounded-lg border border-white/15 px-4 py-2 text-sm font-medium text-white hover:bg-white/10"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        disabled={researchShareLoading}
+                                        className="rounded-lg bg-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-teal-500/25 hover:bg-teal-400 disabled:cursor-not-allowed disabled:opacity-60"
+                                    >
+                                        {researchShareLoading ? 'Creating...' : (researchShareMode === 'direct' ? 'Create Direct Share' : 'Create Limited Link')}
+                                    </button>
+                                </div>
+                            </form>
+
+                            {researchShareFeedback && (
+                                <div className="mt-2 rounded-lg border border-cyan-500/40 bg-cyan-500/10 px-3 py-2 text-xs text-cyan-100 break-all">
+                                    {researchShareFeedback}
+                                </div>
+                            )}
+
+                            {quickShareLink && (
+                                <div className="mt-2 flex items-center gap-2 rounded-lg border border-indigo-500/30 bg-indigo-500/10 px-3 py-2">
+                                    <p className="flex-1 text-xs text-indigo-100 break-all">{quickShareLink}</p>
+                                    <button
+                                        type="button"
+                                        onClick={async () => {
+                                            const copied = await copyToClipboard(quickShareLink);
+                                            setResearchShareFeedback(copied ? 'Link copied to clipboard.' : 'Unable to copy the link.');
+                                        }}
+                                        className="rounded-lg border border-indigo-400/40 bg-indigo-500/10 px-2 py-1 text-xs font-semibold text-indigo-100 hover:bg-indigo-500/20"
+                                    >
+                                        Copy
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                ), document.body)}
+                {shareParcelId && typeof document !== 'undefined' && createPortal((
+                    <div className="pointer-events-auto fixed inset-0 z-[6500] flex items-center justify-center bg-slate-950/60 px-4">
                         <div className="w-full max-w-lg rounded-2xl border border-white/10 bg-slate-900/95 p-6 shadow-2xl shadow-black/40">
                             <div className="flex items-start justify-between">
                                 <div>
@@ -3019,9 +3640,206 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
                                     </div>
                                 ))}
                             </div>
+
+                            <div className="mt-6 border-t border-white/10 pt-4">
+                                <h4 className="text-sm font-semibold text-slate-100">Researchable Zone Sharing Rules</h4>
+                                <p className="mt-1 text-xs text-slate-400">
+                                    Create a link or assign a user to research this polygon with optional period, tool, product, and date limits.
+                                </p>
+
+                                <div className="mt-2 flex flex-wrap items-center gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={applyCurrentFiltersToShareRules}
+                                        className="rounded-lg border border-cyan-400/40 bg-cyan-500/10 px-3 py-1.5 text-xs font-semibold text-cyan-100 hover:bg-cyan-500/20"
+                                    >
+                                        Use Current Filter Settings
+                                    </button>
+                                    {researchShareLastLink && (
+                                        <button
+                                            type="button"
+                                            onClick={async () => {
+                                                const copied = await copyToClipboard(researchShareLastLink);
+                                                setResearchShareFeedback(copied ? 'Link copied to clipboard.' : 'Could not copy the link automatically.');
+                                            }}
+                                            className="rounded-lg border border-indigo-400/40 bg-indigo-500/10 px-3 py-1.5 text-xs font-semibold text-indigo-100 hover:bg-indigo-500/20"
+                                        >
+                                            Copy Last Link
+                                        </button>
+                                    )}
+                                </div>
+
+                                <form className="mt-3 grid gap-2" onSubmit={handleCreateResearchShare}>
+                                    <div className="grid grid-cols-2 gap-2 rounded-lg border border-white/10 bg-slate-950/40 p-1">
+                                        <button
+                                            type="button"
+                                            onClick={() => setResearchShareMode('direct')}
+                                            className={`rounded-md px-3 py-2 text-xs font-semibold transition ${researchShareMode === 'direct' ? 'bg-indigo-500 text-white' : 'text-slate-300 hover:bg-white/5'}`}
+                                        >
+                                            Share directly to user(s)
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setResearchShareMode('link')}
+                                            className={`rounded-md px-3 py-2 text-xs font-semibold transition ${researchShareMode === 'link' ? 'bg-indigo-500 text-white' : 'text-slate-300 hover:bg-white/5'}`}
+                                        >
+                                            Create link with user limit
+                                        </button>
+                                    </div>
+
+                                    {researchShareMode === 'direct' ? (
+                                        <label className="text-xs text-slate-300">
+                                            Usernames (comma or new line separated)
+                                            <textarea
+                                                value={researchShareUsername}
+                                                onChange={(event) => setResearchShareUsername(event.target.value)}
+                                                rows={3}
+                                                placeholder="alice, bob"
+                                                className="mt-1 w-full rounded-lg border border-white/15 bg-slate-900/70 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:border-indigo-400 focus:outline-none"
+                                            />
+                                        </label>
+                                    ) : (
+                                        <label className="text-xs text-slate-300">
+                                            Maximum number of users for this link
+                                            <input
+                                                type="number"
+                                                min="1"
+                                                value={researchShareMaxUsers}
+                                                onChange={(event) => setResearchShareMaxUsers(event.target.value)}
+                                                placeholder="Unlimited"
+                                                className="mt-1 w-full rounded-lg border border-white/15 bg-slate-900/70 px-3 py-2 text-xs text-white placeholder:text-slate-500 focus:border-indigo-400 focus:outline-none"
+                                            />
+                                        </label>
+                                    )}
+
+                                    <div className="grid gap-2 sm:grid-cols-3">
+                                        <MultiSelectCombobox
+                                            label="Periods"
+                                            options={periodFilterOptions}
+                                            selectedValues={researchSharePeriodIds}
+                                            onChange={setResearchSharePeriodIds}
+                                            placeholder="Any period"
+                                        />
+                                        <MultiSelectCombobox
+                                            label="Tools"
+                                            options={toolFilterOptions}
+                                            selectedValues={researchShareToolIds}
+                                            onChange={setResearchShareToolIds}
+                                            placeholder="Any tool"
+                                        />
+                                        <MultiSelectCombobox
+                                            label="Products"
+                                            options={productFilterOptions}
+                                            selectedValues={researchShareProductIds}
+                                            onChange={setResearchShareProductIds}
+                                            placeholder="Any product"
+                                        />
+                                    </div>
+
+                                    <div className="grid gap-2 sm:grid-cols-2">
+                                        <label className="text-xs text-slate-300">
+                                            Filter start date
+                                            <input
+                                                type="date"
+                                                value={researchShareFilterStartDate}
+                                                onChange={(event) => setResearchShareFilterStartDate(event.target.value)}
+                                                className="mt-1 w-full rounded-lg border border-white/15 bg-slate-900/70 px-3 py-2 text-xs text-white focus:border-indigo-400 focus:outline-none"
+                                            />
+                                        </label>
+                                        <label className="text-xs text-slate-300">
+                                            Filter end date
+                                            <input
+                                                type="date"
+                                                value={researchShareFilterEndDate}
+                                                onChange={(event) => setResearchShareFilterEndDate(event.target.value)}
+                                                className="mt-1 w-full rounded-lg border border-white/15 bg-slate-900/70 px-3 py-2 text-xs text-white focus:border-indigo-400 focus:outline-none"
+                                            />
+                                        </label>
+                                    </div>
+
+                                    <div className="grid gap-2 sm:grid-cols-2">
+                                        <label className="text-xs text-slate-300">
+                                            Share starts at
+                                            <input
+                                                type="datetime-local"
+                                                value={researchShareStartAt}
+                                                onChange={(event) => setResearchShareStartAt(event.target.value)}
+                                                className="mt-1 w-full rounded-lg border border-white/15 bg-slate-900/70 px-3 py-2 text-xs text-white focus:border-indigo-400 focus:outline-none"
+                                            />
+                                        </label>
+                                        <label className="text-xs text-slate-300">
+                                            Share ends at
+                                            <input
+                                                type="datetime-local"
+                                                value={researchShareEndAt}
+                                                onChange={(event) => setResearchShareEndAt(event.target.value)}
+                                                className="mt-1 w-full rounded-lg border border-white/15 bg-slate-900/70 px-3 py-2 text-xs text-white focus:border-indigo-400 focus:outline-none"
+                                            />
+                                        </label>
+                                    </div>
+
+                                    <button
+                                        type="submit"
+                                        disabled={researchShareLoading}
+                                        className="mt-1 rounded-lg bg-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-teal-500/25 hover:bg-teal-400 disabled:cursor-not-allowed disabled:opacity-60"
+                                    >
+                                        {researchShareLoading ? 'Creating...' : (researchShareMode === 'direct' ? 'Create Direct Share' : 'Create Limited Link')}
+                                    </button>
+                                </form>
+
+                                {researchShareFeedback && (
+                                    <div className="mt-2 rounded-lg border border-cyan-500/40 bg-cyan-500/10 px-3 py-2 text-xs text-cyan-100 break-all">
+                                        {researchShareFeedback}
+                                    </div>
+                                )}
+
+                                {researchShareLastLink && (
+                                    <div className="mt-2 rounded-lg border border-indigo-500/30 bg-indigo-500/10 px-3 py-2 text-xs text-indigo-100 break-all">
+                                        {researchShareLastLink}
+                                    </div>
+                                )}
+
+                                <div className="mt-3 space-y-2 max-h-44 overflow-auto pr-1">
+                                    {researchShares.map((share) => (
+                                        <div key={share.id} className="rounded-xl border border-white/10 bg-slate-900/40 px-3 py-2 text-xs text-slate-200">
+                                            <div className="flex items-center justify-between gap-2">
+                                                <span>{share.username ? `User: ${share.username}` : 'Link-based share'}</span>
+                                                <div className="flex items-center gap-2">
+                                                    <button
+                                                        type="button"
+                                                        onClick={async () => {
+                                                            const link = buildResearchShareUrl(share.shareToken);
+                                                            if (!link) return;
+                                                            const copied = await copyToClipboard(link);
+                                                            setResearchShareFeedback(copied ? 'Link copied to clipboard.' : `Copy this link: ${link}`);
+                                                            setResearchShareLastLink(link);
+                                                        }}
+                                                        className="rounded-lg border border-indigo-400/40 bg-indigo-500/10 px-2 py-1 font-semibold text-indigo-100 hover:bg-indigo-500/20"
+                                                    >
+                                                        Copy Link
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleRemoveResearchShare(share.id)}
+                                                        className="rounded-lg border border-rose-400/40 bg-rose-500/10 px-2 py-1 font-semibold text-rose-100 hover:bg-rose-500/20"
+                                                    >
+                                                        Remove
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <p className="mt-1 text-slate-400">Token: {share.shareToken.slice(0, 16)}...</p>
+                                            <p className="mt-1 text-slate-400">
+                                                {share.maxUsers != null
+                                                    ? `Users: ${share.claimedUsers ?? 0} / ${share.maxUsers}`
+                                                    : 'Users: unlimited'}
+                                            </p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
                         </div>
                     </div>
-                )}
+                ), document.body)}
             </div>
         </div>
     );

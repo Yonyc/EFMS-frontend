@@ -1,8 +1,8 @@
 import { apiUrl } from '../config';
-import { buildLocalizedPath, DEFAULT_LOCALE, getLocaleFromPathname } from './locale';
 
 export interface ApiRequestOptions extends RequestInit {
   requireAuth?: boolean;
+  suppressUnauthorizedRedirect?: boolean;
 }
 
 /**
@@ -12,7 +12,7 @@ export async function apiRequest(
   endpoint: string,
   options: ApiRequestOptions = {}
 ): Promise<Response> {
-  const { requireAuth = true, headers = {}, body, ...restOptions } = options;
+  const { requireAuth = true, suppressUnauthorizedRedirect = false, headers = {}, body, ...restOptions } = options;
 
   const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
 
@@ -42,16 +42,10 @@ export async function apiRequest(
     headers: requestHeaders,
   });
 
-  // Handle 401 Unauthorized - token expired or invalid
-  if (response.status === 401 && requireAuth) {
-    // Clear auth data
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('authUser');
-    // Redirect to login
-    const targetLocale = typeof window !== 'undefined'
-      ? getLocaleFromPathname(window.location.pathname || '/')
-      : DEFAULT_LOCALE;
-    window.location.href = buildLocalizedPath(targetLocale, '/login');
+  // Do not force a global logout on every 401.
+  // Specific flows (e.g. AuthContext refresh) should decide whether to clear session.
+  if (response.status === 401 && requireAuth && suppressUnauthorizedRedirect) {
+    // Explicitly suppressed; caller will handle unauthorized state.
   }
 
   return response;

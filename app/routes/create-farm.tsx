@@ -273,6 +273,15 @@ export default function CreateFarm() {
                     <div className="text-center">
                         <h2 className="mt-2 text-3xl font-extrabold text-white">{t('manageFarms.title')}</h2>
                         <p className="mt-2 text-sm text-slate-300">{t('manageFarms.description')}</p>
+                        <div className="mt-4">
+                            <button
+                                type="button"
+                                onClick={() => navigate(buildLocalizedPath(locale, '/farm-shares'))}
+                                className="rounded-lg border border-indigo-400/40 bg-indigo-500/10 px-4 py-2 text-sm font-semibold text-indigo-100 hover:bg-indigo-500/20"
+                            >
+                                {t('nav.farm_shares', { defaultValue: 'Farm shares' })}
+                            </button>
+                        </div>
                     </div>
 
                     {(error || message) && (
