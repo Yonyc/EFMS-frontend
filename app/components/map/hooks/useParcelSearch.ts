@@ -9,28 +9,43 @@ interface UseParcelSearchProps {
     isImportMode: boolean;
     getMap: () => L.Map | null;
     defaultSearchFilters: ParcelSearchFilters;
+    initialSharePayload?: any;
 }
 
 export function useParcelSearch({
-    parcelsEndpoint, contextType, isImportMode, getMap, defaultSearchFilters
+    parcelsEndpoint, contextType, isImportMode, getMap, defaultSearchFilters, initialSharePayload
 }: UseParcelSearchProps) {
     const [isSearchOpen, setIsSearchOpen] = useState(false);
     const [searchDraft, setSearchDraft] = useState<ParcelSearchFilters>(defaultSearchFilters);
     const [appliedFilters, setAppliedFilters] = useState<ParcelSearchFilters>(defaultSearchFilters);
     const [appliedBounds, setAppliedBounds] = useState<{ minLat: number; minLng: number; maxLat: number; maxLng: number } | null>(null);
-    const [searchAreaCoords, setSearchAreaCoords] = useState<[number, number][]>([]);
+    const [searchAreaCoords, setSearchAreaCoords] = useState<[number, number][]>(() => {
+        if (!initialSharePayload?.zoneWkt) return [];
+        try {
+            const wkt = initialSharePayload.zoneWkt.trim();
+            const coordsSource = wkt.match(/POLYGON\s*\(\s*\(\s*([^)]*?)\s*\)\s*/i)?.[1] ??
+                wkt.match(/MULTIPOLYGON\s*\(\s*\(\s*\(\s*([^)]*?)\s*\)\s*/i)?.[1];
+            if (!coordsSource) return [];
+            return coordsSource.split(',').map((pair: string) => pair.replace(/[()]/g, '').trim()).map((pair: string) => {
+                const [lngStr, latStr] = pair.split(/\s+/).filter(Boolean);
+                const lng = Number(lngStr);
+                const lat = Number(latStr);
+                if (Number.isFinite(lat) && Number.isFinite(lng)) return [lat, lng] as [number, number];
+                return null;
+            }).filter((val: any): val is [number, number] => Array.isArray(val));
+        } catch { return []; }
+    });
     const [isSearchDrawing, setIsSearchDrawing] = useState(false);
-    const [appliedPolygonWkt, setAppliedPolygonWkt] = useState<string | null>(null);
+    const [appliedPolygonWkt, setAppliedPolygonWkt] = useState<string | null>(initialSharePayload?.zoneWkt || null);
     const [viewportBounds, setViewportBounds] = useState<{ minLat: number; minLng: number; maxLat: number; maxLng: number } | null>(null);
 
     const searchDrawHandlerRef = useRef<any>(null);
     const searchAreaLayerRef = useRef<L.Polygon | null>(null);
 
     const hasActiveSearchFilters = useMemo(() => (
-        Boolean(appliedFilters.periodId) ||
-        Boolean(appliedFilters.operationTypeId) ||
-        Boolean(appliedFilters.toolId) ||
-        Boolean(appliedFilters.productId) ||
+        (appliedFilters.periodIds && appliedFilters.periodIds.length > 0) ||
+        (appliedFilters.toolIds && appliedFilters.toolIds.length > 0) ||
+        (appliedFilters.productIds && appliedFilters.productIds.length > 0) ||
         Boolean(appliedFilters.startDate) ||
         Boolean(appliedFilters.endDate) ||
         appliedFilters.useMapArea ||
@@ -42,10 +57,9 @@ export function useParcelSearch({
             return parcelsEndpoint;
         }
         const params = new URLSearchParams();
-        if (appliedFilters.periodId) params.set('periodId', appliedFilters.periodId);
-        if (appliedFilters.operationTypeId) params.set('operationTypeId', appliedFilters.operationTypeId);
-        if (appliedFilters.toolId) params.set('toolId', appliedFilters.toolId);
-        if (appliedFilters.productId) params.set('productId', appliedFilters.productId);
+        if (appliedFilters.periodIds) appliedFilters.periodIds.forEach(id => params.append('periodId', id));
+        if (appliedFilters.toolIds) appliedFilters.toolIds.forEach(id => params.append('toolId', id));
+        if (appliedFilters.productIds) appliedFilters.productIds.forEach(id => params.append('productId', id));
         if (appliedFilters.startDate) params.set('startDate', appliedFilters.startDate);
         if (appliedFilters.endDate) params.set('endDate', appliedFilters.endDate);
         if (appliedFilters.usePolygon && appliedPolygonWkt) params.set('polygonWkt', appliedPolygonWkt);

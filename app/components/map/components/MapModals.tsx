@@ -1,6 +1,9 @@
 import React from "react";
 import type { PeriodDto, PolygonData, ParcelShareDto } from "../types";
 import { XMarkIcon } from "@heroicons/react/24/outline";
+import { createPortal } from "react-dom";
+import MultiSelectCombobox from "../../MultiSelectCombobox";
+import type { ToolDto, ProductDto } from "../types";
 
 interface MapModalsProps {
     t: any;
@@ -22,19 +25,10 @@ interface MapModalsProps {
     handleAreaConfirm: (force?: boolean, allowOverlap?: boolean) => void;
     handleAreaCancel: () => void;
     // share modal
-    shareParcelId: string | null;
-    closeShareModal: () => void;
-    shareList: ParcelShareDto[];
-    shareUsername: string;
-    setShareUsername: (val: string) => void;
-    shareRole: string;
-    setShareRole: (val: string) => void;
-    shareError: string;
-    shareLoading: boolean;
-    handleAddShare: () => Promise<void>;
-    handleUpdateShare: (userId: number, role: string) => Promise<void>;
-    handleRemoveShare: (userId: number) => Promise<void>;
+    sharing: any;
     allPolygons: PolygonData[];
+    tools: ToolDto[];
+    products: ProductDto[];
 }
 
 const MapModals = React.memo((props: MapModalsProps) => {
@@ -42,9 +36,21 @@ const MapModals = React.memo((props: MapModalsProps) => {
         t,
         renamingId, setRenamingId, renameValue, setRenameValue, renamePeriodId, setRenamePeriodId, handleRenameConfirm, periods,
         isAreaModalOpen, areaName, setAreaName, selectedPeriodId, setSelectedPeriodId, handleAreaConfirm, handleAreaCancel,
-        shareParcelId, closeShareModal, shareList, shareUsername, setShareUsername, shareRole, setShareRole, shareError, shareLoading,
-        handleAddShare, handleUpdateShare, handleRemoveShare, allPolygons
+        sharing, tools, products, allPolygons
     } = props;
+
+    const {
+        shareParcelId, closeShareModal, shareList, shareUsername, setShareUsername, shareRole, setShareRole, shareError, shareLoading,
+        handleAddShare, handleUpdateShare, handleRemoveShare,
+        researchShares, setResearchShares, researchShareUsername, setResearchShareUsername, researchSharePeriodIds, setResearchSharePeriodIds,
+        researchShareToolIds, setResearchShareToolIds, researchShareProductIds, setResearchShareProductIds, researchShareFilterStartDate,
+        setResearchShareFilterStartDate, researchShareFilterEndDate, setResearchShareFilterEndDate, researchShareStartAt, setResearchShareStartAt,
+        researchShareEndAt, setResearchShareEndAt, researchShareMode, setResearchShareMode, researchShareMaxUsers, setResearchShareMaxUsers,
+        researchShareFeedback, setResearchShareFeedback, researchShareLastLink, researchShareLoading, quickShareLink, quickShareFeedback, setQuickShareFeedback,
+        filterShareModalOpen, setFilterShareModalOpen, filterShareZoneWkt, setFilterShareZoneWkt, loadResearchShares, handleCreateResearchShare,
+        handleRemoveResearchShare, handleQuickShareCurrentFilter, handleCreateFilterResearchShare
+    } = sharing;
+
 
     return (
         <>
@@ -182,7 +188,7 @@ const MapModals = React.memo((props: MapModalsProps) => {
                                     {!shareLoading && shareList.length === 0 && (
                                         <div className="py-8 text-center text-slate-500">{t('map.sharing.noShares', { defaultValue: 'Not shared with anyone yet' })}</div>
                                     )}
-                                    {shareList.map(share => (
+                                    {shareList.map((share: any) => (
                                         <div key={share.userId} className="flex flex-wrap items-center gap-3 rounded-xl border border-white/10 bg-slate-900/40 px-3 py-2">
                                             <div className="flex-1">
                                                 <p className="text-sm font-semibold text-white">{share.username}</p>
@@ -211,6 +217,184 @@ const MapModals = React.memo((props: MapModalsProps) => {
                     </div>
                 </div>
             )}
+{filterShareModalOpen && typeof document !== 'undefined' && createPortal((
+                    <div className="pointer-events-auto fixed inset-0 z-[6500] flex items-center justify-center bg-slate-950/60 px-4">
+                        <div className="w-full max-w-xl rounded-2xl border border-white/10 bg-slate-900/95 p-6 shadow-2xl shadow-black/40">
+                            <div className="flex items-start justify-between">
+                                <div>
+                                    <h3 className="text-lg font-semibold text-white">Share Current Filter</h3>
+                                    <p className="text-sm text-slate-300">
+                                        Define permissions, user limits, and optional time window before generating the share.
+                                    </p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setFilterShareModalOpen(false);
+                                        setFilterShareZoneWkt(null);
+                                    }}
+                                    className="rounded-full p-1 text-slate-400 hover:bg-slate-800 hover:text-white"
+                                    aria-label="Close"
+                                >
+                                    <XMarkIcon className="h-5 w-5" />
+                                </button>
+                            </div>
+
+                            <form className="mt-4 grid gap-2" onSubmit={handleCreateFilterResearchShare}>
+                                <div className="grid grid-cols-2 gap-2 rounded-lg border border-white/10 bg-slate-950/40 p-1">
+                                    <button
+                                        type="button"
+                                        onClick={() => setResearchShareMode('direct')}
+                                        className={`rounded-md px-3 py-2 text-xs font-semibold transition ${researchShareMode === 'direct' ? 'bg-indigo-500 text-white' : 'text-slate-300 hover:bg-white/5'}`}
+                                    >
+                                        Share directly to user(s)
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setResearchShareMode('link')}
+                                        className={`rounded-md px-3 py-2 text-xs font-semibold transition ${researchShareMode === 'link' ? 'bg-indigo-500 text-white' : 'text-slate-300 hover:bg-white/5'}`}
+                                    >
+                                        Create link with user limit
+                                    </button>
+                                </div>
+
+                                {researchShareMode === 'direct' ? (
+                                    <label className="text-xs text-slate-300">
+                                        Usernames (comma or new line separated)
+                                        <textarea
+                                            value={researchShareUsername}
+                                            onChange={(event) => setResearchShareUsername(event.target.value)}
+                                            rows={3}
+                                            placeholder="alice, bob"
+                                            className="mt-1 w-full rounded-lg border border-white/15 bg-slate-900/70 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:border-indigo-400 focus:outline-none"
+                                        />
+                                    </label>
+                                ) : (
+                                    <label className="text-xs text-slate-300">
+                                        Maximum number of users for this link
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            value={researchShareMaxUsers}
+                                            onChange={(event) => setResearchShareMaxUsers(event.target.value)}
+                                            placeholder="Unlimited"
+                                            className="mt-1 w-full rounded-lg border border-white/15 bg-slate-900/70 px-3 py-2 text-xs text-white placeholder:text-slate-500 focus:border-indigo-400 focus:outline-none"
+                                        />
+                                    </label>
+                                )}
+
+                                <div className="grid gap-2 sm:grid-cols-3">
+                                    <MultiSelectCombobox
+                                        label="Periods"
+                                        options={periods.map(p => ({ value: String(p.id), label: p.name || `${p.startDate || ''} - ${p.endDate || ''}` }))}
+                                        selectedValues={researchSharePeriodIds}
+                                        onChange={setResearchSharePeriodIds}
+                                        placeholder="Any period"
+                                    />
+                                    <MultiSelectCombobox
+                                        label="Tools"
+                                        options={tools.map(t => ({ value: String(t.id), label: t.name }))}
+                                        selectedValues={researchShareToolIds}
+                                        onChange={setResearchShareToolIds}
+                                        placeholder="Any tool"
+                                    />
+                                    <MultiSelectCombobox
+                                        label="Products"
+                                        options={products.map(p => ({ value: String(p.id), label: p.name }))}
+                                        selectedValues={researchShareProductIds}
+                                        onChange={setResearchShareProductIds}
+                                        placeholder="Any product"
+                                    />
+                                </div>
+
+                                <div className="grid gap-2 sm:grid-cols-2">
+                                    <label className="text-xs text-slate-300">
+                                        Filter start date
+                                        <input
+                                            type="date"
+                                            value={researchShareFilterStartDate}
+                                            onChange={(event) => setResearchShareFilterStartDate(event.target.value)}
+                                            className="mt-1 w-full rounded-lg border border-white/15 bg-slate-900/70 px-3 py-2 text-xs text-white focus:border-indigo-400 focus:outline-none"
+                                        />
+                                    </label>
+                                    <label className="text-xs text-slate-300">
+                                        Filter end date
+                                        <input
+                                            type="date"
+                                            value={researchShareFilterEndDate}
+                                            onChange={(event) => setResearchShareFilterEndDate(event.target.value)}
+                                            className="mt-1 w-full rounded-lg border border-white/15 bg-slate-900/70 px-3 py-2 text-xs text-white focus:border-indigo-400 focus:outline-none"
+                                        />
+                                    </label>
+                                </div>
+
+                                <div className="grid gap-2 sm:grid-cols-2">
+                                    <label className="text-xs text-slate-300">
+                                        Share starts at
+                                        <input
+                                            type="datetime-local"
+                                            value={researchShareStartAt}
+                                            onChange={(event) => setResearchShareStartAt(event.target.value)}
+                                            className="mt-1 w-full rounded-lg border border-white/15 bg-slate-900/70 px-3 py-2 text-xs text-white focus:border-indigo-400 focus:outline-none"
+                                        />
+                                    </label>
+                                    <label className="text-xs text-slate-300">
+                                        Share ends at
+                                        <input
+                                            type="datetime-local"
+                                            value={researchShareEndAt}
+                                            onChange={(event) => setResearchShareEndAt(event.target.value)}
+                                            className="mt-1 w-full rounded-lg border border-white/15 bg-slate-900/70 px-3 py-2 text-xs text-white focus:border-indigo-400 focus:outline-none"
+                                        />
+                                    </label>
+                                </div>
+
+                                <div className="mt-1 flex items-center justify-end gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setFilterShareModalOpen(false);
+                                            setFilterShareZoneWkt(null);
+                                        }}
+                                        className="rounded-lg border border-white/15 px-4 py-2 text-sm font-medium text-white hover:bg-white/10"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        disabled={researchShareLoading}
+                                        className="rounded-lg bg-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-teal-500/25 hover:bg-teal-400 disabled:cursor-not-allowed disabled:opacity-60"
+                                    >
+                                        {researchShareLoading ? 'Creating...' : (researchShareMode === 'direct' ? 'Create Direct Share' : 'Create Limited Link')}
+                                    </button>
+                                </div>
+                            </form>
+
+                            {researchShareFeedback && (
+                                <div className="mt-2 rounded-lg border border-cyan-500/40 bg-cyan-500/10 px-3 py-2 text-xs text-cyan-100 break-all">
+                                    {researchShareFeedback}
+                                </div>
+                            )}
+
+                            {quickShareLink && (
+                                <div className="mt-2 flex items-center gap-2 rounded-lg border border-indigo-500/30 bg-indigo-500/10 px-3 py-2">
+                                    <p className="flex-1 text-xs text-indigo-100 break-all">{quickShareLink}</p>
+                                    <button
+                                        type="button"
+                                        onClick={async () => {
+                                            await navigator.clipboard.writeText(quickShareLink);
+                                            const copied = true;
+                                            setResearchShareFeedback(copied ? 'Link copied to clipboard.' : 'Unable to copy the link.');
+                                        }}
+                                        className="rounded-lg border border-indigo-400/40 bg-indigo-500/10 px-2 py-1 text-xs font-semibold text-indigo-100 hover:bg-indigo-500/20"
+                                    >
+                                        Copy
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                ), document.body)}
         </>
     );
 });

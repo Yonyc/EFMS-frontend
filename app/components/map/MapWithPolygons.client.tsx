@@ -67,9 +67,22 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
     const basePath = isImportMode ? `/imports/${resolvedContextId}` : `/farm/${resolvedContextId}`;
     const parcelsEndpoint = `${basePath}/parcels`;
 
-    const defaultSearchFilters = useMemo<ParcelSearchFilters>(() => ({
-        periodId: '', operationTypeId: '', toolId: '', productId: '', startDate: '', endDate: '', useMapArea: false, usePolygon: false,
-    }), []);
+    const defaultSearchFilters = useMemo<ParcelSearchFilters>(() => {
+        if (props.initialSharePayload) {
+            return {
+                periodIds: props.initialSharePayload.periodIds?.map(String) || [],
+                toolIds: props.initialSharePayload.toolIds?.map(String) || [],
+                productIds: props.initialSharePayload.productIds?.map(String) || [],
+                startDate: props.initialSharePayload.filterStartDate || '',
+                endDate: props.initialSharePayload.filterEndDate || '',
+                useMapArea: false,
+                usePolygon: !!props.initialSharePayload.zoneWkt,
+            };
+        }
+        return {
+            periodIds: [], toolIds: [], productIds: [], startDate: '', endDate: '', useMapArea: false, usePolygon: false,
+        };
+    }, [props.initialSharePayload]);
 
     // states
     const [polygons, setPolygons] = useState<PolygonData[]>([]);
@@ -120,9 +133,9 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
         polygons, setPolygons, setAllPolygons, parcelsEndpoint, contextType, getMap, t, areaName, setAreaName, setModal, setRenamingId, setSelectedPeriodId, setRenameValue, setRenamePeriodId,
         selectedParentId, setSelectedParentId, updateGhost, clearGhost, setSnapPreview
     });
-    const search = useParcelSearch({ parcelsEndpoint, contextType, isImportMode, getMap, defaultSearchFilters });
+    const search = useParcelSearch({ parcelsEndpoint, contextType, isImportMode, getMap, defaultSearchFilters, initialSharePayload: props.initialSharePayload });
     const operations = useParcelOperations({ farmId: Number(props.farm_id), resolvedContextId, contextType, canEditPolygon: (id: string) => (polygons.find(p => p.id === id) || allPolygons.find(p => p.id === id))?.canEdit !== false, t });
-    const sharing = useMapSharing({ resolvedContextId, contextType });
+    const sharing = useMapSharing({ resolvedContextId, contextType, allPolygons, searchDraft: search.searchDraft, searchAreaCoords: search.searchAreaCoords, viewportBounds: search.viewportBounds });
     const draggable = useDraggablePopup({ getMap, preferTopRight, POPUP_WIDTH, POPUP_HEIGHT, POPUP_PADDING, isMobile, activePopup: operations.operationPopup });
     const sidebarControl = useMapSidebarControls({ polygons, allPolygons, isImportMode });
 
@@ -365,8 +378,7 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
             <MapModals
                 t={t} renamingId={renamingId} setRenamingId={setRenamingId} renameValue={renameValue} setRenameValue={setRenameValue} renamePeriodId={renamePeriodId} setRenamePeriodId={setRenamePeriodId} handleRenameConfirm={handleRenameConfirm} periods={periods}
                 isAreaModalOpen={modal.open} areaName={areaName} setAreaName={setAreaName} selectedPeriodId={selectedPeriodId} setSelectedPeriodId={setSelectedPeriodId} handleAreaConfirm={confirmCreate} handleAreaCancel={cancelModal}
-                shareParcelId={shareParcelId} closeShareModal={closeShareModal} shareList={shareList} shareUsername={shareUsername} setShareUsername={setShareUsername} shareRole={shareRole} setShareRole={setShareRole} shareError={shareError} shareLoading={shareLoading}
-                handleAddShare={() => sharing.handleAddShare({ preventDefault: () => {} } as any)} handleUpdateShare={handleUpdateShare} handleRemoveShare={handleRemoveShare} allPolygons={allPolygons}
+                sharing={sharing} allPolygons={allPolygons} tools={tools} products={products}
             />
 
             <div className="flex h-full w-full min-h-0 relative">

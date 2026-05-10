@@ -1,29 +1,12 @@
 import React from "react";
-import type { OperationTypeDto, ProductDto, ToolDto } from "../types";
+import type { OperationTypeDto, ProductDto, ToolDto, ParcelSearchFilters } from "../types";
+import MultiSelectCombobox from "../../MultiSelectCombobox";
 
 interface MapSearchFiltersProps {
     isImportMode: boolean;
     isSearchOpen: boolean;
-    searchDraft: {
-        periodId: string;
-        operationTypeId: string;
-        productId: string;
-        toolId: string;
-        startDate: string;
-        endDate: string;
-        useMapArea: boolean;
-        usePolygon: boolean;
-    };
-    setSearchDraft: React.Dispatch<React.SetStateAction<{
-        periodId: string;
-        operationTypeId: string;
-        productId: string;
-        toolId: string;
-        startDate: string;
-        endDate: string;
-        useMapArea: boolean;
-        usePolygon: boolean;
-    }>>;
+    searchDraft: ParcelSearchFilters;
+    setSearchDraft: React.Dispatch<React.SetStateAction<ParcelSearchFilters>>;
     tools: ToolDto[];
     products: ProductDto[];
     periods: any[];
@@ -52,67 +35,34 @@ const MapSearchFilters = React.memo((props: MapSearchFiltersProps) => {
     return (
         <div className={`pointer-events-auto absolute top-16 right-4 z-[2000] w-[320px] max-w-[90vw] overflow-hidden rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-2xl shadow-slate-900/15 backdrop-blur-md ${disabled ? 'opacity-60' : ''}`}>
             <div className="flex flex-col gap-4">
-                <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    {t('map.searchFilters.periodLabel')}
-                    <select
-                        value={searchDraft.periodId}
+                <MultiSelectCombobox
+                        label={t('map.searchFilters.periodLabel')}
+                        options={periods.map((p) => ({ value: String(p.id), label: p.name || `${p.startDate || ''} - ${p.endDate || ''}` }))}
+                        selectedValues={searchDraft.periodIds}
+                        onChange={(next) => setSearchDraft(prev => ({ ...prev, periodIds: next }))}
+                        placeholder={t('map.searchFilters.anyPeriod')}
                         disabled={disabled}
-                        onChange={(event) => setSearchDraft(prev => ({ ...prev, periodId: event.target.value }))}
-                        className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:border-indigo-300 focus:outline-none"
-                    >
-                        <option value="">{t('map.searchFilters.anyPeriod')}</option>
-                        {periods.map((period) => (
-                            <option key={period.id} value={String(period.id)}>
-                                {period.name || `${period.startDate || ''} - ${period.endDate || ''}`}
-                            </option>
-                        ))}
-                    </select>
-                </label>
+                    />
 
-                <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    {t('map.searchFilters.typeLabel')}
-                    <select
-                        value={searchDraft.operationTypeId}
-                        disabled={disabled}
-                        onChange={(event) => setSearchDraft(prev => ({ ...prev, operationTypeId: event.target.value }))}
-                        className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:border-indigo-300 focus:outline-none"
-                    >
-                        <option value="">{t('map.searchFilters.anyType')}</option>
-                        {operationTypes.map((type) => (
-                            <option key={type.id} value={String(type.id)}>{type.name}</option>
-                        ))}
-                    </select>
-                </label>
+                
 
-                <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    {t('map.searchFilters.toolLabel')}
-                    <select
-                        value={searchDraft.toolId}
+                <MultiSelectCombobox
+                        label={t('map.searchFilters.toolLabel')}
+                        options={tools.map((t) => ({ value: String(t.id), label: t.name }))}
+                        selectedValues={searchDraft.toolIds}
+                        onChange={(next) => setSearchDraft(prev => ({ ...prev, toolIds: next }))}
+                        placeholder={t('map.searchFilters.anyTool')}
                         disabled={disabled}
-                        onChange={(event) => setSearchDraft(prev => ({ ...prev, toolId: event.target.value }))}
-                        className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:border-indigo-300 focus:outline-none"
-                    >
-                        <option value="">{t('map.searchFilters.anyTool')}</option>
-                        {tools.map((tool) => (
-                            <option key={tool.id} value={String(tool.id)}>{tool.name}</option>
-                        ))}
-                    </select>
-                </label>
+                    />
 
-                <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    {t('map.searchFilters.productLabel')}
-                    <select
-                        value={searchDraft.productId}
+                <MultiSelectCombobox
+                        label={t('map.searchFilters.productLabel')}
+                        options={products.map((p) => ({ value: String(p.id), label: p.name }))}
+                        selectedValues={searchDraft.productIds}
+                        onChange={(next) => setSearchDraft(prev => ({ ...prev, productIds: next }))}
+                        placeholder={t('map.searchFilters.anyProduct')}
                         disabled={disabled}
-                        onChange={(event) => setSearchDraft(prev => ({ ...prev, productId: event.target.value }))}
-                        className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:border-indigo-300 focus:outline-none"
-                    >
-                        <option value="">{t('map.searchFilters.anyProduct')}</option>
-                        {products.map((product) => (
-                            <option key={product.id} value={String(product.id)}>{product.name}</option>
-                        ))}
-                    </select>
-                </label>
+                    />
 
                 <div className="grid grid-cols-2 gap-3">
                     <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500">

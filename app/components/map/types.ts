@@ -25,12 +25,30 @@ export interface ParcelOperationDto {
 
 export interface PeriodDto { id: number; name?: string; startDate?: string; endDate?: string; }
 export interface ParcelShareDto { userId: number; username: string; role: string; }
+export interface ResearchZoneShareDto {
+    id: number;
+    userId?: number | null;
+    username?: string | null;
+    shareToken: string;
+    zoneWkt: string;
+    periodId?: number | null;
+    periodIds?: number[];
+    toolId?: number | null;
+    toolIds?: number[];
+    productId?: number | null;
+    productIds?: number[];
+    filterStartDate?: string | null;
+    filterEndDate?: string | null;
+    shareStartAt?: string | null;
+    shareEndAt?: string | null;
+    maxUsers?: number | null;
+    claimedUsers?: number | null;
+}
 
 export interface ParcelSearchFilters {
-    periodId: string;
-    operationTypeId: string;
-    toolId: string;
-    productId: string;
+    periodIds: string[];
+    toolIds: string[];
+    productIds: string[];
     startDate: string;
     endDate: string;
     useMapArea: boolean;
@@ -47,6 +65,7 @@ export interface MapWithPolygonsProps {
     onApproveAll?: () => Promise<void>;
     approveLabel?: string;
     importMode?: boolean; 
+    initialSharePayload?: any;
 }
 
 export interface PolygonData {
