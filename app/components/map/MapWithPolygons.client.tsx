@@ -91,6 +91,7 @@ interface MapWithPolygonsProps {
     onApproveAll?: () => Promise<void>;
     approveLabel?: string;
     importMode?: boolean; // when true, show statuses and allow single approval
+    initialSharePayload?: any;
 }
 
 export default function MapWithPolygons(props: MapWithPolygonsProps) {
@@ -163,22 +164,50 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
         if (typeof window === 'undefined') return '';
         return new URLSearchParams(window.location.search).get('researchShareToken') || '';
     }, []);
-    const defaultSearchFilters = useMemo<ParcelSearchFilters>(() => ({
-        periodIds: [],
-        toolIds: [],
-        productIds: [],
-        startDate: '',
-        endDate: '',
-        useMapArea: false,
-        usePolygon: false,
-    }), []);
+    const defaultSearchFilters = useMemo<ParcelSearchFilters>(() => {
+        if (props.initialSharePayload) {
+            return {
+                periodIds: props.initialSharePayload.periodIds?.map(String) || [],
+                toolIds: props.initialSharePayload.toolIds?.map(String) || [],
+                productIds: props.initialSharePayload.productIds?.map(String) || [],
+                startDate: props.initialSharePayload.filterStartDate || '',
+                endDate: props.initialSharePayload.filterEndDate || '',
+                useMapArea: false,
+                usePolygon: !!props.initialSharePayload.zoneWkt,
+            };
+        }
+        return {
+            periodIds: [],
+            toolIds: [],
+            productIds: [],
+            startDate: '',
+            endDate: '',
+            useMapArea: false,
+            usePolygon: false,
+        };
+    }, [props.initialSharePayload]);
     const [isSearchOpen, setIsSearchOpen] = useState(false);
     const [searchDraft, setSearchDraft] = useState<ParcelSearchFilters>(defaultSearchFilters);
     const [appliedFilters, setAppliedFilters] = useState<ParcelSearchFilters>(defaultSearchFilters);
     const [appliedBounds, setAppliedBounds] = useState<{ minLat: number; minLng: number; maxLat: number; maxLng: number } | null>(null);
-    const [searchAreaCoords, setSearchAreaCoords] = useState<[number, number][]>([]);
+    const [searchAreaCoords, setSearchAreaCoords] = useState<[number, number][]>(() => {
+        if (!props.initialSharePayload?.zoneWkt) return [];
+        try {
+            const wkt = props.initialSharePayload.zoneWkt.trim();
+            const coordsSource = wkt.match(/POLYGON\s*\(\s*\(\s*([^)]*?)\s*\)\s*/i)?.[1] ??
+                wkt.match(/MULTIPOLYGON\s*\(\s*\(\s*\(\s*([^)]*?)\s*\)\s*/i)?.[1];
+            if (!coordsSource) return [];
+            return coordsSource.split(',').map((pair: string) => pair.replace(/[()]/g, '').trim()).map((pair: string) => {
+                const [lngStr, latStr] = pair.split(/\s+/).filter(Boolean);
+                const lng = Number(lngStr);
+                const lat = Number(latStr);
+                if (Number.isFinite(lat) && Number.isFinite(lng)) return [lat, lng] as [number, number];
+                return null;
+            }).filter((val: any): val is [number, number] => Array.isArray(val));
+        } catch { return []; }
+    });
     const [isSearchDrawing, setIsSearchDrawing] = useState(false);
-    const [appliedPolygonWkt, setAppliedPolygonWkt] = useState<string | null>(null);
+    const [appliedPolygonWkt, setAppliedPolygonWkt] = useState<string | null>(props.initialSharePayload?.zoneWkt || null);
     const [viewportBounds, setViewportBounds] = useState<{ minLat: number; minLng: number; maxLat: number; maxLng: number } | null>(null);
     const [isApproving, setIsApproving] = useState(false);
     const [approveFeedback, setApproveFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -938,7 +967,11 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
         setOperationLoading(true);
         setOperationError(null);
         try {
-            const res = await apiGet(`/farm/${resolvedContextId}/parcels/${parcelId}/operations`);
+            let url = `/farm/${resolvedContextId}/parcels/${parcelId}/operations`;
+            if (researchShareToken) {
+                url += `?shareToken=${encodeURIComponent(researchShareToken)}`;
+            }
+            const res = await apiGet(url);
             if (!res.ok) throw new Error("failed");
             const data = await res.json();
             setParcelOperations(data);
@@ -948,7 +981,7 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
         } finally {
             setOperationLoading(false);
         }
-    }, [contextType, resolvedContextId, t]);
+    }, [contextType, resolvedContextId, t, researchShareToken]);
 
     const loadParcelShares = useCallback(async (parcelId: string) => {
         if (contextType !== 'farm' || !resolvedContextId) return;
@@ -1933,7 +1966,7 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
             });
         };
 
-        useMapEvents({
+        const map = useMapEvents({
             load: e => {
                 if (viewportDebounceRef.current) window.clearTimeout(viewportDebounceRef.current);
                 viewportDebounceRef.current = window.setTimeout(() => updateViewport(e.target), 150);
@@ -1983,7 +2016,19 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
                 maxLat: ne.lat,
                 maxLng: ne.lng,
             });
-        }, []);
+        }, [map]);
+
+        const initialPanDone = useRef(false);
+        useEffect(() => {
+            if (!initialPanDone.current && props.initialSharePayload?.zoneWkt) {
+                const coords = parseWktCoords(props.initialSharePayload.zoneWkt);
+                if (coords.length > 0) {
+                    initialPanDone.current = true;
+                    map.flyToBounds(L.latLngBounds(coords), { padding: [80, 80], animate: false });
+                }
+            }
+        }, [map]);
+
         return null;
     }
 
@@ -3358,13 +3403,15 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
                                 {t('map.searchFilters.clear')}
                             </button>
                             <div className="flex items-center gap-2">
-                                <button
-                                    type="button"
-                                    onClick={handleQuickShareCurrentFilter}
-                                    className="rounded-xl border border-cyan-300 bg-cyan-50 px-3 py-2 text-sm font-semibold text-cyan-700 shadow-sm hover:bg-cyan-100"
-                                >
-                                    Share Filter
-                                </button>
+                                {selectedFarm?.canManage && (
+                                    <button
+                                        type="button"
+                                        onClick={handleQuickShareCurrentFilter}
+                                        className="rounded-xl border border-cyan-300 bg-cyan-50 px-3 py-2 text-sm font-semibold text-cyan-700 shadow-sm hover:bg-cyan-100"
+                                    >
+                                        Share Filter
+                                    </button>
+                                )}
                                 <button
                                     type="button"
                                     onClick={applySearchFilters}

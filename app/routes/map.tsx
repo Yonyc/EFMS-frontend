@@ -20,6 +20,7 @@ export default function MapPage() {
     const [isTourOpen, setIsTourOpen] = useState(false);
     const [tourStep, setTourStep] = useState(0);
     const [resolvedShareFarmId, setResolvedShareFarmId] = useState<string | null>(null);
+    const [resolvedSharePayload, setResolvedSharePayload] = useState<any>(null);
     const [shareResolveError, setShareResolveError] = useState<string | null>(null);
     const tutorialState = user?.tutorialState ?? "NOT_STARTED";
     const researchShareToken = useMemo(() => {
@@ -108,6 +109,7 @@ export default function MapPage() {
                 }
                 const payload = await response.json();
                 if (!isMounted) return;
+                setResolvedSharePayload(payload);
                 const farmId = payload?.farmId != null ? String(payload.farmId) : null;
                 setResolvedShareFarmId(farmId);
                 setShareResolveError(null);
@@ -160,7 +162,7 @@ export default function MapPage() {
         content = (
             <div className="relative flex flex-1 w-full min-h-0">
                 {MapComponent ? (
-                    <MapComponent contextId={resolvedShareFarmId} contextType="farm" allowCreate={false} key={`shared-${resolvedShareFarmId}`} />
+                    <MapComponent contextId={resolvedShareFarmId} contextType="farm" allowCreate={false} initialSharePayload={resolvedSharePayload} key={`shared-${resolvedShareFarmId}`} />
                 ) : (
                     <FullScreenCenter>
                         <p className="text-gray-600">{t("common.loading")}</p>

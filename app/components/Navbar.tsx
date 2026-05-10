@@ -22,10 +22,12 @@ function classNames(...classes: string[]) {
 interface NavbarProps {
     currentLocale: Locale;
 }
+import { useFarm } from '../contexts/FarmContext';
 
 export default function Navbar({ currentLocale }: NavbarProps) {
     const { i18n, t } = useTranslation();
     const { isAuthenticated, user, logout } = useAuth();
+    const { selectedFarm } = useFarm();
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -171,31 +173,35 @@ export default function Navbar({ currentLocale }: NavbarProps) {
                                             {t('nav.assets')}
                                         </Link>
                                     </MenuItem>
-                                    <MenuItem>
-                                        <Link
-                                            to={localizedPath('periods')}
-                                            className="block px-4 py-2 text-sm text-gray-300 data-focus:bg-white/5 data-focus:outline-hidden"
-                                        >
-                                            {t('nav.periods')}
-                                        </Link>
-                                    </MenuItem>
-                                    <MenuItem>
-                                        <Link
-                                            to={localizedPath('farm-shares')}
-                                            className="block px-4 py-2 text-sm text-gray-300 data-focus:bg-white/5 data-focus:outline-hidden"
-                                        >
-                                            {t('nav.farm_shares', { defaultValue: 'Farm shares' })}
-                                        </Link>
-                                    </MenuItem>
-                                    <div className="my-1 h-px bg-white/10" />
-                                    <MenuItem>
-                                        <Link
-                                            to={localizedPath('imports')}
-                                            className="block px-4 py-2 text-sm text-gray-300 data-focus:bg-white/5 data-focus:outline-hidden"
-                                        >
-                                            {t('nav.imports')}
-                                        </Link>
-                                    </MenuItem>
+                                    {selectedFarm?.canManage && (
+                                        <>
+                                            <MenuItem>
+                                                <Link
+                                                    to={localizedPath('periods')}
+                                                    className="block px-4 py-2 text-sm text-gray-300 data-focus:bg-white/5 data-focus:outline-hidden"
+                                                >
+                                                    {t('nav.periods')}
+                                                </Link>
+                                            </MenuItem>
+                                            <MenuItem>
+                                                <Link
+                                                    to={localizedPath('farm-shares')}
+                                                    className="block px-4 py-2 text-sm text-gray-300 data-focus:bg-white/5 data-focus:outline-hidden"
+                                                >
+                                                    {t('nav.farm_shares', { defaultValue: 'Farm shares' })}
+                                                </Link>
+                                            </MenuItem>
+                                            <div className="my-1 h-px bg-white/10" />
+                                            <MenuItem>
+                                                <Link
+                                                    to={localizedPath('imports')}
+                                                    className="block px-4 py-2 text-sm text-gray-300 data-focus:bg-white/5 data-focus:outline-hidden"
+                                                >
+                                                    {t('nav.imports')}
+                                                </Link>
+                                            </MenuItem>
+                                        </>
+                                    )}
                                     <MenuItem>
                                         <Link
                                             to={localizedPath('create-farm')}
