@@ -14,7 +14,8 @@
     "sign_out": "Se déconnecter",
     "sign_in": "Se connecter",
     "create_farm": "Gérer les exploitations",
-    "periods": "Périodes"
+    "periods": "Périodes",
+    "farm_shares": "Partages de la ferme"
   },
   "imports": {
     "title": "Listes d'import",
@@ -281,6 +282,65 @@
       "showDescription": "Afficher la description",
       "showLocation": "Afficher la localisation",
       "missing": "Non renseigné"
+    }
+  },
+  "farmShares": {
+    "title": "Partages de la ferme",
+    "subtitle": "Gérez les accès utilisateurs et les liens de partage pour la ferme sélectionnée.",
+    "selectFarm": "Sélectionnez une ferme pour gérer ses partages.",
+    "noAccess": "Vous n'avez pas l'autorisation de gérer les partages de cette ferme.",
+    "errors": {
+      "load": "Impossible de charger les partages de la ferme.",
+      "save": "Impossible d'enregistrer les changements de partage.",
+      "copy": "Impossible de copier le lien de partage."
+    },
+    "parcel": {
+      "title": "Partages de parcelles",
+      "empty": "Aucun partage de parcelle trouvé."
+    },
+    "research": {
+      "title": "Liens de partage recherche",
+      "empty": "Aucun partage de recherche trouvé.",
+      "assignedTo": "Attribué à",
+      "linkShare": "Partage par lien",
+      "copyLink": "Copier le lien",
+      "accessUsers": "Utilisateurs ayant accès",
+      "periods": "Périodes",
+      "tools": "Outils",
+      "products": "Produits",
+      "any": "Tous",
+      "none": "aucun",
+      "now": "maintenant",
+      "noEnd": "sans fin",
+      "unknown": "inconnu",
+      "filterWindow": "Fenêtre de filtre",
+      "windowLabel": "Fenêtre de partage",
+      "createdAt": "Créé le",
+      "userCap": "Utilisateurs : {{claimed}} / {{max}}",
+      "userCapUnlimited": "Utilisateurs : illimité",
+      "window": "Fenêtre : {{start}} -> {{end}}"
+    },
+    "enrolled": {
+      "title": "Mes partages actifs",
+      "subtitle": "Partages que vous pouvez utiliser actuellement.",
+      "empty": "Vous n'êtes inscrit à aucun partage de recherche pour cette ferme.",
+      "leave": "Quitter le partage"
+    },
+    "edit": {
+      "subtitle": "Mettez à jour les contraintes, la période, ou révoquez ce partage.",
+      "direct": "Utilisateur direct",
+      "link": "Par lien",
+      "username": "Nom d'utilisateur",
+      "maxUsers": "Nombre max d'utilisateurs (vide = illimité)",
+      "filterStart": "Date de début du filtre",
+      "filterEnd": "Date de fin du filtre",
+      "shareStart": "Début du partage",
+      "shareEnd": "Fin du partage",
+      "revoke": "Révoquer l'accès",
+      "save": "Enregistrer les modifications"
+    },
+    "common": {
+      "noEntries": "Aucune entrée"
     }
   },
   "publicFarms": {

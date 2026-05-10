@@ -8,6 +8,7 @@ import ProtectedRoute from "~/components/ProtectedRoute";
 import { useCurrentLocale } from "../hooks/useCurrentLocale";
 import { buildLocalizedPath } from "../utils/locale";
 import MapTourOverlay from "~/components/map/MapTourOverlay";
+import { apiGet } from "~/utils/api";
 
 export default function MapPage() {
     const [MapComponent, setMapComponent] = useState<React.ComponentType<any> | null>(null);
@@ -18,7 +19,14 @@ export default function MapPage() {
     const createFarmPath = useMemo(() => buildLocalizedPath(locale, "/create-farm"), [locale]);
     const [isTourOpen, setIsTourOpen] = useState(false);
     const [tourStep, setTourStep] = useState(0);
+    const [resolvedShareFarmId, setResolvedShareFarmId] = useState<string | null>(null);
+    const [resolvedSharePayload, setResolvedSharePayload] = useState<any>(null);
+    const [shareResolveError, setShareResolveError] = useState<string | null>(null);
     const tutorialState = user?.tutorialState ?? "NOT_STARTED";
+    const researchShareToken = useMemo(() => {
+        if (typeof window === "undefined") return "";
+        return new URLSearchParams(window.location.search).get("researchShareToken") || "";
+    }, []);
 
     const tourSteps = useMemo(() => (
         [
@@ -83,6 +91,48 @@ export default function MapPage() {
         return () => window.clearTimeout(timer);
     }, [MapComponent, isAuthenticated, selectedFarm, tutorialState, updateTutorialState]);
 
+    useEffect(() => {
+        if (!isAuthenticated || !researchShareToken) {
+            setResolvedShareFarmId(null);
+            setShareResolveError(null);
+            return;
+        }
+
+        let isMounted = true;
+        const resolveShare = async () => {
+            try {
+                const response = await apiGet(`/farm/research-shares/resolve?token=${encodeURIComponent(researchShareToken)}`, {
+                    suppressUnauthorizedRedirect: true,
+                });
+                if (!response.ok) {
+                    throw new Error("Failed to resolve research share");
+                }
+                const payload = await response.json();
+                if (!isMounted) return;
+                setResolvedSharePayload(payload);
+                const farmId = payload?.farmId != null ? String(payload.farmId) : null;
+                setResolvedShareFarmId(farmId);
+                setShareResolveError(null);
+                if (farmId && farms.length > 0) {
+                    const matched = farms.find((farm) => farm.id === farmId);
+                    if (matched) {
+                        selectFarm(farmId);
+                    }
+                }
+            } catch (err) {
+                if (!isMounted) return;
+                console.error("Failed to resolve research share token", err);
+                setResolvedShareFarmId(null);
+                setShareResolveError(t("map.sharing.errors.loadFailed", { defaultValue: "Unable to open the shared research zone" }));
+            }
+        };
+
+        resolveShare();
+        return () => {
+            isMounted = false;
+        };
+    }, [farms, isAuthenticated, researchShareToken, selectFarm, t]);
+
     const closeTour = useCallback((finalState: TutorialState = "COMPLETED") => {
         updateTutorialState(finalState).catch((err) => console.error("Failed to persist tutorial state", err));
         setIsTourOpen(false);
@@ -108,8 +158,29 @@ export default function MapPage() {
                 </div>
             </FullScreenCenter>
         );
+    } else if (resolvedShareFarmId) {
+        content = (
+            <div className="relative flex flex-1 w-full min-h-0">
+                {MapComponent ? (
+                    <MapComponent contextId={resolvedShareFarmId} contextType="farm" allowCreate={false} initialSharePayload={resolvedSharePayload} key={`shared-${resolvedShareFarmId}`} />
+                ) : (
+                    <FullScreenCenter>
+                        <p className="text-gray-600">{t("common.loading")}</p>
+                    </FullScreenCenter>
+                )}
+            </div>
+        );
     } else if (!farms.length) {
-        content = <EmptyFarmState createFarmPath={createFarmPath} />;
+        content = (
+            <>
+                <EmptyFarmState createFarmPath={createFarmPath} />
+                {shareResolveError && (
+                    <div className="pointer-events-none fixed bottom-4 left-1/2 z-[2200] -translate-x-1/2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-700 shadow">
+                        {shareResolveError}
+                    </div>
+                )}
+            </>
+        );
     } else if (!selectedFarm) {
         content = (
             <FarmSelectionPanel
