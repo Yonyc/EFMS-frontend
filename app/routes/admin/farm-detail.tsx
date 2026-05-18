@@ -70,11 +70,11 @@ export default function AdminFarmDetail() {
                 isPublic: editIsPublic
             });
             if (res.ok) {
-                alert("Farm updated successfully.");
+                alert(t('admin.farmDetail.settings.success', { defaultValue: 'Farm updated successfully.' }));
                 fetchData();
             }
         } catch (err) {
-            alert("Failed to update farm");
+            alert(t('admin.farmDetail.settings.failed', { defaultValue: 'Failed to update farm' }));
         }
     };
 
@@ -92,10 +92,10 @@ export default function AdminFarmDetail() {
                 setNewMemberId(null);
                 fetchData();
             } else {
-                alert("Failed to add member");
+                alert(t('admin.farmDetail.members.addFailed', { defaultValue: 'Failed to add member' }));
             }
         } catch (err) {
-            alert("Failed to add member");
+            alert(t('admin.farmDetail.members.addFailed', { defaultValue: 'Failed to add member' }));
         }
     };
 
@@ -106,19 +106,19 @@ export default function AdminFarmDetail() {
                 fetchData();
             }
         } catch (err) {
-            alert("Failed to update member role");
+            alert(t('admin.farmDetail.members.roleFailed', { defaultValue: 'Failed to update member role' }));
         }
     };
 
     const handleRemoveMember = async (userId: number) => {
-        if (!window.confirm("Are you sure you want to remove this member?")) return;
+        if (!window.confirm(t('admin.farmDetail.members.removeConfirm', { defaultValue: 'Are you sure you want to remove this member?' }))) return;
         try {
             const res = await apiDelete(`/farm/${farmId}/members/${userId}`);
             if (res.ok) {
                 fetchData();
             }
         } catch (err) {
-            alert("Failed to remove member");
+            alert(t('admin.farmDetail.members.removeFailed', { defaultValue: 'Failed to remove member' }));
         }
     };
 
@@ -129,41 +129,47 @@ export default function AdminFarmDetail() {
     };
 
     const handleDeleteFarm = async () => {
-        const confirm1 = window.confirm(`Soft-delete farm "${farm?.name}"? This will also soft-delete all its parcels and operations. The farm can be restored later.`);
+        const confirm1 = window.confirm(t('admin.farmDetail.dangerZone.deleteConfirm', { 
+            defaultValue: 'Soft-delete farm "{{name}}"? This will also soft-delete all its parcels and operations. The farm can be restored later.',
+            name: farm?.name
+        }));
         if (!confirm1) return;
         try {
             const res = await apiDelete(`/admin/farms/${farmId}`);
             if (res.ok) {
                 fetchData();
             } else {
-                alert("Failed to delete farm");
+                alert(t('admin.farmDetail.dangerZone.deleteFailed', { defaultValue: 'Failed to delete farm' }));
             }
         } catch (err) {
-            alert("Failed to delete farm");
+            alert(t('admin.farmDetail.dangerZone.deleteFailed', { defaultValue: 'Failed to delete farm' }));
         }
     };
 
     const handleRestoreFarm = async () => {
-        const confirm1 = window.confirm(`Restore farm "${farm?.name}" and its cascade-deleted children?`);
+        const confirm1 = window.confirm(t('admin.farmDetail.dangerZone.restoreConfirm', { 
+            defaultValue: 'Restore farm "{{name}}" and its cascade-deleted children?',
+            name: farm?.name
+        }));
         if (!confirm1) return;
         try {
             const res = await apiPost(`/admin/farms/${farmId}/restore`, {});
             if (res.ok) {
                 fetchData();
             } else {
-                alert("Failed to restore farm");
+                alert(t('admin.farmDetail.dangerZone.restoreFailed', { defaultValue: 'Failed to restore farm' }));
             }
         } catch (err) {
-            alert("Failed to restore farm");
+            alert(t('admin.farmDetail.dangerZone.restoreFailed', { defaultValue: 'Failed to restore farm' }));
         }
     };
 
     if (loading) {
-        return <div className="text-slate-400 p-8 text-center">Loading farm details...</div>;
+        return <div className="text-slate-400 p-8 text-center">{t('admin.farmDetail.loading', { defaultValue: 'Loading farm details...' })}</div>;
     }
 
     if (!farm) {
-        return <div className="text-slate-400 p-8 text-center">Farm not found.</div>;
+        return <div className="text-slate-400 p-8 text-center">{t('admin.farmDetail.notFound', { defaultValue: 'Farm not found.' })}</div>;
     }
 
     return (
@@ -179,7 +185,7 @@ export default function AdminFarmDetail() {
                             <h2 className="text-2xl font-extrabold text-slate-100">{farm.name}</h2>
                             {farm.deletedAt && (
                                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-rose-500/15 text-rose-400 border border-rose-500/30">
-                                    <TrashIcon className="w-3 h-3" /> Deleted
+                                    <TrashIcon className="w-3 h-3" /> {t('admin.farms.deletedBadge', { defaultValue: 'Deleted' })}
                                 </span>
                             )}
                         </div>
@@ -190,7 +196,7 @@ export default function AdminFarmDetail() {
                     <button onClick={handleManageInApp}
                         className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-semibold text-white bg-indigo-500 rounded-xl hover:bg-indigo-400 shadow-lg shadow-indigo-500/25 transition-all">
                         <MapIcon className="w-5 h-5" />
-                        Manage in App
+                        {t('admin.farmDetail.manageInApp', { defaultValue: 'Manage in App' })}
                     </button>
                 )}
             </div>
@@ -198,23 +204,23 @@ export default function AdminFarmDetail() {
             <div className="grid lg:grid-cols-2 gap-8">
                 {/* Farm Settings */}
                 <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl shadow-black/20">
-                    <h3 className="text-lg font-bold text-slate-100 mb-6">Farm Settings</h3>
+                    <h3 className="text-lg font-bold text-slate-100 mb-6">{t('admin.farmDetail.settings.title', { defaultValue: 'Farm Settings' })}</h3>
                     <form onSubmit={handleUpdateFarm} className="space-y-5">
                         <div className="space-y-1.5">
-                            <label className="block text-sm font-medium text-slate-300">Name</label>
+                            <label className="block text-sm font-medium text-slate-300">{t('admin.farmDetail.settings.nameLabel', { defaultValue: 'Name' })}</label>
                             <input type="text" value={editName}
                                 onChange={e => setEditName(e.target.value)}
                                 className="w-full rounded-xl bg-slate-950 border border-slate-800 px-4 py-2 text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all" required />
                         </div>
                         <div className="space-y-1.5">
-                            <label className="block text-sm font-medium text-slate-300">Description</label>
+                            <label className="block text-sm font-medium text-slate-300">{t('admin.farmDetail.settings.descriptionLabel', { defaultValue: 'Description' })}</label>
                             <textarea value={editDescription}
                                 onChange={e => setEditDescription(e.target.value)}
                                 rows={3}
                                 className="w-full rounded-xl bg-slate-950 border border-slate-800 px-4 py-2 text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all" />
                         </div>
                         <div className="space-y-1.5">
-                            <label className="block text-sm font-medium text-slate-300">Location</label>
+                            <label className="block text-sm font-medium text-slate-300">{t('admin.farmDetail.settings.locationLabel', { defaultValue: 'Location' })}</label>
                             <input type="text" value={editLocation}
                                 onChange={e => setEditLocation(e.target.value)}
                                 className="w-full rounded-xl bg-slate-950 border border-slate-800 px-4 py-2 text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all" />
@@ -223,12 +229,12 @@ export default function AdminFarmDetail() {
                             <input type="checkbox" checked={editIsPublic}
                                 onChange={e => setEditIsPublic(e.target.checked)}
                                 className="w-4 h-4 rounded border-slate-700 bg-slate-950 text-indigo-500 focus:ring-indigo-500 focus:ring-offset-slate-900" />
-                            <span className="text-sm font-medium text-slate-300">Public Farm</span>
+                            <span className="text-sm font-medium text-slate-300">{t('admin.farmDetail.settings.publicLabel', { defaultValue: 'Public Farm' })}</span>
                         </label>
                         <div className="pt-4 flex justify-end">
                             <button type="submit"
                                 className="px-5 py-2.5 text-sm font-semibold text-indigo-300 bg-indigo-500/10 rounded-xl hover:bg-indigo-500/20 border border-indigo-500/20 transition-colors">
-                                Save Settings
+                                {t('admin.farmDetail.settings.saveBtn', { defaultValue: 'Save Settings' })}
                             </button>
                         </div>
                     </form>
@@ -236,7 +242,7 @@ export default function AdminFarmDetail() {
 
                 {/* Farm Members */}
                 <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl shadow-black/20 flex flex-col h-full">
-                    <h3 className="text-lg font-bold text-slate-100 mb-6">Members</h3>
+                    <h3 className="text-lg font-bold text-slate-100 mb-6">{t('admin.farmDetail.members.title', { defaultValue: 'Members' })}</h3>
                     
                     <form onSubmit={handleAddMember} className="flex gap-3 mb-6">
                         <div className="flex-1">
@@ -244,44 +250,44 @@ export default function AdminFarmDetail() {
                                 value={newMemberUsername}
                                 onChange={setNewMemberUsername}
                                 onSelectUser={(u) => setNewMemberId(u.id)}
-                                placeholder="Search username..."
+                                placeholder={t('admin.farmDetail.members.searchPlaceholder', { defaultValue: 'Search username...' })}
                                 className="w-full rounded-xl bg-slate-950 border border-slate-800 px-4 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
                             />
                         </div>
                         <select value={newMemberRole} onChange={e => setNewMemberRole(e.target.value)}
                             className="w-32 rounded-xl bg-slate-950 border border-slate-800 px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all">
-                            <option value="ADMIN">Admin</option>
-                            <option value="EDITOR">Editor</option>
-                            <option value="VIEWER">Viewer</option>
+                            <option value="ADMIN">{t('admin.farmDetail.members.adminRole', { defaultValue: 'Admin' })}</option>
+                            <option value="EDITOR">{t('admin.farmDetail.members.editorRole', { defaultValue: 'Editor' })}</option>
+                            <option value="VIEWER">{t('admin.farmDetail.members.viewerRole', { defaultValue: 'Viewer' })}</option>
                         </select>
                         <button type="submit"
                             className="px-4 py-2 text-sm font-semibold text-emerald-300 bg-emerald-500/10 rounded-xl hover:bg-emerald-500/20 border border-emerald-500/20 transition-colors"
-                            title="Add Member">
+                            title={t('admin.farmDetail.members.addBtnTitle', { defaultValue: 'Add Member' })}>
                             <UserPlusIcon className="w-5 h-5" />
                         </button>
                     </form>
 
                     <div className="flex-1 overflow-y-auto pr-2 space-y-3">
                         {members.length === 0 ? (
-                            <p className="text-sm text-slate-500 text-center py-4">No members in this farm.</p>
+                            <p className="text-sm text-slate-500 text-center py-4">{t('admin.farmDetail.members.empty', { defaultValue: 'No members in this farm.' })}</p>
                         ) : (
                             members.map(m => (
                                 <div key={m.userId} className="flex items-center justify-between p-3 rounded-xl bg-slate-950 border border-slate-800">
                                     <div className="flex flex-col">
                                         <span className="font-medium text-slate-200">{m.username}</span>
-                                        {m.owner && <span className="text-[10px] uppercase font-bold text-emerald-400">Owner</span>}
+                                        {m.owner && <span className="text-[10px] uppercase font-bold text-emerald-400">{t('admin.farmDetail.members.ownerBadge', { defaultValue: 'Owner' })}</span>}
                                     </div>
                                     {!m.owner && (
                                         <div className="flex items-center gap-2">
                                             <select value={m.role} onChange={e => handleUpdateMemberRole(m.userId, e.target.value)}
                                                 className="w-28 rounded-lg bg-slate-900 border border-slate-700 px-2 py-1.5 text-xs text-slate-300 focus:outline-none focus:border-indigo-500 transition-all">
-                                                <option value="ADMIN">Admin</option>
-                                                <option value="EDITOR">Editor</option>
-                                                <option value="VIEWER">Viewer</option>
+                                                <option value="ADMIN">{t('admin.farmDetail.members.adminRole', { defaultValue: 'Admin' })}</option>
+                                                <option value="EDITOR">{t('admin.farmDetail.members.editorRole', { defaultValue: 'Editor' })}</option>
+                                                <option value="VIEWER">{t('admin.farmDetail.members.viewerRole', { defaultValue: 'Viewer' })}</option>
                                             </select>
                                             <button onClick={() => handleRemoveMember(m.userId)}
                                                 className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
-                                                title="Remove Member">
+                                                title={t('admin.farmDetail.members.removeBtnTitle', { defaultValue: 'Remove Member' })}>
                                                 <TrashIcon className="w-4 h-4" />
                                             </button>
                                         </div>
@@ -302,37 +308,35 @@ export default function AdminFarmDetail() {
                 <h3 className={`text-lg font-bold ${
                     farm.deletedAt ? 'text-emerald-400' : 'text-rose-400'
                 }`}>
-                    {farm.deletedAt ? '🔄 Restore Farm' : '⚠️ Danger Zone'}
+                    {farm.deletedAt ? t('admin.farmDetail.dangerZone.restoreTitle', { defaultValue: '🔄 Restore Farm' }) : t('admin.farmDetail.dangerZone.dangerTitle', { defaultValue: '⚠️ Danger Zone' })}
                 </h3>
 
                 {farm.deletedAt ? (
                     <div className="flex items-start justify-between gap-6">
                         <div>
-                            <p className="text-sm text-slate-300 font-medium">This farm has been soft-deleted.</p>
+                            <p className="text-sm text-slate-300 font-medium">{t('admin.farmDetail.dangerZone.deletedDesc', { defaultValue: 'This farm has been soft-deleted.' })}</p>
                             <p className="text-xs text-slate-500 mt-1">
-                                Restoring will bring back this farm and all parcels &amp; operations that were
-                                cascade-deleted at the same time. Independently deleted children will remain deleted.
+                                {t('admin.farmDetail.dangerZone.restoreDesc', { defaultValue: 'Restoring will bring back this farm and all parcels & operations that were cascade-deleted at the same time. Independently deleted children will remain deleted.' })}
                             </p>
                         </div>
                         <button onClick={handleRestoreFarm}
                             className="flex-shrink-0 inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-emerald-600 rounded-xl hover:bg-emerald-500 shadow-lg shadow-emerald-500/20 transition-all">
                             <ArrowPathIcon className="w-4 h-4" />
-                            Restore Farm
+                            {t('admin.farmDetail.dangerZone.restoreBtn', { defaultValue: 'Restore Farm' })}
                         </button>
                     </div>
                 ) : (
                     <div className="flex items-start justify-between gap-6">
                         <div>
-                            <p className="text-sm text-slate-300 font-medium">Delete this farm.</p>
+                            <p className="text-sm text-slate-300 font-medium">{t('admin.farmDetail.dangerZone.deleteDesc', { defaultValue: 'Delete this farm.' })}</p>
                             <p className="text-xs text-slate-500 mt-1">
-                                This will soft-delete the farm and cascade to all its parcels and operations.
-                                The data is preserved and can be restored by an admin.
+                                {t('admin.farmDetail.dangerZone.deleteDescDetail', { defaultValue: 'This will soft-delete the farm and cascade to all its parcels and operations. The data is preserved and can be restored by an admin.' })}
                             </p>
                         </div>
                         <button onClick={handleDeleteFarm}
                             className="flex-shrink-0 inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-rose-600 rounded-xl hover:bg-rose-500 shadow-lg shadow-rose-500/20 transition-all">
                             <TrashIcon className="w-4 h-4" />
-                            Delete Farm
+                            {t('admin.farmDetail.dangerZone.deleteBtn', { defaultValue: 'Delete Farm' })}
                         </button>
                     </div>
                 )}

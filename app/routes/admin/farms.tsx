@@ -83,12 +83,12 @@ export default function AdminFarmsList() {
             {/* Filters & Search */}
             <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl shadow-xl shadow-black/20 space-y-4 sm:space-y-0 sm:flex sm:gap-4 sm:items-end">
                 <div className="flex-1 space-y-2">
-                    <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Search</label>
+                    <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{t('admin.farms.searchLabel', { defaultValue: 'Search' })}</label>
                     <div className="relative">
                         <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500" />
                         <input 
                             type="text" 
-                            placeholder="Search by name, description, location, or ID..."
+                            placeholder={t('admin.farms.searchPlaceholder', { defaultValue: 'Search by name, description, location, or ID...' })}
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className="w-full pl-10 pr-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
@@ -96,27 +96,27 @@ export default function AdminFarmsList() {
                     </div>
                 </div>
                 <div className="space-y-2">
-                    <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Approval</label>
+                    <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{t('admin.farms.approvalLabel', { defaultValue: 'Approval' })}</label>
                     <select 
                         value={filterApproved} 
                         onChange={(e) => setFilterApproved(e.target.value as any)}
                         className="w-full sm:w-auto px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-200 focus:outline-none focus:border-indigo-500 transition-all"
                     >
-                        <option value="ALL">All Status</option>
-                        <option value="APPROVED">Approved</option>
-                        <option value="PENDING">Pending</option>
+                        <option value="ALL">{t('admin.farms.allStatus', { defaultValue: 'All Status' })}</option>
+                        <option value="APPROVED">{t('admin.farms.approved', { defaultValue: 'Approved' })}</option>
+                        <option value="PENDING">{t('admin.farms.pending', { defaultValue: 'Pending' })}</option>
                     </select>
                 </div>
                 <div className="space-y-2">
-                    <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Visibility</label>
+                    <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{t('admin.farms.visibilityLabel', { defaultValue: 'Visibility' })}</label>
                     <select 
                         value={filterPublic} 
                         onChange={(e) => setFilterPublic(e.target.value as any)}
                         className="w-full sm:w-auto px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-200 focus:outline-none focus:border-indigo-500 transition-all"
                     >
-                        <option value="ALL">All Visibility</option>
-                        <option value="PUBLIC">Public</option>
-                        <option value="PRIVATE">Private</option>
+                        <option value="ALL">{t('admin.farms.allVisibility', { defaultValue: 'All Visibility' })}</option>
+                        <option value="PUBLIC">{t('admin.farms.public', { defaultValue: 'Public' })}</option>
+                        <option value="PRIVATE">{t('admin.farms.private', { defaultValue: 'Private' })}</option>
                     </select>
                 </div>
             </div>
@@ -124,9 +124,9 @@ export default function AdminFarmsList() {
             {/* List */}
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {loading ? (
-                    <div className="col-span-full p-8 text-center text-slate-400">Loading farms...</div>
+                    <div className="col-span-full p-8 text-center text-slate-400">{t('admin.farms.loading', { defaultValue: 'Loading farms...' })}</div>
                 ) : filteredFarms.length === 0 ? (
-                    <div className="col-span-full p-8 text-center text-slate-400 bg-slate-900 border border-slate-800 rounded-2xl">No farms found matching your filters.</div>
+                    <div className="col-span-full p-8 text-center text-slate-400 bg-slate-900 border border-slate-800 rounded-2xl">{t('admin.farms.noFarms', { defaultValue: 'No farms found matching your filters.' })}</div>
                 ) : (
                     filteredFarms.map(f => (
                         <div key={f.id} className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl shadow-black/20 flex flex-col transition-transform hover:-translate-y-1 hover:shadow-indigo-500/10 hover:border-indigo-500/30">
@@ -139,30 +139,30 @@ export default function AdminFarmsList() {
                                     <button onClick={() => toggleFarmApproval(f.id, f.approved)}
                                         className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all ${f.approved ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20 hover:bg-amber-500/20'}`}>
                                         {f.approved ? <CheckCircleIcon className="w-3 h-3" /> : <XCircleIcon className="w-3 h-3" />}
-                                        {f.approved ? 'Approved' : 'Pending'}
+                                        {f.approved ? t('admin.farms.approved', { defaultValue: 'Approved' }) : t('admin.farms.pending', { defaultValue: 'Pending' })}
                                     </button>
                                     <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${f.isPublic ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20' : 'bg-slate-800 text-slate-400 border border-slate-700'}`}>
-                                        {f.isPublic ? 'Public' : 'Private'}
+                                        {f.isPublic ? t('admin.farms.public', { defaultValue: 'Public' }) : t('admin.farms.private', { defaultValue: 'Private' })}
                                     </span>
                                     {f.deletedAt && (
                                         <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider bg-rose-500/15 text-rose-400 border border-rose-500/30">
-                                            Deleted
+                                            {t('admin.farms.deletedBadge', { defaultValue: 'Deleted' })}
                                         </span>
                                     )}
                                 </div>
                             </div>
                             
                             <div className="flex-1 space-y-2 mb-6 text-sm text-slate-400">
-                                {f.location && <p><span className="text-slate-500">Location:</span> {f.location}</p>}
-                                {f.description && <p className="line-clamp-2"><span className="text-slate-500">About:</span> {f.description}</p>}
-                                {f.owner && <p><span className="text-slate-500">Owner:</span> {f.owner.username}</p>}
+                                {f.location && <p><span className="text-slate-500">{t('admin.farms.locationLabel', { defaultValue: 'Location:' })}</span> {f.location}</p>}
+                                {f.description && <p className="line-clamp-2"><span className="text-slate-500">{t('admin.farms.aboutLabel', { defaultValue: 'About:' })}</span> {f.description}</p>}
+                                {f.owner && <p><span className="text-slate-500">{t('admin.farms.ownerLabel', { defaultValue: 'Owner:' })}</span> {f.owner.username}</p>}
                             </div>
 
                             <div className="flex items-center justify-between pt-4 border-t border-slate-800">
                                 {!f.deletedAt ? (
                                     <button onClick={() => deleteFarm(f.id)}
                                         className="p-2 rounded-xl text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
-                                        title="Delete Farm">
+                                        title={t('admin.farms.deleteBtnTitle', { defaultValue: 'Delete Farm' })}>
                                         <TrashIcon className="w-5 h-5" />
                                     </button>
                                 ) : (
@@ -171,7 +171,7 @@ export default function AdminFarmsList() {
                                 <button onClick={() => navigate(buildLocalizedPath(locale, `/admin/farms/${f.id}`))}
                                     className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-indigo-300 bg-indigo-500/10 rounded-xl hover:bg-indigo-500/20 border border-indigo-500/20 transition-colors">
                                     <Cog8ToothIcon className="w-4 h-4" />
-                                    Manage
+                                    {t('admin.farms.manageBtn', { defaultValue: 'Manage' })}
                                 </button>
                             </div>
                         </div>
@@ -188,20 +188,25 @@ export default function AdminFarmsList() {
                             disabled={currentPage === 0}
                             className="relative inline-flex items-center rounded-xl border border-slate-800 bg-slate-900 px-4 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                         >
-                            Previous
+                            {t('admin.farms.paginationPrevious', { defaultValue: 'Previous' })}
                         </button>
                         <button
                             onClick={() => setCurrentPage(prev => Math.min(totalPages - 1, prev + 1))}
                             disabled={currentPage === totalPages - 1}
                             className="relative ml-3 inline-flex items-center rounded-xl border border-slate-800 bg-slate-900 px-4 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                         >
-                            Next
+                            {t('admin.farms.paginationNext', { defaultValue: 'Next' })}
                         </button>
                     </div>
                     <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
                         <div>
                             <p className="text-sm text-slate-400">
-                                Showing page <span className="font-semibold text-slate-200">{currentPage + 1}</span> of <span className="font-semibold text-slate-200">{totalPages}</span> (<span className="font-semibold text-slate-200">{totalElements}</span> total elements)
+                                {t('admin.farms.paginationStatus', { 
+                                    defaultValue: 'Showing page {{page}} of {{totalPages}} ({{total}} total elements)',
+                                    page: currentPage + 1,
+                                    totalPages,
+                                    total: totalElements
+                                })}
                             </p>
                         </div>
                         <div>
@@ -211,7 +216,7 @@ export default function AdminFarmsList() {
                                     disabled={currentPage === 0}
                                     className="relative inline-flex items-center rounded-l-xl px-3 py-2 text-slate-400 bg-slate-900 border border-slate-800 hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                                 >
-                                    Previous
+                                    {t('admin.farms.paginationPrevious', { defaultValue: 'Previous' })}
                                 </button>
                                 {Array.from({ length: totalPages }, (_, i) => i).map((p) => (
                                     <button
@@ -231,7 +236,7 @@ export default function AdminFarmsList() {
                                     disabled={currentPage === totalPages - 1}
                                     className="relative inline-flex items-center rounded-r-xl px-3 py-2 text-slate-400 bg-slate-900 border border-slate-800 hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                                 >
-                                    Next
+                                    {t('admin.farms.paginationNext', { defaultValue: 'Next' })}
                                 </button>
                             </nav>
                         </div>
