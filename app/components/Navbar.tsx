@@ -27,7 +27,7 @@ import { useFarm } from '../contexts/FarmContext';
 export default function Navbar({ currentLocale }: NavbarProps) {
     const { i18n, t } = useTranslation();
     const { isAuthenticated, user, logout } = useAuth();
-    const { selectedFarm } = useFarm();
+    const { selectedFarm, farms } = useFarm();
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -156,23 +156,27 @@ export default function Navbar({ currentLocale }: NavbarProps) {
                                             {t('nav.profile')}
                                         </Link>
                                     </MenuItem>
-                                    <div className="my-1 h-px bg-white/10" />
-                                    <MenuItem>
-                                        <Link
-                                            to={localizedPath('operations')}
-                                            className="block px-4 py-2 text-sm text-gray-300 data-focus:bg-white/5 data-focus:outline-hidden"
-                                        >
-                                            {t('nav.operations')}
-                                        </Link>
-                                    </MenuItem>
-                                    <MenuItem>
-                                        <Link
-                                            to={localizedPath('assets')}
-                                            className="block px-4 py-2 text-sm text-gray-300 data-focus:bg-white/5 data-focus:outline-hidden"
-                                        >
-                                            {t('nav.assets')}
-                                        </Link>
-                                    </MenuItem>
+                                    {farms.length > 0 && (
+                                        <>
+                                            <div className="my-1 h-px bg-white/10" />
+                                            <MenuItem>
+                                                <Link
+                                                    to={localizedPath('operations')}
+                                                    className="block px-4 py-2 text-sm text-gray-300 data-focus:bg-white/5 data-focus:outline-hidden"
+                                                >
+                                                    {t('nav.operations')}
+                                                </Link>
+                                            </MenuItem>
+                                            <MenuItem>
+                                                <Link
+                                                    to={localizedPath('assets')}
+                                                    className="block px-4 py-2 text-sm text-gray-300 data-focus:bg-white/5 data-focus:outline-hidden"
+                                                >
+                                                    {t('nav.assets')}
+                                                </Link>
+                                            </MenuItem>
+                                        </>
+                                    )}
                                     {selectedFarm?.canManage && (
                                         <>
                                             <MenuItem>
@@ -202,22 +206,25 @@ export default function Navbar({ currentLocale }: NavbarProps) {
                                             </MenuItem>
                                         </>
                                     )}
+                                    <div className="my-1 h-px bg-white/10" />
                                     <MenuItem>
                                         <Link
-                                            to={localizedPath('create-farm')}
+                                            to={localizedPath('manage-farm')}
                                             className="block px-4 py-2 text-sm text-gray-300 data-focus:bg-white/5 data-focus:outline-hidden"
                                         >
-                                            {t('nav.create_farm')}
+                                            {t('nav.manage_farms', { defaultValue: 'Manage Farms' })}
                                         </Link>
                                     </MenuItem>
-                                    <MenuItem>
-                                        <a
-                                            href="#"
-                                            className="block px-4 py-2 text-sm text-gray-300 data-focus:bg-white/5 data-focus:outline-hidden"
-                                        >
-                                            {t('nav.settings')}
-                                        </a>
-                                    </MenuItem>
+                                    {user?.admin && (
+                                        <MenuItem>
+                                            <Link
+                                                to={localizedPath('admin')}
+                                                className="block px-4 py-2 text-sm font-semibold text-indigo-400 data-focus:bg-white/5 data-focus:outline-hidden"
+                                            >
+                                                {t('nav.admin', { defaultValue: 'Admin Dashboard' })}
+                                            </Link>
+                                        </MenuItem>
+                                    )}
                                     <MenuItem>
                                         <button
                                             onClick={handleLogout}

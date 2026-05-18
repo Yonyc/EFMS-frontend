@@ -37,10 +37,14 @@ export default function Login() {
     setIsLoading(true);
 
     try {
-  await login(username, password);
-  navigate(buildLocalizedPath(locale, '/'));
-    } catch (err) {
-      setError(t('auth.login.errors.invalidCredentials'));
+      await login(username, password);
+      navigate(buildLocalizedPath(locale, '/'));
+    } catch (err: any) {
+      if (err.message === 'NOT_VERIFIED') {
+          navigate(buildLocalizedPath(locale, '/verify'));
+      } else {
+          setError(t('auth.login.errors.invalidCredentials'));
+      }
     } finally {
       setIsLoading(false);
     }

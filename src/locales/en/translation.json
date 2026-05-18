@@ -14,8 +14,10 @@
     "sign_out": "Sign out",
     "sign_in": "Sign In",
     "create_farm": "Manage Farms",
+    "manage_farms": "Manage Farms",
     "periods": "Periods",
-    "farm_shares": "Farm shares"
+    "farm_shares": "Farm shares",
+    "admin": "Admin Dashboard"
   },
   "imports": {
     "title": "Import lists",
@@ -219,6 +221,12 @@
   "manageFarms": {
     "title": "Manage Farms",
     "description": "Rename an existing farm or add a new one.",
+    "navigation": {
+      "settings": "Settings",
+      "members": "Members",
+      "danger": "Danger Zone",
+      "create": "Create New"
+    },
     "currentTitle": "Current farm",
     "currentDescription": "Select a farm to edit its settings.",
     "nameLabel": "Farm name",
@@ -242,6 +250,15 @@
     "showName": "Show name",
     "showDescription": "Show description",
     "showLocation": "Show location",
+    "emailAlertsTitle": "Email Alert Configurations",
+    "emailAlertsDesc": "Enable or disable real-time email alerts for important actions on this farm.",
+    "memberAlerts": "Member Alerts",
+    "memberAlertsHelp": "Changes to users / roles",
+    "parcelAlerts": "Parcel Alerts",
+    "parcelAlertsHelp": "Created, modified or deleted parcels",
+    "operationAlerts": "Operation Alerts",
+    "operationAlertsHelp": "Created or deleted parcel operations",
+    "alertEmailLabel": "Custom Alert Recipient Email",
     "submit": "Create Farm",
     "submitting": "Creating...",
     "created": "Farm created",
@@ -644,6 +661,51 @@
       "continueEditing": "Continue editing",
       "allowOverlap": "Allow overlap",
       "applyShrink": "Apply shrink"
+    }
+  },
+  "admin": {
+    "title": "Global Administration",
+    "settings": {
+      "title": "System Settings",
+      "requireVerification": "Require User Verification",
+      "requireFarmApproval": "Require Farm Approval",
+      "subtitle": "System Preferences",
+      "subtitleDesc": "Manage global access and verification requirements.",
+      "requireVerificationDesc": "Users must verify their email address before accessing the platform features.",
+      "requireFarmApprovalDesc": "New farms created by users must be approved by an admin before they are fully active and public.",
+      "saveBtn": "Save Preferences",
+      "savingBtn": "Saving...",
+      "loading": "Loading settings..."
+    },
+    "users": {
+      "title": "Users",
+      "verified": "Verified",
+      "unverified": "Unverified",
+      "admin": "Admin",
+      "user": "User",
+      "resendMail": "Resend Mail",
+      "edit": "Edit",
+      "delete": "Delete",
+      "editTitle": "Edit User",
+      "username": "Username",
+      "email": "Email",
+      "mailSent": "Verification mail sent.",
+      "mailFailed": "Failed to send mail or user is already verified.",
+      "confirmDelete": "Are you sure you want to delete this user? This action cannot be undone.",
+      "confirmAdminChange": "Are you sure you want to change this user's admin status?",
+      "confirmSelfDemotion": "WARNING: You are about to remove your own admin privileges! You will not be able to undo this. Are you sure?"
+    },
+    "farms": {
+      "title": "Farms",
+      "approved": "Approved",
+      "pending": "Pending",
+      "edit": "Edit",
+      "delete": "Delete",
+      "editTitle": "Edit Farm",
+      "name": "Name",
+      "description": "Description",
+      "location": "Location",
+      "confirmDelete": "Are you sure you want to delete this farm? This action cannot be undone."
     }
   }
 }

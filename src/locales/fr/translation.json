@@ -14,8 +14,10 @@
     "sign_out": "Se déconnecter",
     "sign_in": "Se connecter",
     "create_farm": "Gérer les exploitations",
+    "manage_farms": "Gérer les exploitations",
     "periods": "Périodes",
-    "farm_shares": "Partages de la ferme"
+    "farm_shares": "Partages de la ferme",
+    "admin": "Administration"
   },
   "imports": {
     "title": "Listes d'import",
@@ -219,6 +221,12 @@
   "manageFarms": {
     "title": "Gérer les exploitations",
     "description": "Renommez une exploitation existante ou ajoutez-en une nouvelle.",
+    "navigation": {
+      "settings": "Paramètres",
+      "members": "Membres",
+      "danger": "Zone de danger",
+      "create": "Créer une nouvelle"
+    },
     "currentTitle": "Exploitation actuelle",
     "currentDescription": "Sélectionnez une exploitation pour modifier ses paramètres.",
     "nameLabel": "Nom de l'exploitation",
@@ -242,6 +250,15 @@
     "showName": "Afficher le nom",
     "showDescription": "Afficher la description",
     "showLocation": "Afficher la localisation",
+    "emailAlertsTitle": "Configuration des alertes e-mail",
+    "emailAlertsDesc": "Activer ou désactiver les alertes e-mail en temps réel pour les actions importantes de cette ferme.",
+    "memberAlerts": "Alertes membres",
+    "memberAlertsHelp": "Modifications des utilisateurs / rôles",
+    "parcelAlerts": "Alertes parcelles",
+    "parcelAlertsHelp": "Création, modification ou suppression de parcelles",
+    "operationAlerts": "Alertes opérations",
+    "operationAlertsHelp": "Création ou suppression d'opérations sur les parcelles",
+    "alertEmailLabel": "E-mail du destinataire des alertes",
     "submit": "Créer l'exploitation",
     "submitting": "Création...",
     "created": "Exploitation créée",
@@ -644,6 +661,51 @@
       "continueEditing": "Continuer la modification",
       "allowOverlap": "Autoriser le chevauchement",
       "applyShrink": "Appliquer la correction"
+    }
+  },
+  "admin": {
+    "title": "Administration Globale",
+    "settings": {
+      "title": "Paramètres du système",
+      "requireVerification": "Exiger la vérification de l'utilisateur",
+      "requireFarmApproval": "Exiger l'approbation de l'exploitation",
+      "subtitle": "Préférences du système",
+      "subtitleDesc": "Gérer l'accès global et les exigences de vérification.",
+      "requireVerificationDesc": "Les utilisateurs doivent vérifier leur adresse e-mail avant d'accéder aux fonctionnalités de la plateforme.",
+      "requireFarmApprovalDesc": "Les nouvelles exploitations créées par les utilisateurs doivent être approuvées par un administrateur avant d'être pleinement actives et publiques.",
+      "saveBtn": "Enregistrer les préférences",
+      "savingBtn": "Enregistrement...",
+      "loading": "Chargement des paramètres..."
+    },
+    "users": {
+      "title": "Utilisateurs",
+      "verified": "Vérifié",
+      "unverified": "Non vérifié",
+      "admin": "Admin",
+      "user": "Utilisateur",
+      "resendMail": "Renvoyer l'e-mail",
+      "edit": "Modifier",
+      "delete": "Supprimer",
+      "editTitle": "Modifier l'utilisateur",
+      "username": "Nom d'utilisateur",
+      "email": "E-mail",
+      "mailSent": "E-mail de vérification envoyé.",
+      "mailFailed": "Échec de l'envoi ou utilisateur déjà vérifié.",
+      "confirmDelete": "Voulez-vous vraiment supprimer cet utilisateur ? Cette action est irréversible.",
+      "confirmAdminChange": "Voulez-vous vraiment modifier le statut administrateur de cet utilisateur ?",
+      "confirmSelfDemotion": "ATTENTION : Vous êtes sur le point de retirer vos propres privilèges d'administrateur ! Vous ne pourrez pas annuler cette action. Êtes-vous sûr(e) ?"
+    },
+    "farms": {
+      "title": "Exploitations",
+      "approved": "Approuvée",
+      "pending": "En attente",
+      "edit": "Modifier",
+      "delete": "Supprimer",
+      "editTitle": "Modifier l'exploitation",
+      "name": "Nom",
+      "description": "Description",
+      "location": "Localisation",
+      "confirmDelete": "Voulez-vous vraiment supprimer cette exploitation ? Cette action est irréversible."
     }
   }
 }

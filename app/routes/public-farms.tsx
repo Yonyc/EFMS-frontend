@@ -25,18 +25,30 @@ export default function PublicFarmsPage() {
   const [farms, setFarms] = useState<PublicFarm[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const [currentPage, setCurrentPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
+  const pageSize = 8;
 
   const loadFarms = async () => {
     setIsLoading(true);
     setError('');
 
     try {
-      const response = await apiGet('/farm/public', { requireAuth: false });
+      const response = await apiGet(`/farm/public?page=${currentPage}&size=${pageSize}`, { requireAuth: false });
       if (!response.ok) {
         throw new Error('Failed to load public farms');
       }
       const data = await response.json();
-      setFarms(data);
+      if (data && data.content) {
+        setFarms(data.content);
+        setTotalPages(data.totalPages || 0);
+        setTotalElements(data.totalElements || 0);
+      } else {
+        setFarms(data || []);
+        setTotalPages(0);
+        setTotalElements(0);
+      }
     } catch (err) {
       console.error('Failed to fetch public farms', err);
       setError(t('publicFarms.error'));
@@ -48,7 +60,7 @@ export default function PublicFarmsPage() {
 
   useEffect(() => {
     void loadFarms();
-  }, []);
+  }, [currentPage]);
 
   const getName = (farm: PublicFarm) => farm.name?.trim() || t('publicFarms.nameHidden');
   const getDescription = (farm: PublicFarm) => {
@@ -140,6 +152,66 @@ export default function PublicFarmsPage() {
                 </div>
               </article>
             ))}
+          </div>
+        )}
+
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between border-t border-white/10 px-4 py-3 sm:px-6 mt-6">
+            <div className="flex flex-1 justify-between sm:hidden">
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(0, prev - 1))}
+                disabled={currentPage === 0}
+                className="relative inline-flex items-center rounded-xl border border-white/10 bg-slate-900 px-4 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              >
+                Previous
+              </button>
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(totalPages - 1, prev + 1))}
+                disabled={currentPage === totalPages - 1}
+                className="relative ml-3 inline-flex items-center rounded-xl border border-white/10 bg-slate-900 px-4 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              >
+                Next
+              </button>
+            </div>
+            <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm text-slate-400">
+                  Showing page <span className="font-semibold text-slate-200">{currentPage + 1}</span> of <span className="font-semibold text-slate-200">{totalPages}</span> (<span className="font-semibold text-slate-200">{totalElements}</span> total elements)
+                </p>
+              </div>
+              <div>
+                <nav className="isolate inline-flex -space-x-px rounded-xl shadow-sm" aria-label="Pagination">
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.max(0, prev - 1))}
+                    disabled={currentPage === 0}
+                    className="relative inline-flex items-center rounded-l-xl px-3 py-2 text-slate-400 bg-slate-900 border border-white/10 hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  >
+                    Previous
+                  </button>
+                  {Array.from({ length: totalPages }, (_, i) => i).map((p) => (
+                    <button
+                      key={p}
+                      onClick={() => setCurrentPage(p)}
+                      className={`relative inline-flex items-center px-4 py-2 text-sm font-semibold border border-white/10 transition-all ${
+                        p === currentPage
+                          ? "bg-indigo-600 text-white border-indigo-600 z-10"
+                          : "text-slate-400 bg-slate-900 hover:bg-slate-800"
+                      }`}
+                    >
+                      {p + 1}
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.min(totalPages - 1, prev + 1))}
+                    disabled={currentPage === totalPages - 1}
+                    className="relative inline-flex items-center rounded-r-xl px-3 py-2 text-slate-400 bg-slate-900 border border-white/10 hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  >
+                    Next
+                  </button>
+                </nav>
+              </div>
+            </div>
           </div>
         )}
       </div>

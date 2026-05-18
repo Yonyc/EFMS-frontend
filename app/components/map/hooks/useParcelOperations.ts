@@ -30,6 +30,11 @@ export function useParcelOperations({
     const [currentParcelId, setCurrentParcelId] = useState<string | null>(null);
     const [operationPopup, setOperationPopup] = useState<{ x: number; y: number; polygonId: string } | null>(null);
 
+    const [operationsPage, setOperationsPage] = useState(0);
+    const [operationsTotalPages, setOperationsTotalPages] = useState(0);
+    const [operationsTotalElements, setOperationsTotalElements] = useState(0);
+    const pageSize = 5;
+
     const resetOperationForm = useCallback(() => {
         setOperationTypeId("");
         setOperationDate("");
@@ -41,6 +46,7 @@ export function useParcelOperations({
     const closeOperationPopup = useCallback(() => {
         setOperationPopup(null);
         setCurrentParcelId(null);
+        setOperationsPage(0);
         resetOperationForm();
     }, [resetOperationForm]);
 
@@ -63,15 +69,23 @@ export function useParcelOperations({
         }
     }, [contextType, resolvedContextId]);
 
-    const loadParcelOperations = useCallback(async (parcelId: string) => {
+    const loadParcelOperations = useCallback(async (parcelId: string, page = 0) => {
         if (contextType !== 'farm' || !resolvedContextId) return;
         setOperationLoading(true);
         setOperationError(null);
         try {
-            const res = await apiGet(`/farm/${resolvedContextId}/parcels/${parcelId}/operations`);
+            const res = await apiGet(`/farm/${resolvedContextId}/parcels/${parcelId}/operations?page=${page}&size=${pageSize}`);
             if (!res.ok) throw new Error("failed");
             const data = await res.json();
-            setParcelOperations(data);
+            if (data && data.content) {
+                setParcelOperations(data.content);
+                setOperationsTotalPages(data.totalPages || 0);
+                setOperationsTotalElements(data.totalElements || 0);
+            } else {
+                setParcelOperations(data || []);
+                setOperationsTotalPages(0);
+                setOperationsTotalElements(0);
+            }
         } catch (err) {
             console.error(err);
             setOperationError(t('operations.errorLoad', { defaultValue: 'Unable to load operations' }));
@@ -121,7 +135,8 @@ export function useParcelOperations({
             if (!res.ok) throw new Error("failed");
 
             resetOperationForm();
-            await loadParcelOperations(currentParcelId);
+            setOperationsPage(0);
+            await loadParcelOperations(currentParcelId, 0);
         } catch (err) {
             console.error(err);
             setOperationError(t('operations.errorCreate', { defaultValue: 'Failed to save operation' }));
@@ -139,6 +154,8 @@ export function useParcelOperations({
         operationError, operationLoading, parcelOperations,
         currentParcelId, setCurrentParcelId,
         operationPopup, setOperationPopup,
+        operationsPage, setOperationsPage,
+        operationsTotalPages, operationsTotalElements,
         loadOperationReferences, loadParcelOperations, handleSaveOperation, resetOperationForm, closeOperationPopup
     };
 }
