@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import type { PolygonData } from "../types";
 import PolygonList from "../PolygonList";
 import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
@@ -40,6 +40,19 @@ const MapSidebar = React.memo((props: MapSidebarProps) => {
         togglePolygonVisibility, renamePolygonInline, focusPolygon,
         isImportMode, approveSingleParcel, allPolygons, onApproveAll
     } = props;
+
+    // click-outside dismiss for the filter dropdown
+    const filterWrapRef = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        if (!showFilterMenu) return;
+        const handler = (e: MouseEvent) => {
+            if (filterWrapRef.current && !filterWrapRef.current.contains(e.target as Node)) {
+                setShowFilterMenu(false);
+            }
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, [showFilterMenu, setShowFilterMenu]);
 
     return (
         <div
@@ -120,8 +133,9 @@ const MapSidebar = React.memo((props: MapSidebarProps) => {
                         borderRadius: '1.5rem',
                         padding: '1.25rem',
                         boxShadow: '0 30px 60px rgba(15,23,42,0.25)',
+                        display: 'flex',
+                        flexDirection: 'column',
                         maxHeight: '65vh',
-                        overflowY: 'auto',
                     }}
                 >
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1rem' }}>
@@ -164,7 +178,7 @@ const MapSidebar = React.memo((props: MapSidebarProps) => {
                                 </button>
                             )}
                         </div>
-                        <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+                        <div ref={filterWrapRef} style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
                             <button
                                 type="button"
                                 onClick={() => setShowFilterMenu(prev => !prev)}
@@ -278,15 +292,18 @@ const MapSidebar = React.memo((props: MapSidebarProps) => {
                             )}
                         </div>
                     )}
-                    <PolygonList
-                        polygons={filteredPolygons}
-                        onToggle={togglePolygonVisibility}
-                        onRename={renamePolygonInline}
-                        onFocus={focusPolygon}
-                        onApproveSingle={isImportMode ? approveSingleParcel : undefined}
-                        showStatus={isImportMode}
-                        emptyLabel={allPolygons.length ? t('map.polygonList.emptyFiltered', { defaultValue: 'No polygons match this filter' }) : undefined}
-                    />
+                    {/* only the list scrolls so the filter dropdown isn't clipped */}
+                    <div style={{ overflowY: 'auto', minHeight: 0 }}>
+                        <PolygonList
+                            polygons={filteredPolygons}
+                            onToggle={togglePolygonVisibility}
+                            onRename={renamePolygonInline}
+                            onFocus={focusPolygon}
+                            onApproveSingle={isImportMode ? approveSingleParcel : undefined}
+                            showStatus={isImportMode}
+                            emptyLabel={allPolygons.length ? t('map.polygonList.emptyFiltered', { defaultValue: 'No polygons match this filter' }) : undefined}
+                        />
+                    </div>
                 </div>
             )}
         </div>

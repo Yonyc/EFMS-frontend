@@ -1,6 +1,6 @@
 import { useCallback, useRef } from 'react';
 import L from 'leaflet';
-import { isPointInOrOnPolygon, fixOverlap, magnetSnap, getClosestPointOnPolygon } from '../utils/geometry';
+import { isPointInOrOnPolygon, fixOverlap, magnetSnap, getClosestPointOnPolygon, dedupeRing } from '../utils/geometry';
 import type { PolygonData } from '../types';
 
 export interface UseSnappyEditingProps {
@@ -30,7 +30,7 @@ export function getAncestorIds(parentId: string | null | undefined, polygons: Po
 
 export function getDescendantIds(parentId: string, polygons: PolygonData[]): string[] {
     const descendants: string[] = [];
-    const children = polygons.filter(p => p.parentId === parentId);
+    const children = polygons.filter(p => String(p.parentId) === String(parentId));
     for (const child of children) {
         descendants.push(child.id);
         descendants.push(...getDescendantIds(child.id, polygons));
@@ -44,11 +44,13 @@ function getSnapObstacles(
     skipId?: string | null
 ): PolygonData[] {
     const ancestorIds = getAncestorIds(parentId, polygons);
+    const descendantIds = skipId ? getDescendantIds(skipId, polygons) : [];
 
     return polygons.filter(p => {
         if (!p.visible) return false;
         if (skipId && p.id === skipId) return false;
         if (ancestorIds.includes(p.id)) return false;
+        if (descendantIds.includes(p.id)) return false;
         return true;
     });
 }
@@ -63,12 +65,12 @@ function pushPointOutsidePolygon(point: [number, number], polygon: [number, numb
     centroid[0] /= polygon.length || 1;
     centroid[1] /= polygon.length || 1;
 
-    // Preferred outward direction: from polygon centroid toward nearest edge point.
+    // outward direction from polygon centroid toward the nearest edge point
     let dy = edge[0] - centroid[0];
     let dx = edge[1] - centroid[1];
     let norm = Math.hypot(dy, dx);
 
-    // Fallback direction if centroid and edge are too close.
+    // fallback when centroid and edge are too close
     if (norm < 1e-12) {
         dy = edge[0] - point[0];
         dx = edge[1] - point[1];
@@ -133,7 +135,7 @@ export function snapLatLng(
     while (didMove && attempts < 5) {
         didMove = false;
         for (const obstacle of obstacles) {
-            // Keep snapped point strictly outside obstacles (not inside and not on boundary).
+            // snapped point stays strictly outside obstacles, never on the boundary
             if (isPointInOrOnPolygon(result, obstacle.coords)) {
                 result = pushPointOutsidePolygon(result, obstacle.coords);
                 didMove = true;
@@ -149,8 +151,7 @@ export function snapLatLng(
         }
     }
 
-    // always return the computed result, never the original
-    // returning latlng for "small moves" caused blinking when cursor sat on a vertex
+    // always return the computed result, returning the raw latlng caused blinking on vertices
     return L.latLng(result[0], result[1]);
 }
 
@@ -158,7 +159,7 @@ export function useSnappyEditing({ polygons, getMap }: UseSnappyEditingProps) {
     const ghostLayerRef = useRef<L.Polygon | L.Polyline | null>(null);
     const previewMarkerRef = useRef<L.CircleMarker | null>(null);
 
-    // lazily create the preview marker when needed
+    // preview marker created lazily
     const ensurePreviewMarker = useCallback((map: L.Map): L.CircleMarker => {
         if (!previewMarkerRef.current) {
             previewMarkerRef.current = L.circleMarker([0, 0], {
@@ -188,23 +189,39 @@ export function useSnappyEditing({ polygons, getMap }: UseSnappyEditingProps) {
         const autoCorrect = options?.autoCorrect ?? true;
         const activePolygons = polygons.filter(p => !ignoreIds.includes(p.id));
         
-        let snappedCoords = coords.map(c => {
+        const COINCIDENT_EPS = 1e-7; // ~1 cm in degrees
+        let snappedCoords: [number, number][] = [];
+        coords.forEach(c => {
             const ll = snapLatLng(
                 L.latLng(c[0], c[1]),
-            activePolygons,
+                activePolygons,
                 parentId,
                 map,
                 undefined,
                 { edgeSnap }
             );
-            return [ll.lat, ll.lng] as [number, number];
+            let pt: [number, number] = [ll.lat, ll.lng];
+            // if snapping would land on a point already placed, keep the original
+            // instead, otherwise two vertices collapse onto the same corner and
+            // the ring self-intersects when clipped
+            if (snappedCoords.some(s => Math.hypot(pt[0] - s[0], pt[1] - s[1]) <= COINCIDENT_EPS)) {
+                pt = [c[0], c[1]];
+            }
+            snappedCoords.push(pt);
         });
 
         if (snappedCoords.length < 3) {
             return snappedCoords;
         }
 
-        // Universal Avoidance: avoid everything that is not an ancestor (container)
+        // dedupe before clipping, return input if too few distinct points remain
+        const dedupedSnapped = dedupeRing(snappedCoords);
+        if (dedupedSnapped.length < 3) {
+            return coords;
+        }
+        snappedCoords = dedupedSnapped;
+
+        // avoid everything except ancestors (containers)
         const ancestorIds = getAncestorIds(parentId, activePolygons);
         const pStr = parentId ? String(parentId) : null;
         const parentParcel = pStr ? activePolygons.find(p => String(p.id) === pStr) : null;

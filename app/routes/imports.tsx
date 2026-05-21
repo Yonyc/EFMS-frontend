@@ -178,7 +178,7 @@ export default function ImportsPage() {
                         </div>
                         <dl className="mt-4 space-y-2 text-sm text-slate-500">
                             <div className="flex justify-between">
-                                <dt>{t('imports.list.polygons', { defaultValue: 'Polygons' })}</dt>
+                                <dt>{t('imports.list.polygons', { defaultValue: 'Parcels' })}</dt>
                                 <dd className="font-semibold text-slate-900">{group.polygonsCount ?? '—'}</dd>
                             </div>
                             {group.sourceName && (

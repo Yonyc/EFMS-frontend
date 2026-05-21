@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 interface PolygonData {
@@ -27,6 +28,20 @@ export default function PolygonList({ polygons, onToggle, onRename, onFocus, onA
   const MAX_VISUAL_DEPTH = 5;
   const INDENT_STEP_REM = 0.5;
 
+    // tree shape derived once per polygons change instead of per render
+    const { childrenByParent, rootParcels } = useMemo(() => {
+    const ids = new Set(polygons.map(p => p.id));
+    const byParent = new Map<string, PolygonData[]>();
+    for (const poly of polygons) {
+      if (!poly.parentId || !ids.has(poly.parentId)) continue;
+      const list = byParent.get(poly.parentId);
+      if (list) list.push(poly);
+      else byParent.set(poly.parentId, [poly]);
+    }
+    const roots = polygons.filter(p => !p.parentId || !ids.has(p.parentId));
+    return { childrenByParent: byParent, rootParcels: roots };
+  }, [polygons]);
+
   if (!polygons.length) {
     return (
       <div className="rounded-xl border border-dashed border-slate-200 bg-white/70 px-4 py-6 text-center text-sm text-slate-500">
@@ -35,17 +50,8 @@ export default function PolygonList({ polygons, onToggle, onRename, onFocus, onA
     );
   }
 
-  const polygonIds = new Set(polygons.map((p) => p.id));
-  const childrenByParent = new Map<string, PolygonData[]>();
-  for (const poly of polygons) {
-    if (!poly.parentId || !polygonIds.has(poly.parentId)) continue;
-    const children = childrenByParent.get(poly.parentId);
-    if (children) children.push(poly);
-    else childrenByParent.set(poly.parentId, [poly]);
-  }
-
   const renderParcel = (poly: PolygonData, depth: number = 0, ancestry: Set<string> = new Set()) => {
-    // Guard against malformed cyclic parent relations.
+    // skip cyclic parent chains
     if (ancestry.has(poly.id)) return null;
     const nextAncestry = new Set(ancestry);
     nextAncestry.add(poly.id);
@@ -132,8 +138,6 @@ export default function PolygonList({ polygons, onToggle, onRename, onFocus, onA
       </li>
     );
   };
-
-  const rootParcels = polygons.filter((p) => !p.parentId || !polygonIds.has(p.parentId));
 
   return (
     <ul className="flex flex-col gap-2">

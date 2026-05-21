@@ -79,7 +79,7 @@ const PolygonContextMenu = React.memo((props: PolygonContextMenuProps) => {
         setMenuPos(prev => (prev.left === nextLeft && prev.top === nextTop ? prev : { left: nextLeft, top: nextTop }));
     }, [polygonContextMenu, showColorPicker]);
 
-    const floatingMenuClasses = "pointer-events-auto fixed z-[1100] min-w-[220px] max-h-[28rem] overflow-y-auto rounded-2xl border border-slate-200 bg-white/95 p-1.5 shadow-2xl shadow-slate-900/15 backdrop-blur-md transition-all duration-200";
+    const floatingMenuClasses = "pointer-events-auto fixed z-[1300] min-w-[220px] max-h-[28rem] overflow-y-auto rounded-2xl border border-slate-200 bg-white/95 p-1.5 shadow-2xl shadow-slate-900/15 backdrop-blur-md transition-all duration-200";
     const floatingButtonClasses = "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition hover:bg-slate-50 active:scale-95";
 
     return (

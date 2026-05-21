@@ -1,15 +1,15 @@
-/* Leaflet.draw toolbar hide */
+/* hide the leaflet.draw toolbar */
 .leaflet-control-container .leaflet-draw, 
 .leaflet-draw-toolbar { 
     display: none !important; 
 }
 
-/* Smooth transitions for polygon animations */
+/* smooth polygon transitions */
 .leaflet-interactive {
     transition: filter 0.5s ease-out !important;
 }
 
-/* Polygon Tooltip Styles */
+/* polygon tooltip */
 .polygon-tooltip {
     background: transparent !important;
     border: none !important;
@@ -20,14 +20,14 @@
     display: none !important;
 }
 
-/* General Leaflet Tooltip Overrides */
+/* general leaflet tooltip overrides */
 .leaflet-tooltip-pane .leaflet-tooltip {
     background: transparent !important;
     border: none !important;
     box-shadow: none !important;
 }
 
-/* Pulse dash animation for active manual editing */
+/* pulse-dash animation for active manual editing */
 @keyframes pulseDash {
     0% { stroke-dashoffset: 0; }
     100% { stroke-dashoffset: -20; }
@@ -36,7 +36,7 @@
     animation: pulseDash 1s linear infinite;
 }
 
-/* Polygon Glow Animations */
+/* polygon glow animations */
 @keyframes polygonDash {
     to { stroke-dashoffset: -60; }
 }
@@ -52,7 +52,7 @@
     animation: polygonDash 1.2s linear infinite, polygonGlow 2.4s ease-in-out infinite;
 }
 
-/* Rework Leaflet.Draw vertex squares to circles */
+/* round the leaflet.draw vertex squares */
 .leaflet-editing-icon {
     width: 12px !important;
     height: 12px !important;
@@ -100,23 +100,37 @@
     display: none !important;
 }
 
-/* Snap preview indicator style */
+/* snap preview indicator */
 .snap-preview-dot {
     pointer-events: none !important;
     filter: drop-shadow(0 0 4px rgba(37, 99, 235, 0.8));
     z-index: 2000 !important;
 }
 
-/* Ghost point style */
+/* ghost point */
 .ghost-point-dot {
     pointer-events: none !important;
     fill-opacity: 0.8 !important;
     filter: drop-shadow(0 0 2px rgba(16, 185, 129, 0.4));
 }
 
-/* Disable vertex jump animations */
+/* kill the vertex jump animations */
 .leaflet-marker-icon,
 .leaflet-marker-shadow,
 .leaflet-editing-icon {
     transition: none !important;
+}
+
+/* halo around parcels so any fill stays readable over the basemap, stronger when selected */
+.leaflet-overlay-pane path.efms-parcel {
+    filter: drop-shadow(0 0 1.5px rgba(0, 0, 0, 0.55))
+            drop-shadow(0 0 1px rgba(255, 255, 255, 0.4));
+}
+.leaflet-overlay-pane path.efms-parcel.efms-selected:not(.polygon-glow) {
+    filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.6))
+            drop-shadow(0 0 2px rgba(255, 255, 255, 0.5));
+}
+/* round the sub-parcel corners so the dashed edge stays crisp */
+.leaflet-overlay-pane path.efms-child {
+    stroke-linejoin: round;
 }

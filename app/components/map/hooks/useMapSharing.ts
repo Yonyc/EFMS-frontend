@@ -93,7 +93,7 @@ export function useMapSharing(props: UseMapSharingProps) {
         }
         const zoneWkt = toWktPolygon(zone.coords);
         if (!zoneWkt) {
-            setResearchShareFeedback('Unable to create share: invalid polygon geometry.');
+            setResearchShareFeedback('Unable to create share: invalid parcel geometry.');
             return;
         }
 
@@ -188,7 +188,7 @@ export function useMapSharing(props: UseMapSharingProps) {
         }
 
         if (!zoneWkt) {
-            setQuickShareFeedback('To share this filter, draw a polygon or enable map area first.');
+            setQuickShareFeedback('To share this filter, draw a parcel or enable map area first.');
             return;
         }
 
