@@ -38,32 +38,73 @@ export default function AssetsPage() {
   const navigate = useNavigate();
   const locale = useCurrentLocale();
 
+  const [productPage, setProductPage] = useState(0);
+  const [productTotalPages, setProductTotalPages] = useState(0);
+  const [productTotalElements, setProductTotalElements] = useState(0);
+
+  const [toolPage, setToolPage] = useState(0);
+  const [toolTotalPages, setToolTotalPages] = useState(0);
+  const [toolTotalElements, setToolTotalElements] = useState(0);
+
+  const pageSize = 10;
+
   const farmId = selectedFarm?.id;
 
-  const loadData = async (targetFarmId: string) => {
+  const loadProducts = async (targetFarmId: string, page: number) => {
     setLoading(true);
     setError(null);
     try {
-      const [productRes, toolRes] = await Promise.all([
-        apiGet(`/farm/${targetFarmId}/products`),
-        apiGet(`/farm/${targetFarmId}/tools`),
-      ]);
-
-      if (!productRes.ok || !toolRes.ok) {
-        if (productRes.status === 401 || toolRes.status === 401) {
+      const res = await apiGet(`/farm/${targetFarmId}/products?page=${page}&size=${pageSize}`);
+      if (!res.ok) {
+        if (res.status === 401) {
           navigate(buildLocalizedPath(locale, "/login"));
           return;
         }
-        throw new Error("Failed to load assets");
+        throw new Error("Failed to load products");
       }
-
-      const productData = await productRes.json();
-      const toolData = await toolRes.json();
-      setProducts(productData);
-      setTools(toolData);
+      const data = await res.json();
+      if (data && data.content) {
+        setProducts(data.content);
+        setProductTotalPages(data.totalPages || 0);
+        setProductTotalElements(data.totalElements || 0);
+      } else {
+        setProducts(data || []);
+        setProductTotalPages(0);
+        setProductTotalElements(0);
+      }
     } catch (e) {
       console.error(e);
-      setError("Unable to load assets");
+      setError("Unable to load products");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadTools = async (targetFarmId: string, page: number) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await apiGet(`/farm/${targetFarmId}/tools?page=${page}&size=${pageSize}`);
+      if (!res.ok) {
+        if (res.status === 401) {
+          navigate(buildLocalizedPath(locale, "/login"));
+          return;
+        }
+        throw new Error("Failed to load tools");
+      }
+      const data = await res.json();
+      if (data && data.content) {
+        setTools(data.content);
+        setToolTotalPages(data.totalPages || 0);
+        setToolTotalElements(data.totalElements || 0);
+      } else {
+        setTools(data || []);
+        setToolTotalPages(0);
+        setToolTotalElements(0);
+      }
+    } catch (e) {
+      console.error(e);
+      setError("Unable to load tools");
     } finally {
       setLoading(false);
     }
@@ -71,9 +112,15 @@ export default function AssetsPage() {
 
   useEffect(() => {
     if (isAuthenticated && farmId) {
-      loadData(farmId);
+      loadProducts(farmId, productPage);
     }
-  }, [isAuthenticated, farmId]);
+  }, [isAuthenticated, farmId, productPage]);
+
+  useEffect(() => {
+    if (isAuthenticated && farmId) {
+      loadTools(farmId, toolPage);
+    }
+  }, [isAuthenticated, farmId, toolPage]);
 
   const handleAddProduct = async () => {
     if (!farmId || !newProductName.trim()) return;
@@ -81,7 +128,7 @@ export default function AssetsPage() {
       const res = await apiPost(`/farm/${farmId}/products`, { name: newProductName.trim() });
       if (res.ok) {
         setNewProductName("");
-        await loadData(farmId);
+        await loadProducts(farmId, productPage);
       }
     } catch (e) {
       console.error(e);
@@ -95,7 +142,7 @@ export default function AssetsPage() {
       const res = await apiPost(`/farm/${farmId}/tools`, { name: newToolName.trim() });
       if (res.ok) {
         setNewToolName("");
-        await loadData(farmId);
+        await loadTools(farmId, toolPage);
       }
     } catch (e) {
       console.error(e);
@@ -106,13 +153,13 @@ export default function AssetsPage() {
   const handleDeleteProduct = async (id: number) => {
     if (!farmId) return;
     await apiDelete(`/farm/${farmId}/products/${id}`);
-    await loadData(farmId);
+    await loadProducts(farmId, productPage);
   };
 
   const handleDeleteTool = async (id: number) => {
     if (!farmId) return;
     await apiDelete(`/farm/${farmId}/tools/${id}`);
-    await loadData(farmId);
+    await loadTools(farmId, toolPage);
   };
 
   const emptyState = !farmId;
@@ -191,6 +238,28 @@ export default function AssetsPage() {
                       <li className="py-3 text-sm text-slate-500 dark:text-slate-400">No products yet.</li>
                     )}
                   </ul>
+
+                  {productTotalPages > 1 && (
+                    <div className="flex items-center justify-between border-t border-slate-100 dark:border-slate-800 pt-4 mt-4">
+                      <button
+                        onClick={() => setProductPage(prev => Math.max(0, prev - 1))}
+                        disabled={productPage === 0}
+                        className="text-xs px-2.5 py-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 disabled:opacity-40 transition-all hover:bg-slate-200 dark:hover:bg-slate-700"
+                      >
+                        Prev
+                      </button>
+                      <span className="text-xs text-slate-500">
+                        Page {productPage + 1} of {productTotalPages}
+                      </span>
+                      <button
+                        onClick={() => setProductPage(prev => Math.min(productTotalPages - 1, prev + 1))}
+                        disabled={productPage === productTotalPages - 1}
+                        className="text-xs px-2.5 py-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 disabled:opacity-40 transition-all hover:bg-slate-200 dark:hover:bg-slate-700"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  )}
                 </section>
 
                 <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
@@ -235,6 +304,28 @@ export default function AssetsPage() {
                       <li className="py-3 text-sm text-slate-500 dark:text-slate-400">No tools yet.</li>
                     )}
                   </ul>
+
+                  {toolTotalPages > 1 && (
+                    <div className="flex items-center justify-between border-t border-slate-100 dark:border-slate-800 pt-4 mt-4">
+                      <button
+                        onClick={() => setToolPage(prev => Math.max(0, prev - 1))}
+                        disabled={toolPage === 0}
+                        className="text-xs px-2.5 py-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 disabled:opacity-40 transition-all hover:bg-slate-200 dark:hover:bg-slate-700"
+                      >
+                        Prev
+                      </button>
+                      <span className="text-xs text-slate-500">
+                        Page {toolPage + 1} of {toolTotalPages}
+                      </span>
+                      <button
+                        onClick={() => setToolPage(prev => Math.min(toolTotalPages - 1, prev + 1))}
+                        disabled={toolPage === toolTotalPages - 1}
+                        className="text-xs px-2.5 py-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 disabled:opacity-40 transition-all hover:bg-slate-200 dark:hover:bg-slate-700"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  )}
                 </section>
               </div>
             </>

@@ -3,7 +3,7 @@ import type { FormEvent } from 'react';
 import { useNavigate, Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
-import { apiPost } from '~/utils/api';
+import { apiPost, apiGet } from '~/utils/api';
 import { useCurrentLocale } from '../hooks/useCurrentLocale';
 import { buildLocalizedPath } from '../utils/locale';
 
@@ -16,10 +16,12 @@ export function meta() {
 
 export default function Register() {
   const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [requiresEmail, setRequiresEmail] = useState(false);
   
   const { login, isAuthenticated } = useAuth();
   const navigate = useNavigate();
@@ -31,6 +33,17 @@ export default function Register() {
       navigate(buildLocalizedPath(locale, '/'));
     }
   }, [isAuthenticated, locale, navigate]);
+
+  useEffect(() => {
+    apiGet('/auth/settings', { requireAuth: false })
+      .then(res => res.json())
+      .then(data => {
+        if (data.verificationRequired) {
+          setRequiresEmail(true);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -54,10 +67,16 @@ export default function Register() {
       // Register the user
       const response = await apiPost('/auth/register', {
         username,
+        email: requiresEmail ? email : undefined,
         password,
       });
 
       if (response.ok) {
+        const data = await response.json().catch(() => ({}));
+        if (data.message === 'verification_required') {
+            navigate(buildLocalizedPath(locale, '/verify'));
+            return;
+        }
         // Registration successful, now login
         try {
           await login(username, password);
@@ -111,6 +130,25 @@ export default function Register() {
                 disabled={isLoading}
               />
             </div>
+            {requiresEmail && (
+              <div>
+                <label htmlFor="email" className="sr-only">
+                  Email
+                </label>
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  required
+                  className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                  placeholder="Email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  disabled={isLoading}
+                />
+              </div>
+            )}
             <div>
               <label htmlFor="password" className="sr-only">
                 {t('auth.shared.password')}

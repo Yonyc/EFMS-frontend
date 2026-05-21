@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import ProtectedRoute from "~/components/ProtectedRoute";
 import { useFarm } from "~/contexts/FarmContext";
 import { apiDelete, apiGet, apiPut } from "~/utils/api";
+import UserSearchInput from "~/components/UserSearchInput";
 
 interface ParcelSummaryDto {
     id: number;
@@ -625,11 +626,11 @@ export default function FarmSharesPage() {
                             {editShareMode === "direct" ? (
                                 <label className="text-xs text-slate-300">
                                     {t("farmShares.edit.username", { defaultValue: "Username" })}
-                                    <input
-                                        type="text"
+                                    <UserSearchInput
                                         value={editUsername}
-                                        onChange={(event) => setEditUsername(event.target.value)}
+                                        onChange={setEditUsername}
                                         className="mt-1 w-full rounded-lg border border-white/15 bg-slate-900/70 px-3 py-2 text-sm text-white focus:border-indigo-400 focus:outline-none"
+                                        multiple={true}
                                     />
                                 </label>
                             ) : (

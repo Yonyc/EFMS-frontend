@@ -12,6 +12,7 @@ interface User {
   tutorialState?: TutorialState;
   operationsPopupTopRight?: boolean;
   avatarUrl?: string;
+  admin?: boolean;
 }
 
 interface AuthContextType {
@@ -74,6 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         tutorialState: data.tutorialState as TutorialState,
         operationsPopupTopRight: data.operationsPopupTopRight,
         avatarUrl: absolutizeAvatar(data.avatarUrl),
+        admin: data.admin,
       };
       persistSession(activeToken, refreshedUser);
       return refreshedUser;
@@ -117,11 +119,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
 
       if (!response.ok) {
+        if (response.status === 403) {
+            const errText = await response.text();
+            if (errText === 'not_verified') {
+                throw new Error('NOT_VERIFIED');
+            }
+        }
         throw new Error('Login failed');
       }
 
       const data = await response.json();
-      const { token: newToken, user_id, tutorialState, operationsPopupTopRight, email: userEmail, avatarUrl } = data;
+      const { token: newToken, user_id, tutorialState, operationsPopupTopRight, email: userEmail, avatarUrl, admin } = data;
 
       const newUser: User = {
         id: String(user_id),
@@ -130,6 +138,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         tutorialState: tutorialState as TutorialState,
         operationsPopupTopRight,
         avatarUrl: absolutizeAvatar(avatarUrl),
+        admin,
       };
       persistSession(newToken, newUser);
     } catch (error) {
@@ -159,6 +168,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         tutorialState: data.tutorialState as TutorialState,
         operationsPopupTopRight: data.operationsPopupTopRight,
         avatarUrl: absolutizeAvatar(data.avatarUrl),
+        admin: data.admin,
       };
       persistSession(token, updatedUser);
       return updatedUser;

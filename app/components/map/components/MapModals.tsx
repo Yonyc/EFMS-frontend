@@ -3,6 +3,7 @@ import type { PeriodDto, PolygonData, ParcelShareDto } from "../types";
 import { XMarkIcon } from "@heroicons/react/24/outline";
 import { createPortal } from "react-dom";
 import MultiSelectCombobox from "../../MultiSelectCombobox";
+import UserSearchInput from "../../UserSearchInput";
 import type { ToolDto, ProductDto } from "../types";
 
 interface MapModalsProps {
@@ -153,11 +154,10 @@ const MapModals = React.memo((props: MapModalsProps) => {
 
                             <div className="flex flex-col gap-4 sm:flex-row">
                                 <div className="flex-1">
-                                    <input
-                                        type="text"
+                                    <UserSearchInput
                                         placeholder={t('map.sharing.usernamePlaceholder', { defaultValue: 'Username' })}
                                         value={shareUsername}
-                                        onChange={(e) => setShareUsername(e.target.value)}
+                                        onChange={setShareUsername}
                                         className="h-12 w-full rounded-2xl border border-white/10 bg-white/5 px-4 text-white outline-none focus:border-indigo-500"
                                     />
                                 </div>
@@ -261,12 +261,12 @@ const MapModals = React.memo((props: MapModalsProps) => {
                                 {researchShareMode === 'direct' ? (
                                     <label className="text-xs text-slate-300">
                                         Usernames (comma or new line separated)
-                                        <textarea
+                                        <UserSearchInput
                                             value={researchShareUsername}
-                                            onChange={(event) => setResearchShareUsername(event.target.value)}
-                                            rows={3}
+                                            onChange={setResearchShareUsername}
                                             placeholder="alice, bob"
                                             className="mt-1 w-full rounded-lg border border-white/15 bg-slate-900/70 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:border-indigo-400 focus:outline-none"
+                                            multiple={true}
                                         />
                                     </label>
                                 ) : (

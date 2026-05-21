@@ -80,6 +80,11 @@ export default function OperationsPage() {
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [currentPage, setCurrentPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
+  const pageSize = 10;
+
   const [typeId, setTypeId] = useState<string>("");
   const [date, setDate] = useState<string>("");
   const [durationMinutes, setDurationMinutes] = useState<string>("");
@@ -123,14 +128,22 @@ export default function OperationsPage() {
     }
   };
 
-  const loadOperations = async (farm: string, parcel: number) => {
+  const loadOperations = async (farm: string, parcel: number, page: number) => {
     setLoading(true);
     setError(null);
     try {
-      const res = await apiGet(`/farm/${farm}/parcels/${parcel}/operations`);
+      const res = await apiGet(`/farm/${farm}/parcels/${parcel}/operations?page=${page}&size=${pageSize}`);
       if (!res.ok) throw new Error("failed");
       const data = await res.json();
-      setOperations(data);
+      if (data && data.content) {
+        setOperations(data.content);
+        setTotalPages(data.totalPages || 0);
+        setTotalElements(data.totalElements || 0);
+      } else {
+        setOperations(data || []);
+        setTotalPages(0);
+        setTotalElements(0);
+      }
     } catch (e) {
       console.error(e);
       setError("Unable to load operations");
@@ -147,13 +160,19 @@ export default function OperationsPage() {
   }, [farmId]);
 
   useEffect(() => {
+    setCurrentPage(0);
+  }, [selectedParcelId]);
+
+  useEffect(() => {
     if (farmId && selectedParcelId) {
-      loadOperations(farmId, selectedParcelId);
+      loadOperations(farmId, selectedParcelId, currentPage);
     }
     if (!selectedParcelId) {
       setOperations([]);
+      setTotalPages(0);
+      setTotalElements(0);
     }
-  }, [farmId, selectedParcelId]);
+  }, [farmId, selectedParcelId, currentPage]);
 
   const handleAddLine = () => {
     setProductLines((prev) => [...prev, { productId: "", quantity: "", unitId: "", toolId: "" }]);
@@ -194,7 +213,11 @@ export default function OperationsPage() {
       setDate("");
       setDurationMinutes("");
       setProductLines([{ productId: "", quantity: "", unitId: "", toolId: "" }]);
-      await loadOperations(farmId, selectedParcelId);
+      if (currentPage === 0) {
+        await loadOperations(farmId, selectedParcelId, 0);
+      } else {
+        setCurrentPage(0);
+      }
     } catch (e) {
       console.error(e);
       setError("Failed to create operation");
@@ -440,6 +463,66 @@ export default function OperationsPage() {
                     </li>
                   ))}
                 </ul>
+              )}
+
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between border-t border-white/5 px-4 py-3 mt-4">
+                  <div className="flex flex-1 justify-between sm:hidden">
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.max(0, prev - 1))}
+                      disabled={currentPage === 0}
+                      className="relative inline-flex items-center rounded-xl border border-white/10 bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                    >
+                      Previous
+                    </button>
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.min(totalPages - 1, prev + 1))}
+                      disabled={currentPage === totalPages - 1}
+                      className="relative ml-3 inline-flex items-center rounded-xl border border-white/10 bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                    >
+                      Next
+                    </button>
+                  </div>
+                  <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-xs text-slate-400">
+                        Showing page <span className="font-semibold text-slate-200">{currentPage + 1}</span> of <span className="font-semibold text-slate-200">{totalPages}</span>
+                      </p>
+                    </div>
+                    <div>
+                      <nav className="isolate inline-flex -space-x-px rounded-xl shadow-sm" aria-label="Pagination">
+                        <button
+                          onClick={() => setCurrentPage(prev => Math.max(0, prev - 1))}
+                          disabled={currentPage === 0}
+                          className="relative inline-flex items-center rounded-l-xl px-2.5 py-1.5 text-xs text-slate-400 bg-slate-900 border border-white/10 hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                        >
+                          Previous
+                        </button>
+                        {Array.from({ length: totalPages }, (_, i) => i).map((p) => (
+                          <button
+                            key={p}
+                            onClick={() => setCurrentPage(p)}
+                            className={`relative inline-flex items-center px-3 py-1.5 text-xs font-semibold border border-white/10 transition-all ${
+                              p === currentPage
+                                ? "bg-indigo-600 text-white border-indigo-600 z-10"
+                                : "text-slate-400 bg-slate-900 hover:bg-slate-800"
+                            }`}
+                          >
+                            {p + 1}
+                          </button>
+                        ))}
+                        <button
+                          onClick={() => setCurrentPage(prev => Math.min(totalPages - 1, prev + 1))}
+                          disabled={currentPage === totalPages - 1}
+                          className="relative inline-flex items-center rounded-r-xl px-2.5 py-1.5 text-xs text-slate-400 bg-slate-900 border border-white/10 hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                        >
+                          Next
+                        </button>
+                      </nav>
+                    </div>
+                  </div>
+                </div>
               )}
             </section>
           ) : (

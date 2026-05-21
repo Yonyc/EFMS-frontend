@@ -14,12 +14,16 @@ interface Farm {
   showLocation?: boolean;
   canEdit?: boolean;
   canManage?: boolean;
+  enableMemberAlerts?: boolean;
+  enableParcelAlerts?: boolean;
+  enableOperationAlerts?: boolean;
+  alertRecipientEmail?: string;
 }
 
 interface FarmContextType {
   farms: Farm[];
   selectedFarm: Farm | null;
-  selectFarm: (farmId: string) => void;
+  selectFarm: (farmId: string | null) => Promise<void>;
   isLoading: boolean;
   error: string | null;
   refreshFarms: (preferredFarmId?: string) => Promise<Farm[]>;
@@ -65,9 +69,39 @@ export function FarmProvider({ children }: { children: ReactNode }) {
       const data = await response.json();
       setFarms(data);
 
-      const preferredFarm = preferredFarmId
+      let preferredFarm = preferredFarmId
         ? data.find((farm: Farm) => farm.id === preferredFarmId)
         : undefined;
+
+      if (!preferredFarm && preferredFarmId) {
+        try {
+          const res = await apiGet(`/farm/${preferredFarmId}`, { suppressUnauthorizedRedirect: true });
+          if (res.ok) {
+            preferredFarm = await res.json();
+            data.push(preferredFarm);
+          }
+        } catch (e) {
+          console.error("Failed to fetch preferred farm", e);
+        }
+      }
+
+      if (!preferredFarm && selectedFarm) {
+        const stillExists = data.find((f: Farm) => f.id === selectedFarm.id);
+        if (!stillExists) {
+            try {
+                const res = await apiGet(`/farm/${selectedFarm.id}`, { suppressUnauthorizedRedirect: true });
+                if (res.ok) {
+                    const fetchedFarm = await res.json();
+                    data.push(fetchedFarm);
+                    preferredFarm = fetchedFarm;
+                }
+            } catch (e) {
+                console.error("Failed to fetch selected farm", e);
+            }
+        }
+      }
+
+      setFarms([...data]); // Ensure state gets the updated array including any fetched overrides
 
       if (preferredFarm) {
         setAndPersistSelectedFarm(preferredFarm);
@@ -115,8 +149,25 @@ export function FarmProvider({ children }: { children: ReactNode }) {
     }
   }, [farms]);
 
-  const selectFarm = (farmId: string) => {
-    const farm = farms.find(f => f.id === farmId);
+  const selectFarm = async (farmId: string | null) => {
+    if (!farmId) {
+        setAndPersistSelectedFarm(null);
+        return;
+    }
+    let farm = farms.find(f => f.id === farmId);
+    if (!farm) {
+        try {
+            const res = await apiGet(`/farm/${farmId}`);
+            if (res.ok) {
+                farm = await res.json();
+                if (farm) {
+                    setFarms(prev => [...prev, farm!]);
+                }
+            }
+        } catch (e) {
+            console.error("Failed to select external farm", e);
+        }
+    }
     if (farm) {
         setAndPersistSelectedFarm(farm);
     }

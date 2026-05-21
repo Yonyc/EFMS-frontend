@@ -1,0 +1,192 @@
+{
+  "helpPortal": "Help Portal",
+  "title": "Wiki & User Documentation",
+  "subtitle": "Explore comprehensive guides covering every platform capability to master your experimental farm and parcel tracking.",
+  "openMap": "Open Interactive Map",
+  "restartTour": "Restart Interactive Tour",
+  "tourResetAlert": "Map tutorial restarted! Open the map to start your interactive tour.",
+  "learningTopics": "Learning Topics",
+  "stepByStep": "Step-by-Step Walkthrough",
+  "tips": "Tips",
+  "keyboardShortcuts": "Keyboard Shortcuts",
+  "shortcuts": [
+    {
+      "keys": "Esc",
+      "description": "Cancel drawing or exit edit mode"
+    },
+    {
+      "keys": "Enter",
+      "description": "Finish polygon and open naming dialog"
+    },
+    {
+      "keys": "Ctrl + Z",
+      "description": "Undo the last vertex while drawing"
+    },
+    {
+      "keys": "Ctrl + D",
+      "description": "Duplicate the currently selected parcel"
+    }
+  ],
+  "categories": {
+    "map": {
+      "title": "Map & Parcel Editor",
+      "subtitle": "Learn to draw, split and auto-correct parcel boundaries.",
+      "overview": "",
+      "steps": [
+        {
+          "title": "1. Select your target Farm",
+          "content": "Use the farm dropdown menu located next to your profile picture in the main navigation bar. Selecting a farm loads its primary fields, research zones, sub-plots, and color palette automatically."
+        },
+        {
+          "title": "2. Enter Drawing Mode",
+          "content": "Press the 'Map' link in the top navbar. In the floating drawing toolbar on the left, click 'Add' and select 'Polygon' to activate the cursor."
+        },
+        {
+          "title": "3. Digitize Plot Boundaries",
+          "content": "Left-click on the map imagery layer to drop successive vertices. Use the scroll wheel to zoom in close for exceptional boundary precision, and close the loop by clicking on the first vertex or pressing Enter."
+        },
+        {
+          "title": "4. Auto-Correct Overlaps",
+          "content": "EFMS prevents data contamination. If your polygon overlaps an existing parcel, the overlap modal will prompt you. You can choose to automatically shrink the new parcel to fit perfectly along the boundary of the existing parcel."
+        },
+        {
+          "title": "5. Split and Refine Vertexes",
+          "content": "Click any parcel to open its action menu, select 'Edit' to expose its vertices. Drag handles to adjust shapes, double-click to insert new vertices, or highlight a vertex and press Delete to remove it."
+        }
+      ],
+      "tips": [
+        "Toggle parcel visibility checkboxes in the right drawer to declutter your map space during heavy drawing.",
+        "Keep 'Auto overlap correction' toggled on in the toolbar to streamline drawing adjacent plots."
+      ]
+    },
+    "operations": {
+      "title": "Agronomic Logbook",
+      "subtitle": "Log seeding, harvests, treatments, and track modifications.",
+      "overview": "Keep a rigorous, regulation-ready history of all field activities. Track exact operations, duration, tools, products, and who performed the actions.",
+      "steps": [
+        {
+          "title": "1. Access the Operations Panel",
+          "content": "Select a parcel on the map and click 'Operations' in the context popup, or click 'Operations' in the top navbar to view the full agronomic spreadsheet dashboard."
+        },
+        {
+          "title": "2. Log a New Operation",
+          "content": "Choose the parcel and set the operation type (e.g., Sowing, Fertilizing, Treatment, Tillage, Harvesting). Specify the exact date and duration in minutes."
+        },
+        {
+          "title": "3. Associate Tools & Products",
+          "content": "Add the specific tools utilized (e.g., John Deere tractor, seeder) and products applied (e.g., Nitrogen fertilizer, winter wheat seed) along with precise quantities and units."
+        },
+        {
+          "title": "4. Audit modification history",
+          "content": "Every operation logged tracks the authenticated user who created it and the user who last edited it, ensuring complete accountability and simple audit reviews."
+        }
+      ],
+      "tips": [
+        "You can pin the operations panel to the top-right corner of the map page to keep logging without blocking your view.",
+        "If you are using shared research links, you will only be able to view or edit operations that match your assigned permissions."
+      ]
+    },
+    "sharing": {
+      "title": "Access Sharing & Constraints",
+      "subtitle": "Share farms or plots with precise date, tool or product filters.",
+      "overview": "EFMS features an advanced role-based and token-based sharing system. You can securely share access with external agronomists, students, or state auditors under strict read-only or read-write conditions.",
+      "steps": [
+        {
+          "title": "1. Direct Member Invitations",
+          "content": "Navigate to 'Manage Farm' -> 'Members'. Input a registered username to add them directly to your farm. Set their level: 'Admin' (full management), 'Editor' (can draw and log operations), or 'Viewer' (read-only access)."
+        },
+        {
+          "title": "2. Generate Token Share Links",
+          "content": "For external collaborators, go to the 'Farm shares' page and generate a 'Research Share Link'. This creates an invitation token that doesn't expose your entire farm credentials."
+        },
+        {
+          "title": "3. Apply Precise Constraints",
+          "content": "Customize share link parameters: limit access to a specific season (Filter Start/End), restrict maximum claiming users, or limit access to operations that use specific tools or products."
+        },
+        {
+          "title": "4. Claiming and Enrolling",
+          "content": "When the recipient clicks the shared link, they authenticate and automatically claim the token. The shared farm and allowed sub-plots instantly show up under 'My Enrolled Shares' in their map interface."
+        }
+      ],
+      "tips": [
+        "Direct member invites are best for permanent farm crews.",
+        "Token-based share links are perfect for temporary students or researchers conducting single-season trials.",
+        "You can revoke any active share at any time with a single click in the active shares panel."
+      ]
+    },
+    "settings": {
+      "title": "Farm Settings & Alerts",
+      "subtitle": "Customize public visibility profiles and configure email alerts.",
+      "overview": "Configure visibilities for official declarations, and enable real-time email notifications for sensitive edits.",
+      "steps": [
+        {
+          "title": "1. Manage Farm Profile",
+          "content": "In 'Manage Farm' -> 'Settings', update the farm's name, description, and geographical location fields."
+        },
+        {
+          "title": "2. Set Visibility Levels",
+          "content": "Toggle 'Public Listing' to show the farm in the public directory. Customize what external viewers see by checking or unchecking Show Name, Show Description, or Show Location."
+        },
+        {
+          "title": "3. Enable Sensitive Operation Alerts",
+          "content": "Under the 'Email Alert Configurations' card, toggle real-time notifications for: Member Updates (role adjustments), Parcel Changes (created/modified/deleted plots), or Operation Logs."
+        },
+        {
+          "title": "4. Configure Alert Recipient Email",
+          "content": "Provide a dedicated recipient email (e.g. manager@farm.org). EFMS fires these emails asynchronously using background thread pools to ensure zero network slowdowns during saving."
+        }
+      ],
+      "tips": [
+        "You must have 'Admin' or 'Owner' permissions to configure visibilities and email alert recipient details."
+      ]
+    },
+    "imports": {
+      "title": "Shapefile Importation",
+      "subtitle": "Upload ZIP archives and validate polygons before importing.",
+      "overview": "Avoid redrawing official fields. Import government land registry shapefiles directly and edit them in-app.",
+      "steps": [
+        {
+          "title": "1. Prepare your Shapefile ZIP",
+          "content": "Gather the essential components of your GIS export (.shp, .shx, .dbf, and .prj projection files) and compress them together into a standard .zip archive."
+        },
+        {
+          "title": "2. Upload the batch",
+          "content": "Navigate to the 'Imports' tab from the main navbar, drag and drop or select your prepared ZIP file, and initiate the processing upload."
+        },
+        {
+          "title": "3. Interactively Validate Polygons",
+          "content": "Click 'Open for validation' on the uploaded batch. This opens a dedicated GIS validation split-screen map where you can review, adjust vertices, and rename individual shapes before they enter the farm."
+        },
+        {
+          "title": "4. Approve and Merge",
+          "content": "Approve shapes individually or approve the entire import batch with one click. Approved boundaries seamlessly integrate into your live active farm map."
+        }
+      ],
+      "tips": [
+        "Make sure the projection file (.prj) is included in the ZIP archive to allow correct coordinates transformation to PostGIS geometry."
+      ]
+    },
+    "admin": {
+      "title": "Administration & Deletion",
+      "subtitle": "Manager impersonation, user verifications, deletion and restores.",
+      "overview": "The administration panel provides system operators with robust user vetting, farm approvals, soft-delete safety, and farm cascade restorations.",
+      "steps": [
+        {
+          "title": "1. Access Global Admin",
+          "content": "If you have administrator credentials, click the 'Admin' tab in the navbar dropdown. This exposes the Users, Farms, and System Settings panels."
+        },
+        {
+          "title": "2. Impersonate Farm Managers",
+          "content": "Under the 'Farms' tab, select any registered farm and click 'Manage in App'. This allows the admin to temporarily assume manager level access to review map plots and edit settings."
+        },
+        {
+          "title": "3. How Deletion Works",
+          "content": "To delete a farm, you must look in the farm's administration tab."
+        }
+      ],
+      "tips": [
+        "Soft deleted farms are clearly marked with a red 'Deleted' badge in the admin farms list."
+      ]
+    }
+  }
+}

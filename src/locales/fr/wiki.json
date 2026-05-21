@@ -1,0 +1,192 @@
+{
+  "helpPortal": "Portail d'Assistance",
+  "title": "Wiki & Guide d'Utilisation",
+  "subtitle": "Explorez les guides détaillés de chaque fonctionnalité pour maîtriser la gestion de votre exploitation et le suivi des parcelles.",
+  "openMap": "Ouvrir la carte interactive",
+  "restartTour": "Relancer le didacticiel interactif",
+  "tourResetAlert": "Le tutoriel de la carte a été réinitialisé ! Ouvrez la carte pour lancer le didacticiel interactif.",
+  "learningTopics": "Sujets d'apprentissage",
+  "stepByStep": "Didacticiel étape par étape",
+  "tips": "Conseils",
+  "keyboardShortcuts": "Raccourcis clavier",
+  "shortcuts": [
+    {
+      "keys": "Échap",
+      "description": "Annuler le dessin ou quitter le mode édition"
+    },
+    {
+      "keys": "Entrée",
+      "description": "Terminer le polygone et ouvrir le nommage"
+    },
+    {
+      "keys": "Ctrl + Z",
+      "description": "Annuler le dernier sommet posé"
+    },
+    {
+      "keys": "Ctrl + D",
+      "description": "Dupliquer la parcelle sélectionnée"
+    }
+  ],
+  "categories": {
+    "map": {
+      "title": "Carte & Éditeur de Parcelles",
+      "subtitle": "Apprenez à dessiner, scinder et corriger automatiquement les parcelles.",
+      "overview": "",
+      "steps": [
+        {
+          "title": "1. Sélectionner l'exploitation cible",
+          "content": "Utilisez le menu déroulant des exploitations situé à côté de votre photo de profil dans la barre de navigation. Cela charge automatiquement ses champs, zones expérimentales, sous-parcelles et sa palette de couleurs."
+        },
+        {
+          "title": "2. Entrer en mode dessin",
+          "content": "Cliquez sur 'Carte' dans la barre de navigation. Dans la barre d'outils flottante à gauche, cliquez sur 'Ajouter' puis sélectionnez 'Polygone' pour activer le curseur."
+        },
+        {
+          "title": "3. Dessiner les contours",
+          "content": "Cliquez gauche sur la carte pour déposer les sommets successifs. Utilisez la molette de la souris pour zoomer afin d'obtenir une précision optimale, et fermez la boucle en cliquant sur le premier point ou en appuyant sur Entrée."
+        },
+        {
+          "title": "4. Correction automatique des chevauchements",
+          "content": "EFMS empêche la superposition de données. Si votre polygone chevauche une parcelle existante, un avertissement apparaît. Vous pouvez alors choisir de réduire automatiquement la nouvelle parcelle pour l'ajuster parfaitement aux contours existants."
+        },
+        {
+          "title": "5. Scinder et ajuster les sommets",
+          "content": "Cliquez sur n'importe quelle parcelle pour ouvrir son menu d'action, puis sélectionnez 'Modifier' pour afficher ses sommets. Faites glisser les poignées pour ajuster la forme, double-cliquez pour insérer un sommet, ou sélectionnez un point et appuyez sur Suppr pour le retirer."
+        }
+      ],
+      "tips": [
+        "Décochez la visibilité des parcelles dans le panneau droit pour alléger la carte pendant les sessions de dessin complexes.",
+        "Laissez la 'Correction automatique des chevauchements' activée dans la barre d'outils pour dessiner facilement des parcelles adjacentes."
+      ]
+    },
+    "operations": {
+      "title": "Carnet d'Opérations",
+      "subtitle": "Enregistrez les semis, récoltes, traitements et suivez les modifications.",
+      "overview": "Tenez un historique rigoureux et conforme pour toutes les activités agricoles. Suivez les opérations exactes, leur durée, les outils, les produits appliqués et les utilisateurs qui ont effectué les actions.",
+      "steps": [
+        {
+          "title": "1. Accéder au panneau des opérations",
+          "content": "Sélectionnez une parcelle sur la carte et cliquez sur 'Opérations' dans la fenêtre contextuelle, ou cliquez sur 'Opérations' dans la barre supérieure pour afficher le tableau de bord complet."
+        },
+        {
+          "title": "2. Enregistrer une nouvelle opération",
+          "content": "Choisissez la parcelle et définissez le type d'opération (ex: Semis, Fertilisation, Traitement, Labour, Récolte). Précisez la date exacte et la durée en minutes."
+        },
+        {
+          "title": "3. Associer les outils et produits",
+          "content": "Ajoutez les outils spécifiques utilisés (ex: tracteur, semoir) et les produits appliqués (ex: engrais azoté, semences de blé d'hiver) ainsi que les quantités et unités précises."
+        },
+        {
+          "title": "4. Auditer l'historique des modifications",
+          "content": "Chaque opération enregistrée suit l'utilisateur authentifié qui l'a créée et celui qui l'a modifiée en dernier, garantissant une traçabilité totale pour les audits."
+        }
+      ],
+      "tips": [
+        "Vous pouvez épingler le panneau des opérations en haut à droite sur la carte pour saisir des données sans bloquer votre vue.",
+        "Si vous utilisez un lien de partage de recherche, vous ne pourrez voir ou modifier que les opérations correspondant à vos autorisations."
+      ]
+    },
+    "sharing": {
+      "title": "Partage d'Accès & Contraintes",
+      "subtitle": "Partagez des fermes ou parcelles avec des filtres précis de dates, outils ou produits.",
+      "overview": "EFMS dispose d'un système de partage avancé basé sur les rôles et les jetons. Vous pouvez partager l'accès en toute sécurité avec des agronomes externes, des étudiants ou des auditeurs sous des conditions strictes.",
+      "steps": [
+        {
+          "title": "1. Invitations directes de membres",
+          "content": "Allez dans 'Gérer les exploitations' -> 'Membres'. Saisissez un nom d'utilisateur inscrit pour l'ajouter à votre exploitation. Définissez son niveau : 'Admin' (gestion totale), 'Éditeur' (peut dessiner et saisir) ou 'Lecteur' (lecture seule)."
+        },
+        {
+          "title": "2. Générer des liens de partage par jeton",
+          "content": "Pour les collaborateurs externes, accédez à la page 'Partages de la ferme' et générez un 'Lien de partage de recherche'. Cela crée un jeton d'invitation sans exposer toutes les données de l'exploitation."
+        },
+        {
+          "title": "3. Appliquer des contraintes précises",
+          "content": "Personnalisez les paramètres du lien : limitez l'accès à une saison spécifique (début/fin de filtre), restreignez le nombre maximum d'utilisateurs, ou limitez l'accès aux opérations utilisant des outils ou produits précis."
+        },
+        {
+          "title": "4. Réclamer et utiliser les partages",
+          "content": "Lorsque le destinataire clique sur le lien partagé, il s'authentifie et réclame automatiquement le jeton. L'exploitation et les parcelles autorisées apparaissent instantanément sous 'Mes partages actifs' sur sa carte."
+        }
+      ],
+      "tips": [
+        "Les invitations directes sont idéales pour l'équipe permanente de la ferme.",
+        "Les liens de partage par jeton conviennent parfaitement aux étudiants ou chercheurs temporaires effectuant des essais sur une seule saison.",
+        "Vous pouvez révoquer n'importe quel partage actif à tout moment en un seul clic depuis le panneau de gestion."
+      ]
+    },
+    "settings": {
+      "title": "Paramètres & Alertes",
+      "subtitle": "Personnalisez la visibilité publique et configurez les alertes e-mail.",
+      "overview": "Configurez les visibilités pour les déclarations officielles et activez les notifications e-mail en temps réel pour les modifications sensibles.",
+      "steps": [
+        {
+          "title": "1. Gérer le profil de l'exploitation",
+          "content": "Dans 'Gérer les exploitations' -> 'Paramètres', mettez à jour le nom, la description et la localisation géographique de l'exploitation."
+        },
+        {
+          "title": "2. Définir les niveaux de visibilité",
+          "content": "Activez le 'Listing public' pour afficher l'exploitation dans l'annuaire public. Personnalisez ce que les visiteurs voient en cochant 'Afficher le nom', 'la description' ou 'la localisation'."
+        },
+        {
+          "title": "3. Activer les alertes sur opérations sensibles",
+          "content": "Dans la carte 'Configuration des alertes e-mail', activez les notifications en temps réel pour : les mises à jour de membres (ajustements de rôles), les modifications de parcelles (créations/suppressions) ou la saisie d'opérations."
+        },
+        {
+          "title": "4. Configurer l'e-mail de réception des alertes",
+          "content": "Renseignez un e-mail de destination (ex: responsable@ferme.org). EFMS envoie ces e-mails de manière asynchrone en tâche de fond pour garantir un enregistrement instantané sans ralentissement."
+        }
+      ],
+      "tips": [
+        "Vous devez disposer des autorisations 'Administrateur' ou 'Propriétaire' pour configurer la visibilité et le destinataire des alertes e-mail."
+      ]
+    },
+    "imports": {
+      "title": "Importation de Shapefile",
+      "subtitle": "Téléversez des archives ZIP et valisez les polygones avant import.",
+      "overview": "Évitez de redessiner les parcelles officielles. Importez directement les fichiers Shapefile cadastraux et modifiez-les dans l'application.",
+      "steps": [
+        {
+          "title": "1. Préparer le fichier ZIP Shapefile",
+          "content": "Rassemblez les fichiers indispensables de votre export SIG (fichiers .shp, .shx, .dbf et la projection .prj) et compressez-les dans une archive .zip standard."
+        },
+        {
+          "title": "2. Téléverser le lot",
+          "content": "Accédez à l'onglet 'Importations' de la barre supérieure, glissez-déposez ou sélectionnez votre fichier ZIP, puis lancez le téléversement."
+        },
+        {
+          "title": "3. Valider les polygones",
+          "content": "Cliquez sur 'Ouvrir pour validation' sur le lot importé. Cela ouvre une carte de validation SIG dédiée où vous pouvez examiner, ajuster les sommets et renommer chaque forme individuellement avant l'intégration finale."
+        },
+        {
+          "title": "4. Approuver et fusionner",
+          "content": "Approuvez les formes individuellement ou approuvez l'ensemble du lot d'importation en un clic. Les contours validés s'intègrent de manière fluide sur votre carte active."
+        }
+      ],
+      "tips": [
+        "Assurez-vous que le fichier de projection (.prj) est bien inclus dans l'archive ZIP pour permettre une transformation correcte des coordonnées vers PostGIS."
+      ]
+    },
+    "admin": {
+      "title": "Administration & Suppression",
+      "subtitle": "Impersonnalisation, vérifications, suppression et restaurations.",
+      "overview": "Le panneau d'administration fournit aux gestionnaires du système un contrôle robuste des utilisateurs, l'approbation des exploitations, la sécurité des suppressions et la restauration en cascade.",
+      "steps": [
+        {
+          "title": "1. Accéder à l'administration globale",
+          "content": "Si vous disposez de droits d'administrateur, cliquez sur l'onglet 'Administration' dans le menu déroulant. Cela affiche les onglets Utilisateurs, Exploitations et Paramètres globaux."
+        },
+        {
+          "title": "2. Impersonnaliser les gestionnaires",
+          "content": "Dans l'onglet 'Exploitations', sélectionnez n'importe quelle ferme et cliquez sur 'Manage in App'. Cela permet à l'administrateur d'assumer temporairement l'accès gestionnaire pour vérifier la carte ou ajuster les paramètres."
+        },
+        {
+          "title": "3. Fonctionnement de la suppression",
+          "content": "Pour supprimer une ferme, il faut aller chercher dans l'onglet d'aministration de la ferme"
+        }
+      ],
+      "tips": [
+        "Les exploitations supprimées sont signalées par un badge rouge 'Supprimé' dans la liste d'administration."
+      ]
+    }
+  }
+}

@@ -41,6 +41,10 @@ interface OperationPopupProps {
     handleSaveOperation: () => Promise<void>;
     resetOperationForm: () => void;
     parcelOperations: ParcelOperationDto[];
+    operationsPage: number;
+    setOperationsPage: (page: number) => void;
+    operationsTotalPages: number;
+    loadParcelOperations: (parcelId: string, page: number) => Promise<void>;
 }
 
 const OperationPopup = React.memo((props: OperationPopupProps) => {
@@ -53,7 +57,8 @@ const OperationPopup = React.memo((props: OperationPopupProps) => {
         setOperationDurationMinutes, handleAddOperationLine,
         operationLines, handleRemoveOperationLine, updateOperationLine,
         units, products, tools, handleSaveOperation, resetOperationForm,
-        parcelOperations
+        parcelOperations, operationsPage, setOperationsPage,
+        operationsTotalPages, loadParcelOperations
     } = props;
 
     if (!popupCoords) return null;
@@ -274,6 +279,37 @@ const OperationPopup = React.memo((props: OperationPopupProps) => {
                             </div>
                         ))}
                     </div>
+                    {operationsTotalPages > 1 && (
+                        <div className="mt-3 flex items-center justify-between border-t border-white/10 pt-2 text-xs">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    const prev = Math.max(0, operationsPage - 1);
+                                    setOperationsPage(prev);
+                                    void loadParcelOperations(currentParcelId || operationPopup.polygonId, prev);
+                                }}
+                                disabled={operationsPage === 0}
+                                className="rounded bg-white/10 px-2 py-1 text-white hover:bg-white/15 disabled:opacity-40 transition-all"
+                            >
+                                {t('common.previous', { defaultValue: 'Prev' })}
+                            </button>
+                            <span className="text-slate-300">
+                                Page {operationsPage + 1} of {operationsTotalPages}
+                            </span>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    const next = Math.min(operationsTotalPages - 1, operationsPage + 1);
+                                    setOperationsPage(next);
+                                    void loadParcelOperations(currentParcelId || operationPopup.polygonId, next);
+                                }}
+                                disabled={operationsPage === operationsTotalPages - 1}
+                                className="rounded bg-white/10 px-2 py-1 text-white hover:bg-white/15 disabled:opacity-40 transition-all"
+                            >
+                                {t('common.next', { defaultValue: 'Next' })}
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>,
