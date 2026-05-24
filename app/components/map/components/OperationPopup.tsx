@@ -1,13 +1,14 @@
 import React from "react";
 import { createPortal } from "react-dom";
-import type { 
-    PolygonData, 
-    OperationTypeDto, 
-    UnitDto, 
-    ProductDto, 
-    ToolDto, 
-    ParcelOperationDto, 
-    OperationProductInputState 
+import { useDateTimeFormatter } from "~/utils/datetime";
+import type {
+    PolygonData,
+    OperationTypeDto,
+    UnitDto,
+    ProductDto,
+    ToolDto,
+    ParcelOperationDto,
+    OperationProductInputState
 } from "../types";
 
 interface OperationPopupProps {
@@ -48,6 +49,7 @@ interface OperationPopupProps {
 }
 
 const OperationPopup = React.memo((props: OperationPopupProps) => {
+    const { formatDateTime } = useDateTimeFormatter();
     const {
         operationPopup, popupCoords, isMobile, startDrag, polygons, t,
         preferTopRight, setPreferTopRight, closeOperationPopup,
@@ -251,7 +253,7 @@ const OperationPopup = React.memo((props: OperationPopupProps) => {
                                 <div className="flex items-center justify-between gap-3">
                                     <div>
                                         <div className="font-semibold text-white">{op.typeName || t('operations.selectTypePlaceholder', { defaultValue: 'Operation' })}</div>
-                                        <div className="text-xs text-slate-200/80">{op.date ? new Date(op.date).toLocaleString() : ''}</div>
+                                        <div className="text-xs text-slate-200/80">{formatDateTime(op.date)}</div>
                                     </div>
                                     {op.durationSeconds != null && (
                                         <span className="rounded-full bg-white/10 px-2 py-1 text-[11px] font-semibold text-white">

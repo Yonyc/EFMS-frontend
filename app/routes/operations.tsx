@@ -4,6 +4,7 @@ import ProtectedRoute from "~/components/ProtectedRoute";
 import { useAuth } from "~/contexts/AuthContext";
 import { useFarm } from "~/contexts/FarmContext";
 import { apiGet, apiPost } from "~/utils/api";
+import { useDateTimeFormatter } from "~/utils/datetime";
 
 interface ParcelSummary {
   id: number;
@@ -68,6 +69,7 @@ export default function OperationsPage() {
   const { isAuthenticated } = useAuth();
   const { selectedFarm, refreshFarms } = useFarm();
   const { t } = useTranslation();
+  const { formatDateTime } = useDateTimeFormatter();
 
   const [parcels, setParcels] = useState<ParcelSummary[]>([]);
   const [selectedParcelId, setSelectedParcelId] = useState<number | null>(null);
@@ -428,7 +430,7 @@ export default function OperationsPage() {
                         <div>
                           <p className="text-sm font-semibold text-white">{op.typeName || t("operations.selectTypePlaceholder")}</p>
                           <p className="text-xs text-slate-300">
-                            {op.date ? new Date(op.date).toLocaleString() : ""}
+                            {formatDateTime(op.date)}
                           </p>
                         </div>
                         {op.durationSeconds != null && (

@@ -5,6 +5,7 @@ import ProtectedRoute from "~/components/ProtectedRoute";
 import { useFarm } from "~/contexts/FarmContext";
 import { apiDelete, apiGet, apiPut } from "~/utils/api";
 import UserSearchInput from "~/components/UserSearchInput";
+import { useDateTimeFormatter } from "~/utils/datetime";
 
 interface ParcelSummaryDto {
     id: number;
@@ -65,6 +66,7 @@ export default function FarmSharesPage() {
     const { t } = useTranslation();
     const { selectedFarm } = useFarm();
     const farmId = selectedFarm?.id;
+    const { formatDateTime } = useDateTimeFormatter();
 
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -423,8 +425,8 @@ export default function FarmSharesPage() {
                                     <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                                         {t("farmShares.research.window", {
                                             defaultValue: "Window: {{start}} -> {{end}}",
-                                            start: share.shareStartAt ? new Date(share.shareStartAt).toLocaleString() : t("farmShares.research.now", { defaultValue: "now" }),
-                                            end: share.shareEndAt ? new Date(share.shareEndAt).toLocaleString() : t("farmShares.research.noEnd", { defaultValue: "no end" }),
+                                            start: share.shareStartAt ? formatDateTime(share.shareStartAt) : t("farmShares.research.now", { defaultValue: "now" }),
+                                            end: share.shareEndAt ? formatDateTime(share.shareEndAt) : t("farmShares.research.noEnd", { defaultValue: "no end" }),
                                         })}
                                     </p>
                                     <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -574,12 +576,12 @@ export default function FarmSharesPage() {
                                         <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                                             {t("farmShares.research.window", {
                                                 defaultValue: "Window: {{start}} -> {{end}}",
-                                                start: share.shareStartAt ? new Date(share.shareStartAt).toLocaleString() : "now",
-                                                end: share.shareEndAt ? new Date(share.shareEndAt).toLocaleString() : "no end",
+                                                start: share.shareStartAt ? formatDateTime(share.shareStartAt) : "now",
+                                                end: share.shareEndAt ? formatDateTime(share.shareEndAt) : "no end",
                                             })}
                                         </p>
                                         <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                                            {t("farmShares.research.createdAt", { defaultValue: "Created" })}: {share.createdAt ? new Date(share.createdAt).toLocaleString() : t("farmShares.research.unknown", { defaultValue: "unknown" })}
+                                            {t("farmShares.research.createdAt", { defaultValue: "Created" })}: {share.createdAt ? formatDateTime(share.createdAt) : t("farmShares.research.unknown", { defaultValue: "unknown" })}
                                         </p>
                                     </div>
                                 ))}

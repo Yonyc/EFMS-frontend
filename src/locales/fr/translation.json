@@ -465,6 +465,29 @@
     "preferences": "Préférences",
     "pinTopRight": "Ouvrir la fenêtre d'opérations en haut à droite",
     "pinTopRightHint": "Utilisé aussi pour la fenêtre d'opérations sur la carte.",
+    "timeFormat": "Format de l'heure",
+    "timeFormatHint": "Comment les heures sont affichées dans l'application.",
+    "timeFormatOptions": {
+      "24h": "24 heures (13:45)",
+      "12h": "12 heures (1:45 PM)"
+    },
+    "dateFormat": "Format de la date",
+    "dateFormatHint": "Auto suit votre langue ; choisissez un format fixe pour forcer.",
+    "dateFormatOptions": {
+      "auto": "Auto (selon la langue)"
+    },
+    "preferredLanguage": "Langue",
+    "preferredLanguageHint": "Remplace la langue du navigateur.",
+    "preferredLanguageOptions": {
+      "auto": "Auto (langue du navigateur)",
+      "en": "Anglais",
+      "fr": "Français"
+    },
+    "defaultFarm": "Exploitation par défaut",
+    "defaultFarmHint": "Sélectionnée automatiquement après une nouvelle connexion. Un rafraîchissement conserve la dernière exploitation utilisée.",
+    "defaultFarmNone": "Pas de défaut (afficher le sélecteur)",
+    "emailNotifications": "Notifications par email",
+    "emailNotificationsHint": "Interrupteur principal pour partages, imports et alertes de parcelles.",
     "save": "Enregistrer",
     "saving": "Enregistrement...",
     "saved": "Profil mis à jour",
@@ -488,7 +511,7 @@
       "selectButton": "Utiliser cette exploitation",
       "stepLabel": "Pour commencer",
       "emptyTitle": "Vous n'avez pas encore d'exploitation",
-      "emptyDescription": "Créez votre première exploitation pour démarrer la cartographie.",
+      "emptyDescription": "Créez votre première exploitation pour démarrer la cartographie, ou demandez à un autre utilisateur de vous en partager une.",
       "createButton": "Créer une exploitation"
     },
     "tour": {

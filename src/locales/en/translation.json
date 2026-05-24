@@ -465,6 +465,29 @@
     "preferences": "Preferences",
     "pinTopRight": "Open operations popup at top-right",
     "pinTopRightHint": "Also used on the map operations popup.",
+    "timeFormat": "Time format",
+    "timeFormatHint": "How clock times are shown across the app.",
+    "timeFormatOptions": {
+      "24h": "24-hour (13:45)",
+      "12h": "12-hour (1:45 PM)"
+    },
+    "dateFormat": "Date format",
+    "dateFormatHint": "Auto matches your language; pick a fixed format to override.",
+    "dateFormatOptions": {
+      "auto": "Auto (from language)"
+    },
+    "preferredLanguage": "Language",
+    "preferredLanguageHint": "Overrides your browser language.",
+    "preferredLanguageOptions": {
+      "auto": "Auto (browser language)",
+      "en": "English",
+      "fr": "French"
+    },
+    "defaultFarm": "Default farm",
+    "defaultFarmHint": "Auto-selected after fresh login. A refresh keeps whatever farm you last used.",
+    "defaultFarmNone": "No default (show picker)",
+    "emailNotifications": "Email notifications",
+    "emailNotificationsHint": "Master switch for shares, imports and parcel alerts.",
     "save": "Save changes",
     "saving": "Saving...",
     "saved": "Profile updated",
@@ -488,7 +511,7 @@
       "selectButton": "Use this farm",
       "stepLabel": "Get started",
       "emptyTitle": "You don't have any farms yet",
-      "emptyDescription": "Create your first farm to start mapping parcels.",
+      "emptyDescription": "Create your first farm to start mapping parcels, or have one shared with you by another user.",
       "createButton": "Create a farm"
     },
     "tour": {

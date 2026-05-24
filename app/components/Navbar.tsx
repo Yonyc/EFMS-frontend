@@ -5,6 +5,7 @@ import { CircleFlagLanguage } from 'react-circle-flags'
 import { useAuth } from '../contexts/AuthContext'
 import { Link, NavLink, useLocation, useNavigate } from 'react-router';
 import FarmSelector from './FarmSelector';
+import { apiPut } from '../utils/api';
 import { buildLocalizedPath, buildLocalizedUrl, SUPPORTED_LOCALES } from '../utils/locale';
 import type { Locale } from '../utils/locale';
 
@@ -34,11 +35,18 @@ export default function Navbar({ currentLocale }: NavbarProps) {
     const localizedPath = (slug: string) => buildLocalizedPath(currentLocale, slug ? `/${slug}` : '/');
 
     const handleLanguageChange = (lang: Locale) => {
-        if (lang === currentLocale) {
+        if (lang === currentLocale && i18n.language === lang) {
             return;
         }
 
         i18n.changeLanguage(lang);
+        try { localStorage.setItem('preferredLanguage', lang); } catch {}
+        if (isAuthenticated) {
+            // fire and forget so the ui doesn't wait on the round-trip
+            apiPut('/users/me', { preferredLanguage: lang }).catch((err) => {
+                console.error('Failed to persist language preference', err);
+            });
+        }
         const nextUrl = buildLocalizedUrl(lang, location.pathname, location.search, location.hash);
         navigate(nextUrl, { replace: true });
     };
