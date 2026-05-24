@@ -4,12 +4,33 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "leaflet-draw/dist/leaflet.draw.css";
 
+// class helpers need to be null-safe because leaflet's drag path passes targets without a className
+if (typeof window !== "undefined" && !(window as any).__leafletPatched) {
+    (window as any).__leafletPatched = true;
+    const isClassable = (el: any) => el && (typeof el.className !== "undefined" || typeof el.classList !== "undefined");
+    const origAdd = L.DomUtil.addClass;
+    const origRemove = L.DomUtil.removeClass;
+    const origHas = L.DomUtil.hasClass;
+    L.DomUtil.addClass = function (el: HTMLElement, name: string) {
+        if (!isClassable(el)) return;
+        return origAdd.call(this, el, name);
+    };
+    L.DomUtil.removeClass = function (el: HTMLElement, name: string) {
+        if (!isClassable(el)) return;
+        return origRemove.call(this, el, name);
+    };
+    L.DomUtil.hasClass = function (el: HTMLElement, name: string) {
+        if (!isClassable(el)) return false;
+        return origHas.call(this, el, name);
+    };
+}
+
 import { useFarm } from "~/contexts/FarmContext";
 import { useAuth } from "~/contexts/AuthContext";
 import { apiPut, apiPatch } from "~/utils/api";
 
 // components
-import MapLayerManager, { PATTERN_STYLES } from "./components/MapLayerManager";
+import MapLayerManager from "./components/MapLayerManager";
 import MapToolbar from "./components/MapToolbar";
 import MapSidebar from "./components/MapSidebar";
 import MapModals from "./components/MapModals";
@@ -44,6 +65,10 @@ if (typeof window !== "undefined") {
     (window as any).type = (window as any).type || undefined;
 }
 
+// hoisted so the reference stays stable across renders and MapLayerManager's memo can hit
+const DRAW_OPTIONS = { polygon: { allowIntersection: false, showArea: true, metric: true, shapeOptions: { color: '#3388ff' } }, rectangle: false, circle: false, circlemarker: false, marker: false, polyline: false } as const;
+const MAP_CENTER: [number, number] = [50.668333, 4.621278];
+
 export default function MapWithPolygons(props: MapWithPolygonsProps) {
     const { t } = useTranslation();
     const { selectedFarm } = useFarm();
@@ -52,7 +77,7 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
     const [isMounted, setIsMounted] = useState(false);
     useEffect(() => { setIsMounted(true); }, []);
 
-    const center: [number, number] = [50.668333, 4.621278];
+    const center = MAP_CENTER;
     const POPUP_WIDTH = 420;
     const POPUP_HEIGHT = 520;
     const POPUP_PADDING = 12;
@@ -110,7 +135,7 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
     const isMobile = useMobileMatch();
 
     const prefs = useUserPreferences(user);
-    const { preferTopRight, setPreferTopRight, minLayer, setMinLayer, maxLayer, setMaxLayer, patternStyle, setPatternStyle } = prefs;
+    const { preferTopRight, setPreferTopRight, minLayer, setMinLayer, maxLayer, setMaxLayer } = prefs;
 
     // refs
     const originalColorRef = useRef<string | null>(null);
@@ -302,8 +327,6 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
 
     if (!isMounted) return null;
 
-    const drawOptions = { polygon: { allowIntersection: false, showArea: true, metric: true, shapeOptions: { color: '#3388ff' } }, rectangle: false, circle: false, circlemarker: false, marker: false, polyline: false };
-
     return (
         <div className="relative h-full w-full">
             {allowCreate && contextMenu && (
@@ -431,7 +454,7 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
 
                 <div data-tour-id="map-canvas" className="h-full w-full min-h-0">
                     <MapLayerManager
-                        center={center} polygons={polygons} editingId={editingId} selectedId={selectedId} setSelectedId={setSelectedId} isCreating={isCreating} drawOptions={drawOptions} handleCreated={handleAnyCreated} overlapWarning={overlapWarning} showPreview={showPreview} previewVisibility={previewVisibility} pendingManualEditId={pendingManualEditId}
+                        center={center} polygons={polygons} editingId={editingId} selectedId={selectedId} setSelectedId={setSelectedId} isCreating={isCreating} drawOptions={DRAW_OPTIONS} handleCreated={handleAnyCreated} overlapWarning={overlapWarning} showPreview={showPreview} previewVisibility={previewVisibility} pendingManualEditId={pendingManualEditId}
                         featureGroupRef={featureGroupRef as any} editControlRef={editControlRef} polygonLayersRef={polygonLayersRef} setPolygonContextMenu={setPolygonContextMenu} setRenamingId={setRenamingId} setRenameValue={setRenameValue} setPendingDeleteId={setPendingDeleteId} setContextMenu={setContextMenu} closePolygonContextMenu={closePolygonContextMenu} viewportDebounceRef={viewportDebounceRef} setViewportBounds={setViewportBounds} hasActiveSearchFilters={hasActiveSearchFilters} isImportMode={isImportMode} contextType={contextType}
                         drawingPoints={editor.drawingPoints}
                         ghostCoords={editor.ghostCoords}
@@ -448,7 +471,6 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
                         minLayer={minLayer}
                         maxLayer={maxLayer}
                         restrictToFamilyId={restrictToFamily ? familyRootId : null}
-                        patternStyle={patternStyle}
                         highlightLastPoint={highlightLastPoint}
                     />
                 </div>
@@ -490,9 +512,6 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
                             familyScopeAvailable={!!familyRootId}
                             restrictToFamily={restrictToFamily}
                             setRestrictToFamily={setRestrictToFamily}
-                            patternStyle={patternStyle}
-                            setPatternStyle={setPatternStyle}
-                            patternStyleOptions={PATTERN_STYLES}
                             onRemoveLastHover={setHighlightLastPoint}
                         />
                     )}

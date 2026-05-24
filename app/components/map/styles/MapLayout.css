@@ -4,9 +4,12 @@
     display: none !important; 
 }
 
-/* smooth polygon transitions */
-.leaflet-interactive {
-    transition: filter 0.5s ease-out !important;
+/* delete the focus rect on clicked svg paths (chrome)*/
+.leaflet-interactive:focus,
+.leaflet-interactive:focus-visible,
+.leaflet-container svg:focus,
+.leaflet-container svg:focus-visible {
+    outline: none !important;
 }
 
 /* polygon tooltip */
@@ -41,15 +44,9 @@
     to { stroke-dashoffset: -60; }
 }
 
-@keyframes polygonGlow {
-    0% { filter: drop-shadow(0 0 2px currentColor); }
-    50% { filter: drop-shadow(0 0 8px currentColor); }
-    100% { filter: drop-shadow(0 0 2px currentColor); }
-}
-
 .leaflet-overlay-pane .polygon-glow {
     stroke-dasharray: 10 5;
-    animation: polygonDash 1.2s linear infinite, polygonGlow 2.4s ease-in-out infinite;
+    animation: polygonDash 1.2s linear infinite;
 }
 
 /* round the leaflet.draw vertex squares */
@@ -121,15 +118,6 @@
     transition: none !important;
 }
 
-/* halo around parcels so any fill stays readable over the basemap, stronger when selected */
-.leaflet-overlay-pane path.efms-parcel {
-    filter: drop-shadow(0 0 1.5px rgba(0, 0, 0, 0.55))
-            drop-shadow(0 0 1px rgba(255, 255, 255, 0.4));
-}
-.leaflet-overlay-pane path.efms-parcel.efms-selected:not(.polygon-glow) {
-    filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.6))
-            drop-shadow(0 0 2px rgba(255, 255, 255, 0.5));
-}
 /* round the sub-parcel corners so the dashed edge stays crisp */
 .leaflet-overlay-pane path.efms-child {
     stroke-linejoin: round;

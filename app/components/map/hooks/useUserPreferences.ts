@@ -1,9 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { apiPut } from "~/utils/api";
-import { type PatternStyle, PATTERN_STYLES } from "../components/MapLayerManager";
 
 const LAYER_STORE_KEY = "efms.layerRange.v1";
-const PATTERN_STORE_KEY = "efms.patternStyle.v1";
 
 interface User {
     id: string | number;
@@ -71,24 +69,10 @@ export function useUserPreferences(user: User | null) {
         } catch { /* quota / privacy mode */ }
     }, [minLayer, maxLayer]);
 
-    const [patternStyle, setPatternStyle] = useState<PatternStyle>(() => {
-        if (typeof window === "undefined") return "number";
-        try {
-            const raw = window.localStorage.getItem(PATTERN_STORE_KEY);
-            if (raw && (PATTERN_STYLES as readonly string[]).includes(raw)) return raw as PatternStyle;
-        } catch { /* ignore */ }
-        return "number";
-    });
-    useEffect(() => {
-        if (typeof window === "undefined") return;
-        try { window.localStorage.setItem(PATTERN_STORE_KEY, patternStyle); } catch { /* ignore */ }
-    }, [patternStyle]);
-
     return {
         preferTopRight, setPreferTopRight,
         minLayer, setMinLayer,
         maxLayer, setMaxLayer,
-        patternStyle, setPatternStyle,
         layerOverrideRef,
     };
 }

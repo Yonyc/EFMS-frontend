@@ -450,18 +450,37 @@ const hasFreeSpaceBridge = (
 
 // trims `coords` to avoid `otherPolygons` and stay inside `parentCoords` if given,
 // returns the largest valid piece, or the input untouched if no clean fix exists
+// outer rings only, null when there's a real hole so the caller bails on that piece
+const collectOuterPiecesFromDiff = (
+    diff: MartinezMultiPolygon | null,
+): [number, number][][] | null => {
+    if (!diff || diff.length === 0) return [];
+    const pieces: [number, number][][] = [];
+    for (const poly of diff) {
+        if (!poly || poly.length === 0) continue;
+        for (let r = 1; r < poly.length; r++) {
+            const holeCoords = martinezRingToCoords(poly[r]);
+            if (holeCoords.length >= 3 && Math.abs(polygonSignedArea(holeCoords)) > 1e-9) {
+                return null;
+            }
+        }
+        const outer = removeConsecutiveDuplicates(martinezRingToCoords(poly[0]));
+        if (outer.length < 3) continue;
+        for (const sub of splitToSimpleRings(outer)) {
+            if (sub.length >= 3) pieces.push(sub);
+        }
+    }
+    return pieces;
+};
+
 export const fixOverlap = (coords: [number, number][], otherPolygons: PolygonData[], parentCoords?: [number, number][]): [number, number][] => {
     try {
-        if (coords.length < 3) {
-            return coords;
-        }
+        if (coords.length < 3) return coords;
 
         const cleanedCoords = dedupeRing(coords);
         if (cleanedCoords.length < 3) return coords;
 
-        if (Math.abs(polygonSignedArea(cleanedCoords)) < 1e-10) {
-            return coords;
-        }
+        if (Math.abs(polygonSignedArea(cleanedCoords)) < 1e-10) return coords;
 
         const candidates = otherPolygons.filter(p => p.coords.length >= 3);
 
@@ -476,39 +495,54 @@ export const fixOverlap = (coords: [number, number][], otherPolygons: PolygonDat
             workingPolygons = nextPolygons;
         }
 
-        // union the obstacles first and subtract once
-        // doing it one obstacle at a time dropped intermediate holes and the
-        // outer ring folded into the keyhole bridge slicing across parcels
+        // union the obstacles first so the diff sees one clip and doesn't fold
+        // into a keyhole bridge, fall back to per-obstacle when union throws
         let clipGeom: MartinezMultiPolygon | null = null;
+        let unionFailed = false;
         for (const obstacle of candidates) {
             const g = [[coordsToMartinezRing(obstacle.coords)]] as unknown as MartinezMultiPolygon;
-            clipGeom = clipGeom
-                ? (martinezUnion(clipGeom as any, g as any) as MartinezMultiPolygon)
-                : g;
+            if (!clipGeom) { clipGeom = g; continue; }
+            try {
+                clipGeom = martinezUnion(clipGeom as any, g as any) as MartinezMultiPolygon;
+            } catch {
+                unionFailed = true;
+                clipGeom = null;
+                break;
+            }
         }
 
         const outerPieces: [number, number][][] = [];
-        for (const subjectPoly of workingPolygons) {
-            if (!clipGeom) { outerPieces.push(subjectPoly); continue; }
-            const subjGeom = [[coordsToMartinezRing(subjectPoly)]] as unknown as MartinezMultiPolygon;
-            const diff = martinezDiff(subjGeom as any, clipGeom as any) as MartinezMultiPolygon | null;
-            if (!diff || diff.length === 0) continue;
-            for (const poly of diff) {
-                if (!poly || poly.length === 0) continue;
-                // a real hole can't fit in a single-ring parcel, decline and let overlap detection flag it
-                for (let r = 1; r < poly.length; r++) {
-                    const holeCoords = martinezRingToCoords(poly[r]);
-                    if (holeCoords.length >= 3 && Math.abs(polygonSignedArea(holeCoords)) > 1e-9) {
-                        return coords;
-                    }
-                }
-                const outer = removeConsecutiveDuplicates(martinezRingToCoords(poly[0]));
-                if (outer.length < 3) continue;
-                const subs = splitToSimpleRings(outer);
-                for (const sub of subs) {
-                    if (sub.length >= 3) outerPieces.push(sub);
-                }
+        if (!unionFailed) {
+            for (const subjectPoly of workingPolygons) {
+                if (!clipGeom) { outerPieces.push(subjectPoly); continue; }
+                const subjGeom = [[coordsToMartinezRing(subjectPoly)]] as unknown as MartinezMultiPolygon;
+                const diff = martinezDiff(subjGeom as any, clipGeom as any) as MartinezMultiPolygon | null;
+                const pieces = collectOuterPiecesFromDiff(diff);
+                if (pieces === null) return coords;
+                outerPieces.push(...pieces);
             }
+        } else {
+            // re-feed each pass back in so an earlier bridge gets clipped by a later obstacle
+            let current = workingPolygons;
+            for (const obstacle of candidates) {
+                const obsGeom = [[coordsToMartinezRing(obstacle.coords)]] as unknown as MartinezMultiPolygon;
+                const next: [number, number][][] = [];
+                for (const subjectPoly of current) {
+                    const subjGeom = [[coordsToMartinezRing(subjectPoly)]] as unknown as MartinezMultiPolygon;
+                    let diff: MartinezMultiPolygon | null = null;
+                    try {
+                        diff = martinezDiff(subjGeom as any, obsGeom as any) as MartinezMultiPolygon | null;
+                    } catch {
+                        next.push(subjectPoly);
+                        continue;
+                    }
+                    const pieces = collectOuterPiecesFromDiff(diff);
+                    if (pieces === null) return coords;
+                    next.push(...pieces);
+                }
+                current = next;
+            }
+            outerPieces.push(...current);
         }
 
         const filtered = outerPieces
@@ -519,8 +553,7 @@ export const fixOverlap = (coords: [number, number][], otherPolygons: PolygonDat
                 && ringSharesVertex(poly, cleanedCoords)
             );
 
-        // nothing passed the filter, so the user drew entirely inside forbidden space
-        // keep their shape rather than inventing geometry
+        // nothing passed so the draw is entirely inside forbidden space, keep the shape as drawn
         if (filtered.length === 0) return coords;
 
         filtered.sort((a, b) => Math.abs(polygonSignedArea(b)) - Math.abs(polygonSignedArea(a)));

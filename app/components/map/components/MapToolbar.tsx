@@ -31,10 +31,6 @@ interface MapToolbarProps {
     familyScopeAvailable?: boolean;
     restrictToFamily?: boolean;
     setRestrictToFamily?: (val: boolean) => void;
-    // debug picker
-    patternStyle?: string;
-    setPatternStyle?: (s: any) => void;
-    patternStyleOptions?: readonly string[];
     // search props
     setIsSearchOpen?: (val: boolean | ((prev: boolean) => boolean)) => void;
     hasActiveSearchFilters?: boolean;
@@ -106,7 +102,6 @@ const MapToolbar = React.memo((props: MapToolbarProps) => {
         minLayer = 1, setMinLayer,
         maxLayer = 1, setMaxLayer,
         familyScopeAvailable = false, restrictToFamily = false, setRestrictToFamily,
-        patternStyle, setPatternStyle, patternStyleOptions,
         setIsSearchOpen, hasActiveSearchFilters, isImportMode,
         onRemoveLastHover
     } = props;
@@ -214,26 +209,6 @@ const MapToolbar = React.memo((props: MapToolbarProps) => {
                         : t('map.toolbar.scopeFamilyOnly', { defaultValue: 'Hide other parcels' })}
                     active={restrictToFamily}
                 />
-            )}
-            {setPatternStyle && patternStyleOptions && patternStyleOptions.length > 0 && (
-                <div
-                    title="Sub-parcel fill style (debug)"
-                    className="inline-flex h-10 items-center gap-1 rounded-xl border border-amber-300 bg-amber-50 px-2 shadow-md shadow-slate-900/10"
-                >
-                    <span className="px-1 text-[10px] font-bold uppercase tracking-wide text-amber-700">
-                        Debug
-                    </span>
-                    <select
-                        value={patternStyle ?? patternStyleOptions[0]}
-                        onChange={(e) => setPatternStyle(e.target.value)}
-                        className="h-7 rounded-lg bg-transparent px-1 text-xs font-bold text-amber-800 focus:outline-none focus:ring-2 focus:ring-amber-300"
-                        aria-label="Sub-parcel fill style (debug)"
-                    >
-                        {patternStyleOptions.map(s => (
-                            <option key={s} value={s}>{s}</option>
-                        ))}
-                    </select>
-                </div>
             )}
             </div>
 

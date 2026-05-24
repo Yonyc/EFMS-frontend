@@ -11,7 +11,7 @@ import {
 } from "react-leaflet";
 import { EditControl } from "react-leaflet-draw";
 import L from "leaflet";
-import { useEffect, useMemo, useRef } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import type { PolygonData, OverlapWarning } from "../types";
 import { clampToRect, getSafeMenuPosition } from "../utils/mapUtils";
 import { isPointInPolygon, intersectPolygon, polygonSignedArea } from "../utils/geometry";
@@ -63,8 +63,6 @@ interface MapLayerManagerProps {
     maxLayer?: number;
     // scope to this parcel and its descendants when set
     restrictToFamilyId?: string | null;
-    // debug picker
-    patternStyle?: PatternStyle;
     highlightLastPoint?: boolean;
 }
 
@@ -95,11 +93,19 @@ const midpointIcon = L.divIcon({
 const MIDPOINT_Z_INDEX = 200000;
 const VERTEX_Z_INDEX = 300000;
 
-const ZIndexEnforcer = ({ polygons, polygonLayersRef }: { polygons: PolygonData[], polygonLayersRef: React.MutableRefObject<Map<string, L.Polygon>> }) => {
+const ZIndexEnforcer = ({ polygons, polygonLayersRef, editingId }: { polygons: PolygonData[], polygonLayersRef: React.MutableRefObject<Map<string, L.Polygon>>, editingId: string | null }) => {
     const map = useMap();
+    
+    const signature = useMemo(() => {
+        const parts: string[] = [editingId || ''];
+        for (const p of polygons) {
+            if (p.parentId && p.visible) parts.push(`${p.id}|${p.parentId}`);
+        }
+        return parts.join('#');
+    }, [polygons, editingId]);
+
     useEffect(() => {
         if (!map) return;
-        // bring children above their parents, after the DOM paths exist
         const timer = setTimeout(() => {
             const byId = new Map(polygons.map(p => [String(p.id), p]));
             const depthOf = (poly: typeof polygons[number]) => {
@@ -125,7 +131,9 @@ const ZIndexEnforcer = ({ polygons, polygonLayersRef }: { polygons: PolygonData[
             });
         }, 50);
         return () => clearTimeout(timer);
-    }, [polygons, polygonLayersRef, map]);
+    // signature gates the run so polygons is intentionally not a dep
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [map, signature]);
     return null;
 };
 
@@ -146,21 +154,17 @@ function parcelPatternId(polyId: string): string {
     return `efms-pat-${String(polyId).replace(/[^A-Za-z0-9_-]/g, "_")}`;
 }
 
-// sub-parcel fill styles, picked at runtime from the toolbar debug dropdown
-export type PatternStyle = "number" | "outline" | "stripes";
-export const PATTERN_STYLES: PatternStyle[] = ["number", "outline", "stripes"];
-
 // builds the <pattern> shell with a per-id rotation, variants add their marks on top
 function makePatternFrame(poly: PolygonData, depth: number) {
     const color = effectiveFillColor(poly);
     const ink = darkenHex(color, 0.45);
     const h = stableHash(String(poly.id));
     const rot = [15, 35, 50, 65, 105, 120, 140, 160][h % 8];
-    // stripe bundle width, one line per layer up to 6
-    const lineCount = Math.min(6, Math.max(2, depth + 1));
-    const lineGap = 5;
+    // cap at 3 so the tile stays light at deep nesting
+    const lineCount = Math.min(3, Math.max(1, depth));
+    const lineGap = 7;
     const bundleW = (lineCount - 1) * lineGap;
-    const margin = 18 + (h % 3) * 6;
+    const margin = 26 + (h % 3) * 6;
     const size = Math.round(bundleW + margin);
 
     const pattern = document.createElementNS(SVGNS, "pattern");
@@ -174,7 +178,7 @@ function makePatternFrame(poly: PolygonData, depth: number) {
     bg.setAttribute("width", String(size));
     bg.setAttribute("height", String(size));
     bg.setAttribute("fill", color);
-    bg.setAttribute("fill-opacity", "0.3");
+    bg.setAttribute("fill-opacity", "0.18");
     pattern.appendChild(bg);
 
     return { pattern, ink, size, lineCount, lineGap, bundleW };
@@ -190,70 +194,30 @@ function buildStripes(poly: PolygonData, depth: number): SVGPatternElement {
         line.setAttribute("x2", String(x0 + i * f.lineGap));
         line.setAttribute("y2", String(f.size + 2));
         line.setAttribute("stroke", f.ink);
-        line.setAttribute("stroke-width", "2.5");
-        line.setAttribute("stroke-opacity", "0.55");
+        line.setAttribute("stroke-width", "1.1");
+        line.setAttribute("stroke-opacity", "0.32");
         line.setAttribute("stroke-linecap", "round");
         f.pattern.appendChild(line);
     }
     return f.pattern;
 }
 
-// just a fainter wash so the parent fill reads through, dashed stroke does the rest
-function buildOutline(poly: PolygonData, depth: number): SVGPatternElement {
-    const f = makePatternFrame(poly, depth);
-    (f.pattern.firstChild as SVGRectElement | null)?.setAttribute("fill-opacity", "0.12");
-    return f.pattern;
-}
-
-// the layer number repeated as a watermark, upright and spaced out with depth
-function buildNumber(poly: PolygonData, depth: number): SVGPatternElement {
-    const f = makePatternFrame(poly, depth);
-    const tileSize = 40 + depth * 4;
-    f.pattern.setAttribute("width", String(tileSize));
-    f.pattern.setAttribute("height", String(tileSize));
-    f.pattern.setAttribute("patternTransform", "rotate(0)");
-    const bg = f.pattern.firstChild as SVGRectElement | null;
-    if (bg) {
-        bg.setAttribute("width", String(tileSize));
-        bg.setAttribute("height", String(tileSize));
-        bg.setAttribute("fill-opacity", "0.15");
-    }
-    const text = document.createElementNS(SVGNS, "text");
-    text.setAttribute("x", String(tileSize / 2));
-    text.setAttribute("y", String(tileSize / 2));
-    text.setAttribute("text-anchor", "middle");
-    text.setAttribute("dominant-baseline", "central");
-    text.setAttribute("font-size", "18");
-    text.setAttribute("font-weight", "700");
-    text.setAttribute("font-family", "system-ui, sans-serif");
-    text.setAttribute("fill", f.ink);
-    text.setAttribute("fill-opacity", "0.55");
-    text.textContent = String(depth + 1);
-    f.pattern.appendChild(text);
-    return f.pattern;
-}
-
-function buildParcelPattern(poly: PolygonData, depth: number, style: PatternStyle): SVGPatternElement {
-    switch (style) {
-        case "number":  return buildNumber(poly, depth);
-        case "outline": return buildOutline(poly, depth);
-        case "stripes":
-        default:        return buildStripes(poly, depth);
-    }
+function buildParcelPattern(poly: PolygonData, depth: number): SVGPatternElement {
+    return buildStripes(poly, depth);
 }
 
 // keeps <defs> in sync with the visible sub-parcels so pathOptions url(#id) resolves
-const ParcelPatternDefs = ({ polygons, patternStyle }: { polygons: PolygonData[]; patternStyle: PatternStyle }) => {
+const ParcelPatternDefs = ({ polygons }: { polygons: PolygonData[] }) => {
     const map = useMap();
     // skip the defs rebuild when polygons reference changed but nothing visible did
     const signature = useMemo(() => {
-        const parts: string[] = [patternStyle];
+        const parts: string[] = [];
         for (const p of polygons) {
             if (!p.parentId) continue;
             parts.push(`${p.id}|${p.parentId}|${p.visible ? 1 : 0}|${p.color || ''}`);
         }
         return parts.join('#');
-    }, [polygons, patternStyle]);
+    }, [polygons]);
 
     useEffect(() => {
         if (!map) return;
@@ -273,7 +237,7 @@ const ParcelPatternDefs = ({ polygons, patternStyle }: { polygons: PolygonData[]
                 const id = parcelPatternId(poly.id);
                 wanted.add(id);
                 defs.querySelector(`#${CSS.escape(id)}`)?.remove();
-                defs.appendChild(buildParcelPattern(poly, getDepth(poly, byId), patternStyle));
+                defs.appendChild(buildParcelPattern(poly, getDepth(poly, byId)));
             }
             defs.querySelectorAll("pattern").forEach(p => {
                 if (p.id && !wanted.has(p.id)) p.remove();
@@ -387,7 +351,7 @@ function MapEvents({ propsRef, viewportDebounceRef, mapInstanceRef }: MapEventsP
     return null;
 }
 
-export default function MapLayerManager({
+function MapLayerManagerImpl({
     center, polygons, editingId, selectedId, setSelectedId, isCreating,
     drawOptions, handleCreated, overlapWarning, showPreview, previewVisibility,
     pendingManualEditId, featureGroupRef, editControlRef, polygonLayersRef,
@@ -397,7 +361,6 @@ export default function MapLayerManager({
     drawingPoints, ghostCoords, createPreviewPoint, autoCorrectEnabled,
     setIsHoveringSketchHandle, suppressSketchClickTemporarily, moveSketchPoint, insertSketchPoint, sketchInsertPreview, previewSketchInsertion, clearSketchInsertPreview, removeSketchPoint,
     minLayer = 1, maxLayer = 1, restrictToFamilyId = null,
-    patternStyle = "stripes",
     highlightLastPoint = false
 }: MapLayerManagerProps) {
 
@@ -534,8 +497,8 @@ export default function MapLayerManager({
             <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" maxNativeZoom={20} attribution='&copy; <a href="https://osm.org/copyright">OpenStreetMap</a>' />
             <ZoomControl position="bottomright" />
             <MapEvents propsRef={mapEventsPropsRef} viewportDebounceRef={viewportDebounceRef} mapInstanceRef={mapInstanceRef} />
-            <ZIndexEnforcer polygons={polygons} polygonLayersRef={polygonLayersRef} />
-            <ParcelPatternDefs polygons={polygons} patternStyle={patternStyle} />
+            <ZIndexEnforcer polygons={polygons} polygonLayersRef={polygonLayersRef} editingId={editingId} />
+            <ParcelPatternDefs polygons={polygons} />
 
             <FeatureGroup ref={featureGroupRef}>
                 <EditControl
@@ -896,3 +859,8 @@ export default function MapLayerManager({
         </MapContainer>
     );
 }
+
+// memoised so unrelated parent state (modal open, rename input, popup, etc.) doesn't trigger
+// a full polygon reconciliation with new pathOptions/eventHandlers references
+const MapLayerManager = React.memo(MapLayerManagerImpl);
+export default MapLayerManager;
