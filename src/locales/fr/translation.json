@@ -633,6 +633,8 @@
       "currentShares": "Personnes ayant accès",
       "noShares": "Pas encore partagé",
       "remove": "Retirer",
+      "includeChildren": "Partager aussi les sous-parcelles",
+      "includeChildrenShort": "Inclut les sous-parcelles",
       "roles": {
         "editor": "Éditeur",
         "viewer": "Lecteur"
@@ -640,7 +642,8 @@
       "errors": {
         "loadFailed": "Impossible de charger les partages.",
         "saveFailed": "Impossible d'enregistrer le partage.",
-        "usernameRequired": "Saisissez un nom d'utilisateur."
+        "usernameRequired": "Saisissez un nom d'utilisateur.",
+        "cannotShareWithSelf": "Vous ne pouvez pas partager une parcelle avec vous-même."
       }
     },
     "deletePrompt": "Supprimer \"{{name}}\" ?",

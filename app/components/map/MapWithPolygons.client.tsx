@@ -163,7 +163,7 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
     } = editor;
     const { isSearchOpen, setIsSearchOpen, searchDraft, setSearchDraft, searchAreaCoords, isSearchDrawing, viewportBounds, setViewportBounds, hasActiveSearchFilters, searchEndpoint, viewportEndpoint, applySearchFilters, clearSearchFilters, startSearchPolygon, cancelSearchPolygon, clearSearchPolygon, handleSearchCreated } = search;
     const { operationTypes, units, products, tools, operationTypeId, setOperationTypeId, operationDate, setOperationDate, operationDurationMinutes, setOperationDurationMinutes, operationLines, handleAddOperationLine, handleRemoveOperationLine, updateOperationLine, operationError, operationLoading, parcelOperations, currentParcelId, setCurrentParcelId, operationPopup, setOperationPopup, operationsPage, setOperationsPage, operationsTotalPages, loadOperationReferences, loadParcelOperations, handleSaveOperation, resetOperationForm, closeOperationPopup } = operations;
-    const { shareParcelId, setShareParcelId, shareList, shareUsername, setShareUsername, shareRole, setShareRole, shareError, setShareError, shareLoading, openShareModal, closeShareModal, handleUpdateShare, handleRemoveShare } = sharing;
+    const { shareParcelId, setShareParcelId, shareList, shareError, shareLoading, openShareModal, closeShareModal, handleUpdateShare, handleRemoveShare } = sharing;
     const { isListCollapsed, setIsListCollapsed, listFilter, setListFilter, showFilterMenu, setShowFilterMenu, searchQuery, setSearchQuery, filterOptions, activeFilterLabel, filteredPolygons } = sidebarControl;
     const { loadPeriods, handleApproveAll, approveSingleParcel, handleRenameConfirm, togglePolygonVisibility, renamePolygonInline } = apiActions;
     const { confirmCreate, handleCreated } = coordination;
@@ -417,7 +417,7 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
             <MapModals
                 t={t} renamingId={renamingId} setRenamingId={setRenamingId} renameValue={renameValue} setRenameValue={setRenameValue} renamePeriodId={renamePeriodId} setRenamePeriodId={setRenamePeriodId} handleRenameConfirm={handleRenameConfirm} periods={periods}
                 isAreaModalOpen={modal.open} areaName={areaName} setAreaName={setAreaName} selectedPeriodId={selectedPeriodId} setSelectedPeriodId={setSelectedPeriodId} handleAreaConfirm={confirmCreate} handleAreaCancel={cancelModal}
-                sharing={sharing} allPolygons={allPolygons} tools={tools} products={products}
+                sharing={sharing} currentUsername={user?.username} allPolygons={allPolygons} tools={tools} products={products}
             />
 
             <div className="flex h-full w-full min-h-0 relative">

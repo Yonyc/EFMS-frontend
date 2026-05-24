@@ -633,6 +633,8 @@
       "currentShares": "People with access",
       "noShares": "Not shared with anyone yet",
       "remove": "Remove",
+      "includeChildren": "Also share sub-parcels",
+      "includeChildrenShort": "Includes sub-parcels",
       "roles": {
         "editor": "Editor",
         "viewer": "Viewer"
@@ -640,7 +642,8 @@
       "errors": {
         "loadFailed": "Unable to load shares.",
         "saveFailed": "Unable to save share.",
-        "usernameRequired": "Enter a username to share."
+        "usernameRequired": "Enter a username to share.",
+        "cannotShareWithSelf": "You cannot share a parcel with yourself."
       }
     },
     "deletePrompt": "Delete \"{{name}}\"?",
