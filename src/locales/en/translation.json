@@ -209,6 +209,8 @@
     "select": "Select",
     "quantity": "Quantity",
     "loading": "Loading...",
+    "searching": "Searching...",
+    "userNotFound": "No user found",
     "yes": "Yes",
     "no": "No",
     "close": "Close"
@@ -389,6 +391,7 @@
       "title": "Sign in to EFMS",
       "submit": "Sign in",
       "submitting": "Signing in...",
+      "signInRequired": "You need an account to access this page.",
       "errors": {
         "invalidCredentials": "Invalid username or password"
       },

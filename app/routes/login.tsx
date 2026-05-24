@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { FormEvent } from 'react';
-import { useNavigate, Link } from 'react-router';
+import { useNavigate, useLocation, Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import { useCurrentLocale } from '../hooks/useCurrentLocale';
@@ -21,8 +21,10 @@ export default function Login() {
   
   const { login, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const locale = useCurrentLocale();
   const { t } = useTranslation();
+  const notice = (location.state as { notice?: string } | null)?.notice;
 
   // Redirect to home if already authenticated
   useEffect(() => {
@@ -62,6 +64,11 @@ export default function Login() {
           </p>
         </div>
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+          {notice === 'signInRequired' && !error && (
+            <div className="rounded-md border border-indigo-200 bg-indigo-50 p-4">
+              <div className="text-sm text-indigo-800">{t('auth.login.signInRequired', { defaultValue: 'You need an account to access this page.' })}</div>
+            </div>
+          )}
           {error && (
             <div className="rounded-md bg-red-50 p-4">
               <div className="text-sm text-red-800">{error}</div>
