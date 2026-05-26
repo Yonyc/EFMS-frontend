@@ -18,8 +18,6 @@ export function useMapSharing(props: UseMapSharingProps) {
     const { t } = useTranslation();
     const [shareParcelId, setShareParcelId] = useState<string | null>(null);
     const [shareList, setShareList] = useState<ParcelShareDto[]>([]);
-    const [shareUsername, setShareUsername] = useState('');
-    const [shareRole, setShareRole] = useState('VIEWER');
     const [shareError, setShareError] = useState('');
     const [shareLoading, setShareLoading] = useState(false);
 
@@ -94,7 +92,7 @@ export function useMapSharing(props: UseMapSharingProps) {
         }
         const zoneWkt = toWktPolygon(zone.coords);
         if (!zoneWkt) {
-            setResearchShareFeedback('Unable to create share: invalid polygon geometry.');
+            setResearchShareFeedback('Unable to create share: invalid parcel geometry.');
             return;
         }
 
@@ -190,7 +188,7 @@ export function useMapSharing(props: UseMapSharingProps) {
         }
 
         if (!zoneWkt) {
-            setQuickShareFeedback('To share this filter, draw a polygon or enable map area first.');
+            setQuickShareFeedback('To share this filter, draw a parcel or enable map area first.');
             return;
         }
 
@@ -304,31 +302,25 @@ export function useMapSharing(props: UseMapSharingProps) {
 
     const openShareModal = useCallback(async (parcelId: string) => {
         setShareParcelId(parcelId);
-        setShareUsername('');
-        setShareRole('VIEWER');
         await loadParcelShares(parcelId);
     }, [loadParcelShares]);
 
     const closeShareModal = useCallback(() => {
         setShareParcelId(null);
         setShareList([]);
-        setShareUsername('');
-        setShareRole('VIEWER');
         setShareError('');
     }, []);
 
-    const handleAddShare = useCallback(async (e?: { preventDefault: () => void }) => {
-        if (e) e.preventDefault();
-        if (!shareParcelId || !resolvedContextId) return;
-        if (!shareUsername.trim()) {
-            setShareError(t('map.sharing.errors.usernameRequired', { defaultValue: 'Enter a username to share' }));
-            return;
-        }
-        setShareError('');
+    // args instead of internal state so the form can keep its own and not invalidate this hook on each keystroke
+    const handleAddShare = useCallback(async (username: string, role: string, includeChildren: boolean): Promise<boolean> => {
+        if (!shareParcelId || !resolvedContextId) return false;
+        const trimmed = username.trim();
+        if (!trimmed) return false;
         try {
             const res = await apiPost(`/farm/${resolvedContextId}/parcels/${shareParcelId}/shares`, {
-                username: shareUsername.trim(),
-                role: shareRole,
+                username: trimmed,
+                role,
+                includeChildren,
             });
             if (!res.ok) throw new Error('failed');
             const created = await res.json();
@@ -336,19 +328,18 @@ export function useMapSharing(props: UseMapSharingProps) {
                 const exists = prev.some(item => item.userId === created.userId);
                 return exists ? prev.map(item => item.userId === created.userId ? created : item) : [...prev, created];
             });
-            setShareUsername('');
-            setShareRole('VIEWER');
+            return true;
         } catch (err) {
             console.error('Failed to add share', err);
-            setShareError(t('map.sharing.errors.saveFailed', { defaultValue: 'Unable to save share' }));
+            return false;
         }
-    }, [resolvedContextId, shareParcelId, shareRole, shareUsername, t]);
+    }, [resolvedContextId, shareParcelId]);
 
-    const handleUpdateShare = useCallback(async (userId: number, role: string) => {
+    const handleUpdateShare = useCallback(async (userId: number, patch: { role?: string; includeChildren?: boolean }) => {
         if (!shareParcelId || !resolvedContextId) return;
         setShareError('');
         try {
-            const res = await apiPut(`/farm/${resolvedContextId}/parcels/${shareParcelId}/shares/${userId}`, { role });
+            const res = await apiPut(`/farm/${resolvedContextId}/parcels/${shareParcelId}/shares/${userId}`, patch);
             if (!res.ok) throw new Error('failed');
             const updated = await res.json();
             setShareList(prev => prev.map(item => item.userId === userId ? updated : item));
@@ -375,18 +366,13 @@ export function useMapSharing(props: UseMapSharingProps) {
         shareParcelId,
         setShareParcelId,
         shareList,
-        shareUsername,
-        setShareUsername,
-        shareRole,
-        setShareRole,
         shareError,
-        setShareError,
         shareLoading,
         openShareModal,
         closeShareModal,
         handleAddShare,
         handleUpdateShare,
-handleRemoveShare,
+        handleRemoveShare,
         researchShares,
         setResearchShares,
         researchShareUsername,

@@ -4,9 +4,30 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "leaflet-draw/dist/leaflet.draw.css";
 
+// class helpers need to be null-safe because leaflet's drag path passes targets without a className
+if (typeof window !== "undefined" && !(window as any).__leafletPatched) {
+    (window as any).__leafletPatched = true;
+    const isClassable = (el: any) => el && (typeof el.className !== "undefined" || typeof el.classList !== "undefined");
+    const origAdd = L.DomUtil.addClass;
+    const origRemove = L.DomUtil.removeClass;
+    const origHas = L.DomUtil.hasClass;
+    L.DomUtil.addClass = function (el: HTMLElement, name: string) {
+        if (!isClassable(el)) return;
+        return origAdd.call(this, el, name);
+    };
+    L.DomUtil.removeClass = function (el: HTMLElement, name: string) {
+        if (!isClassable(el)) return;
+        return origRemove.call(this, el, name);
+    };
+    L.DomUtil.hasClass = function (el: HTMLElement, name: string) {
+        if (!isClassable(el)) return false;
+        return origHas.call(this, el, name);
+    };
+}
+
 import { useFarm } from "~/contexts/FarmContext";
 import { useAuth } from "~/contexts/AuthContext";
-import { apiGet, apiPut } from "~/utils/api";
+import { apiPut, apiPatch } from "~/utils/api";
 
 // components
 import MapLayerManager from "./components/MapLayerManager";
@@ -27,23 +48,26 @@ import { useMapSidebarControls } from "./hooks/useMapSidebarControls";
 import { useMapApiActions } from "./hooks/useMapApiActions";
 import { useOverlapCoordination } from "./hooks/useOverlapCoordination";
 import { useSnappyEditing } from "./hooks/useSnappyEditing";
+import { useUserPreferences } from "./hooks/useUserPreferences";
+import { useParcelData } from "./hooks/useParcelData";
+import { useFamilyScope } from "./hooks/useFamilyScope";
+import { useMapKeyboard } from "./hooks/useMapKeyboard";
+import { useMobileMatch } from "./hooks/useMobileMatch";
 
 import "./styles/MapLayout.css";
 
-import type { 
-    OverlapWarning, PolygonData, MapContextType, MapWithPolygonsProps,
+import type {
+    PolygonData, MapContextType, MapWithPolygonsProps,
     PeriodDto, ParcelSearchFilters
 } from "./types";
-import { parseWktCoords, clampToViewport } from "./utils/mapUtils";
-
-const normalizeParentId = (value: unknown): string | null => {
-    const n = Number(value);
-    return Number.isFinite(n) && n > 0 ? String(n) : null;
-};
 
 if (typeof window !== "undefined") {
     (window as any).type = (window as any).type || undefined;
 }
+
+// hoisted so the reference stays stable across renders and MapLayerManager's memo can hit
+const DRAW_OPTIONS = { polygon: { allowIntersection: false, showArea: true, metric: true, shapeOptions: { color: '#3388ff' } }, rectangle: false, circle: false, circlemarker: false, marker: false, polyline: false } as const;
+const MAP_CENTER: [number, number] = [50.668333, 4.621278];
 
 export default function MapWithPolygons(props: MapWithPolygonsProps) {
     const { t } = useTranslation();
@@ -53,14 +77,14 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
     const [isMounted, setIsMounted] = useState(false);
     useEffect(() => { setIsMounted(true); }, []);
 
-    const center: [number, number] = [50.668333, 4.621278];
+    const center = MAP_CENTER;
     const POPUP_WIDTH = 420;
     const POPUP_HEIGHT = 520;
     const POPUP_PADDING = 12;
 
     const resolvedContextId = props.contextId ?? props.farm_id;
     if (!resolvedContextId) throw new Error("MapWithPolygons requires contextId or farm_id");
-    
+
     const contextType: MapContextType = props.contextType ?? 'farm';
     const allowCreate = props.allowCreate ?? true;
     const isImportMode = props.importMode ?? (contextType === 'import');
@@ -105,11 +129,14 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
     } | null>(null);
     const [showColorPicker, setShowColorPicker] = useState(false);
     const [periods, setPeriods] = useState<PeriodDto[]>([]);
-    const [preferTopRight, setPreferTopRight] = useState<boolean>(!!user?.operationsPopupTopRight);
-    const [isMobile, setIsMobile] = useState(false);
     const [isApproving, setIsApproving] = useState(false);
     const [approveFeedback, setApproveFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
     const [selectedParentId, setSelectedParentId] = useState<string | null>(null);
+    const [highlightLastPoint, setHighlightLastPoint] = useState(false);
+    const isMobile = useMobileMatch();
+
+    const prefs = useUserPreferences(user);
+    const { preferTopRight, setPreferTopRight, minLayer, setMinLayer, maxLayer, setMaxLayer } = prefs;
 
     // refs
     const originalColorRef = useRef<string | null>(null);
@@ -149,23 +176,41 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
     const coordination = useOverlapCoordination({
         parcelsEndpoint, polygons, setPolygons, setAllPolygons, overlapWarning: editor.overlapWarning, setOverlapWarning: editor.setOverlapWarning, modal, setModal, areaName, areaNameRef, renameValueRef, selectedPeriodId, renameValue, renamePeriodId,
         showPreview: editor.showPreview, setShowPreview: editor.setShowPreview, setPendingManualEditId: editor.setPendingManualEditId, setManualEditContext: editor.setManualEditContext, setRenamingId,
-        masterCleanup: () => masterCleanup(), detachCreatedLayer: () => detachCreatedLayer(), getMap, detectOverlaps: editor.detectOverlaps, updatePolygon: editor.updatePolygon, startEditSimple: (id, coords) => startEditSimple(id, coords), 
+        masterCleanup: () => masterCleanup(), detachCreatedLayer: () => detachCreatedLayer(), getMap, detectOverlaps: editor.detectOverlaps, updatePolygon: editor.updatePolygon, startEditSimple: (id, coords) => startEditSimple(id, coords),
         createHandlerRef: editor.createHandlerRef, createdLayerRef: editor.createdLayerRef, setIsCreating: editor.setIsCreating,
         contextType, resolvedContextId, selectedParentId, setSelectedParentId, setAreaName, autoCorrectEnabled: editor.autoCorrectEnabled, t
     });
 
     // grab hook stuff
-    const { 
-        editingId, isCreating, createPointCount, setCreatePointCount, 
-        overlapWarning, showPreview, setShowPreview, pendingManualEditId, 
-        previewVisibility, setPreviewVisibility, createHandlerRef, createdLayerRef 
+    const {
+        editingId, isCreating, createPointCount, setCreatePointCount,
+        overlapWarning, showPreview, setShowPreview, pendingManualEditId,
+        previewVisibility, setPreviewVisibility, createHandlerRef, createdLayerRef
     } = editor;
-    const { isSearchOpen, setIsSearchOpen, searchDraft, setSearchDraft, searchAreaCoords, isSearchDrawing, viewportBounds, setViewportBounds, hasActiveSearchFilters, searchEndpoint, applySearchFilters, clearSearchFilters, startSearchPolygon, cancelSearchPolygon, clearSearchPolygon } = search;
+    const { isSearchOpen, setIsSearchOpen, searchDraft, setSearchDraft, searchAreaCoords, isSearchDrawing, viewportBounds, setViewportBounds, hasActiveSearchFilters, searchEndpoint, viewportEndpoint, applySearchFilters, clearSearchFilters, startSearchPolygon, cancelSearchPolygon, clearSearchPolygon, handleSearchCreated } = search;
     const { operationTypes, units, products, tools, operationTypeId, setOperationTypeId, operationDate, setOperationDate, operationDurationMinutes, setOperationDurationMinutes, operationLines, handleAddOperationLine, handleRemoveOperationLine, updateOperationLine, operationError, operationLoading, parcelOperations, currentParcelId, setCurrentParcelId, operationPopup, setOperationPopup, loadOperationReferences, loadParcelOperations, handleSaveOperation, resetOperationForm, closeOperationPopup, productHasMore, productLoading, loadMoreProducts, toolHasMore, toolLoading, loadMoreTools, opTypeHasMore, opTypeLoading, loadMoreOpTypes, addOperationAttachment, removeOperationAttachment } = operations;
-    const { shareParcelId, setShareParcelId, shareList, shareUsername, setShareUsername, shareRole, setShareRole, shareError, setShareError, shareLoading, openShareModal, closeShareModal, handleUpdateShare, handleRemoveShare } = sharing;
+    const { shareParcelId, setShareParcelId, shareList, shareError, shareLoading, openShareModal, closeShareModal, handleUpdateShare, handleRemoveShare } = sharing;
     const { isListCollapsed, setIsListCollapsed, listFilter, setListFilter, showFilterMenu, setShowFilterMenu, searchQuery, setSearchQuery, filterOptions, activeFilterLabel, filteredPolygons } = sidebarControl;
     const { loadPeriods, handleApproveAll, approveSingleParcel, handleRenameConfirm, togglePolygonVisibility, renamePolygonInline } = apiActions;
     const { confirmCreate, handleCreated } = coordination;
+
+    // route the search-area polygon ourselves so it doesn't open the naming modal
+    const isSearchDrawingRef = useRef(isSearchDrawing);
+    useEffect(() => { isSearchDrawingRef.current = isSearchDrawing; }, [isSearchDrawing]);
+    const handleAnyCreated = useCallback((e: any) => {
+        if (isSearchDrawingRef.current) {
+            handleSearchCreated(e.layer);
+            return;
+        }
+        handleCreated(e);
+    }, [handleCreated, handleSearchCreated]);
+
+    // close the filter so it doesn't cover the toolbar
+    const handleStartCreate = useCallback((parentId: string | null) => {
+        setSelectedParentId(parentId);
+        setIsSearchOpen(false);
+        editor.startCreate();
+    }, [editor, setIsSearchOpen]);
 
     // helpers
     const detachCreatedLayer = useCallback(() => {
@@ -235,30 +280,17 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
 
     const canSharePolygon = useCallback((id: string) => (polygons.find(p => p.id === id) || allPolygons.find(p => p.id === id))?.canShare === true, [allPolygons, polygons]);
 
-    // effects
-    useEffect(() => {
-        const fetchPolygons = async () => {
-            try {
-                const response = await apiGet(hasActiveSearchFilters ? searchEndpoint : parcelsEndpoint);
-                if (response.ok) {
-                    const data = await response.json();
-                    const parsed: PolygonData[] = data.map((p: any) => ({
-                        id: String(p.id), name: p.name || t('map.unnamedParcel'), coords: p.geodata ? parseWktCoords(p.geodata) : [],
-                        visible: true, version: 0, color: p.color || '#3388ff', canEdit: p.canEdit ?? true, canShare: p.canShare ?? false,
-                        active: p.active, startValidity: p.startValidity, endValidity: p.endValidity, farmId: p.farmId, periodId: p.periodId ?? null, validationStatus: p.validationStatus, convertedParcelId: p.convertedParcelId ?? null,
-                        parentId: normalizeParentId(p.parentParcelId),
-                    }));
-                    setPolygons(parsed);
-                    setAllPolygons(prev => {
-                        const m = new Map(prev.map(i => [i.id, i]));
-                        parsed.forEach(i => m.set(i.id, { ...m.get(i.id), ...i }));
-                        return Array.from(m.values());
-                    });
-                }
-            } catch (err) { console.error("Fetch polygons error", err); }
-        };
-        fetchPolygons();
-    }, [hasActiveSearchFilters, searchEndpoint, parcelsEndpoint, t]);
+    useParcelData({
+        contextType, isImportMode, resolvedContextId,
+        hasActiveSearchFilters, viewportEndpoint, searchEndpoint,
+        setPolygons, setAllPolygons, t,
+    });
+
+    const { familyRootId, restrictToFamily, setRestrictToFamily } = useFamilyScope({
+        polygons, isCreating, selectedParentId, editingId,
+        minLayer, maxLayer, setMinLayer, setMaxLayer,
+        layerOverrideRef: prefs.layerOverrideRef,
+    });
 
     useEffect(() => { loadOperationReferences(); loadPeriods(); }, [loadOperationReferences, loadPeriods]);
 
@@ -269,46 +301,22 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
 
     useEffect(() => { if (!showPreview && overlapWarning?.isNewPolygon) reattachCreatedLayer(); }, [showPreview, overlapWarning, reattachCreatedLayer]);
 
+    // close the filter when edit/create starts from somewhere else
     useEffect(() => {
-        if (typeof window === 'undefined') return;
-        const mq = window.matchMedia('(max-width: 768px)');
-        const h = (e: any) => setIsMobile(e.matches);
-        h(mq);
-        mq.addEventListener('change', h);
-        return () => mq.removeEventListener('change', h);
-    }, []);
+        if (isCreating || editingId) setIsSearchOpen(false);
+    }, [isCreating, editingId, setIsSearchOpen]);
 
-    useEffect(() => {
-        const handleKey = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') {
-                if (overlapWarning) { editor.setOverlapWarning(null); setShowPreview(false); }
-                else if (isCreating) editor.cancelCreate();
-                else if (editingId) editor.cancelEdit();
-                else if (renamingId) { setRenamingId(null); setRenameValue(''); }
-                else if (pendingDeleteId) setPendingDeleteId(null);
-                else setContextMenu(null);
-                closePolygonContextMenu();
-            } else if (e.key === 'Enter' || e.key === 'v' || e.key === 'V') {
-                if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return;
-                if (pendingDeleteId) { deletePolygonSimple(pendingDeleteId); setPendingDeleteId(null); }
-                else if (isCreating && createPointCount >= 3) editor.finishCreate(handleCreated);
-                else if (editingId) editor.finishEdit();
-            } else if (e.key === 'Delete' || e.key === 'Backspace') {
-                if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return;
-                if ((isCreating || !!editingId) && e.key === 'Backspace') {
-                    e.preventDefault();
-                    editor.removeLastSketchPoint();
-                    return;
-                }
-                if (selectedId && !editingId && !isCreating) {
-                    const canEdit = (polygons.find(p => p.id === selectedId) || allPolygons.find(p => p.id === selectedId))?.canEdit !== false;
-                    if (canEdit) setPendingDeleteId(selectedId);
-                }
-            }
-        };
-        window.addEventListener('keydown', handleKey);
-        return () => window.removeEventListener('keydown', handleKey);
-    }, [isCreating, editingId, renamingId, pendingDeleteId, createPointCount, overlapWarning, editor, closePolygonContextMenu, deletePolygonSimple, handleCreated]);
+    useMapKeyboard({
+        isCreating, editingId, renamingId, pendingDeleteId, createPointCount,
+        overlapWarning, selectedId, polygons, allPolygons,
+        setOverlapWarning: editor.setOverlapWarning, setShowPreview,
+        setRenamingId, setRenameValue, setPendingDeleteId, setContextMenu,
+        closePolygonContextMenu,
+        cancelCreate: editor.cancelCreate, cancelEdit: editor.cancelEdit,
+        finishCreate: () => editor.finishCreate(handleCreated), finishEdit: () => editor.finishEdit(),
+        removeLastSketchPoint: editor.removeLastSketchPoint,
+        deletePolygonSimple,
+    });
 
     useEffect(() => {
         if (!pendingManualEditId) return;
@@ -320,13 +328,11 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
 
     if (!isMounted) return null;
 
-    const drawOptions = { polygon: { allowIntersection: false, showArea: true, metric: true, shapeOptions: { color: '#3388ff' } }, rectangle: false, circle: false, circlemarker: false, marker: false, polyline: false };
-
     return (
         <div className="relative h-full w-full">
             {allowCreate && contextMenu && (
                 <div className="fixed z-[10000] min-w-[14rem] rounded-2xl border border-slate-200 bg-white/95 p-1 shadow-2xl backdrop-blur" style={{ left: contextMenu.x, top: contextMenu.y }}>
-                    <button type="button" onClick={() => { setContextMenu(null); setSelectedParentId(null); editor.startCreate(); }} className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-indigo-700 hover:bg-slate-100">
+                    <button type="button" onClick={() => { setContextMenu(null); handleStartCreate(null); }} className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-indigo-700 hover:bg-slate-100">
                         <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">+</span>
                         {t('map.contextMenu.addPolygon')}
                     </button>
@@ -338,11 +344,36 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
                     polygonContextMenu={polygonContextMenu} polygons={polygons} t={t} isImportMode={isImportMode} showColorPicker={showColorPicker} setShowColorPicker={setShowColorPicker}
                     canEditPolygon={(id) => (polygons.find(p => p.id === id) || allPolygons.find(p => p.id === id))?.canEdit !== false}
                     closePolygonContextMenu={closePolygonContextMenu} setRenamingId={setRenamingId} setRenameValue={setRenameValue} setRenamePeriodId={setRenamePeriodId} contextType={contextType} setSelectedId={setSelectedId} setCurrentParcelId={setCurrentParcelId} loadParcelOperations={loadParcelOperations} setOperationPopup={setOperationPopup} canSharePolygon={canSharePolygon} openShareModal={openShareModal} startEdit={startEditSimple} approveSingleParcel={approveSingleParcel}
-                    handleColorSelect={async (c) => { await renamePolygonInline(polygonContextMenu.polygonId, c); }} handleColorHover={() => {}} handleColorLeave={() => {}} pendingDeleteId={pendingDeleteId} setPendingDeleteId={setPendingDeleteId} deletePolygon={deletePolygonSimple}
-                    addChild={(parentId) => {
-                        setSelectedParentId(parentId);
-                        editor.startCreate();
-                    }}
+                    handleColorSelect={async (c) => {
+                        const pid = polygonContextMenu.polygonId;
+                        const target = polygons.find(p => p.id === pid) || allPolygons.find(p => p.id === pid);
+                        if (!target || target.canEdit === false) return;
+                        setPolygons(prev => prev.map(p => p.id === pid ? { ...p, color: c, version: (p.version || 0) + 1 } : p));
+                        setAllPolygons(prev => prev.map(p => p.id === pid ? { ...p, color: c, version: (p.version || 0) + 1 } : p));
+                        if (pid.startsWith('poly-')) return;
+                        try {
+                            let res;
+                            if (isImportMode) {
+                                res = await apiPatch(`/imports/parcels/${pid}`, { color: c });
+                            } else {
+                                const periodIdNum = target.periodId ? Number(target.periodId) : null;
+                                const payload: any = {
+                                    color: c,
+                                    name: (target.name || t('map.defaultPolygonName')).trim() || t('map.defaultPolygonName'),
+                                    periodId: (periodIdNum && periodIdNum > 0) ? periodIdNum : null,
+                                    active: true,
+                                    startValidity: new Date().toISOString(),
+                                    endValidity: null,
+                                };
+                                if (contextType === 'farm') payload.farmId = Number(resolvedContextId);
+                                res = await apiPut(`${parcelsEndpoint}/${pid}`, payload);
+                            }
+                            if (!res.ok) console.error("Failed to update parcel color on server:", res.status, res.statusText);
+                        } catch (err) {
+                            console.error("Failed to update parcel color:", err);
+                        }
+                    }} handleColorHover={() => { }} handleColorLeave={() => { }} pendingDeleteId={pendingDeleteId} setPendingDeleteId={setPendingDeleteId} deletePolygon={deletePolygonSimple}
+                    addChild={(parentId) => handleStartCreate(parentId)}
                     selectParent={(childId) => {
                         const child = polygons.find(p => String(p.id) === String(childId));
                         if (child?.parentId) {
@@ -358,15 +389,45 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
                 />
             )}
 
-            {pendingDeleteId && !polygonContextMenu && (
-                <div className="absolute left-1/2 top-4 z-[10000] flex -translate-x-1/2 items-center gap-4 rounded-3xl bg-rose-500/95 px-6 py-4 text-white shadow-2xl backdrop-blur">
-                    <span className="text-sm font-semibold">{t('map.deletePrompt', { name: polygons.find(p => p.id === pendingDeleteId)?.name ?? '' })}</span>
-                    <div className="flex gap-2">
-                        <button type="button" onClick={() => { deletePolygonSimple(pendingDeleteId); setPendingDeleteId(null); }} className="rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-rose-600"> {t('common.confirm')} </button>
-                        <button type="button" onClick={() => setPendingDeleteId(null)} className="rounded-2xl border border-white/60 px-4 py-2 text-sm font-semibold text-white"> {t('common.cancel')} </button>
+            {(() => {
+                if (!pendingDeleteId || polygonContextMenu) return null;
+                const children = polygons.filter(p => String(p.parentId) === String(pendingDeleteId));
+                if (children.length > 0) {
+                    return (
+                        <div className="absolute left-1/2 top-4 z-[10000] flex flex-col -translate-x-1/2 items-center gap-4 rounded-3xl bg-rose-500/95 px-6 py-4 text-white shadow-2xl backdrop-blur">
+                            <span className="text-sm font-semibold">
+                                {t('map.deletePromptChildren', { name: polygons.find(p => p.id === pendingDeleteId)?.name ?? '', count: children.length })}
+                            </span>
+                            <div className="flex gap-2">
+                                <button type="button" onClick={async () => {
+                                    for (const child of children) {
+                                        await apiPatch(`${parcelsEndpoint}/${child.id}`, { parentParcelId: null });
+                                        setPolygons(prev => prev.map(p => p.id === child.id ? { ...p, parentId: null } : p));
+                                        setAllPolygons(prev => prev.map(p => p.id === child.id ? { ...p, parentId: null } : p));
+                                    }
+                                    deletePolygonSimple(pendingDeleteId);
+                                    setPendingDeleteId(null);
+                                }} className="rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-rose-600"> {t('map.orphanChildren', 'Make Orphans')} </button>
+                                <button type="button" onClick={async () => {
+                                    for (const child of children) { await deletePolygonSimple(child.id); }
+                                    deletePolygonSimple(pendingDeleteId);
+                                    setPendingDeleteId(null);
+                                }} className="rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-rose-600"> {t('map.deleteChildrenToo', 'Delete All')} </button>
+                                <button type="button" onClick={() => setPendingDeleteId(null)} className="rounded-2xl border border-white/60 px-4 py-2 text-sm font-semibold text-white"> {t('common.cancel')} </button>
+                            </div>
+                        </div>
+                    );
+                }
+                return (
+                    <div className="absolute left-1/2 top-4 z-[10000] flex -translate-x-1/2 items-center gap-4 rounded-3xl bg-rose-500/95 px-6 py-4 text-white shadow-2xl backdrop-blur">
+                        <span className="text-sm font-semibold">{t('map.deletePrompt', { name: polygons.find(p => p.id === pendingDeleteId)?.name ?? '' })}</span>
+                        <div className="flex gap-2">
+                            <button type="button" onClick={() => { deletePolygonSimple(pendingDeleteId); setPendingDeleteId(null); }} className="rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-rose-600"> {t('common.confirm')} </button>
+                            <button type="button" onClick={() => setPendingDeleteId(null)} className="rounded-2xl border border-white/60 px-4 py-2 text-sm font-semibold text-white"> {t('common.cancel')} </button>
+                        </div>
                     </div>
-                </div>
-            )}
+                );
+            })()}
 
             {operationPopup && (
                 <OperationPopup
@@ -386,7 +447,7 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
             <MapModals
                 t={t} renamingId={renamingId} setRenamingId={setRenamingId} renameValue={renameValue} setRenameValue={setRenameValue} renamePeriodId={renamePeriodId} setRenamePeriodId={setRenamePeriodId} handleRenameConfirm={handleRenameConfirm} periods={periods}
                 isAreaModalOpen={modal.open} areaName={areaName} setAreaName={setAreaName} selectedPeriodId={selectedPeriodId} setSelectedPeriodId={setSelectedPeriodId} handleAreaConfirm={confirmCreate} handleAreaCancel={cancelModal}
-                sharing={sharing} allPolygons={allPolygons} tools={tools} products={products} operationTypes={operationTypes}
+                sharing={sharing} currentUsername={user?.username} allPolygons={allPolygons} tools={tools} products={products} operationTypes={operationTypes}
             />
 
             <div className="flex h-full w-full min-h-0 relative">
@@ -400,7 +461,7 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
 
                 <div data-tour-id="map-canvas" className="h-full w-full min-h-0">
                     <MapLayerManager
-                        center={center} polygons={polygons} editingId={editingId} selectedId={selectedId} setSelectedId={setSelectedId} isCreating={isCreating} drawOptions={drawOptions} handleCreated={handleCreated} overlapWarning={overlapWarning} showPreview={showPreview} previewVisibility={previewVisibility} pendingManualEditId={pendingManualEditId}
+                        center={center} polygons={polygons} editingId={editingId} selectedId={selectedId} setSelectedId={setSelectedId} isCreating={isCreating} drawOptions={DRAW_OPTIONS} handleCreated={handleAnyCreated} overlapWarning={overlapWarning} showPreview={showPreview} previewVisibility={previewVisibility} pendingManualEditId={pendingManualEditId}
                         featureGroupRef={featureGroupRef as any} editControlRef={editControlRef} polygonLayersRef={polygonLayersRef} setPolygonContextMenu={setPolygonContextMenu} setRenamingId={setRenamingId} setRenameValue={setRenameValue} setPendingDeleteId={setPendingDeleteId} setContextMenu={setContextMenu} closePolygonContextMenu={closePolygonContextMenu} viewportDebounceRef={viewportDebounceRef} setViewportBounds={setViewportBounds} hasActiveSearchFilters={hasActiveSearchFilters} isImportMode={isImportMode} contextType={contextType}
                         drawingPoints={editor.drawingPoints}
                         ghostCoords={editor.ghostCoords}
@@ -410,27 +471,59 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
                         suppressSketchClickTemporarily={editor.suppressSketchClickTemporarily}
                         moveSketchPoint={editor.moveSketchPoint}
                         insertSketchPoint={editor.insertSketchPoint}
+                        sketchInsertPreview={editor.sketchInsertPreview}
+                        previewSketchInsertion={editor.previewSketchInsertion}
+                        clearSketchInsertPreview={editor.clearSketchInsertPreview}
                         removeSketchPoint={editor.removeSketchPoint}
+                        minLayer={minLayer}
+                        maxLayer={maxLayer}
+                        restrictToFamilyId={restrictToFamily ? familyRootId : null}
+                        highlightLastPoint={highlightLastPoint}
                     />
                 </div>
 
-                <div data-tour-id="map-toolbar" className="pointer-events-auto absolute top-4 right-4 z-[2000] flex flex-wrap justify-end gap-2">
-                    <MapToolbar
-                        showPreview={showPreview} setShowPreview={setShowPreview} overlapWarning={overlapWarning} setPreviewVisibility={setPreviewVisibility} previewVisibility={previewVisibility} allowCreate={allowCreate} editingId={editingId} isCreating={isCreating} createPointCount={createPointCount} 
-                        startCreate={() => { setSelectedParentId(null); editor.startCreate(); }} finishCreate={() => editor.finishCreate(handleCreated)} cancelCreate={() => editor.cancelCreate()} finishEdit={() => editor.finishEdit()} cancelEdit={() => editor.cancelEdit()} setIsSearchOpen={setIsSearchOpen} hasActiveSearchFilters={hasActiveSearchFilters} onDeleteLastVertex={onDeleteLastVertex} t={t}
-                        autoCorrectEnabled={editor.autoCorrectEnabled}
-                        toggleAutoCorrect={() => editor.setAutoCorrectEnabled(!editor.autoCorrectEnabled)}
-                        closeLoopMidpointEnabled={editor.closeLoopMidpointEnabled}
-                        toggleCloseLoopMidpoint={() => editor.setCloseLoopMidpointEnabled(!editor.closeLoopMidpointEnabled)}
+                <div data-tour-id="map-toolbar" className="pointer-events-auto absolute top-4 right-4 z-[1200] flex flex-col items-end gap-2">
+                    <MapSearchFilters
+                        isSearchOpen={isSearchOpen}
+                        isImportMode={isImportMode}
+                        onClose={() => setIsSearchOpen(false)}
+                        searchDraft={searchDraft}
+                        setSearchDraft={setSearchDraft}
+                        tools={tools}
+                        products={products}
+                        periods={periods}
+                        operationTypes={operationTypes}
+                        searchAreaCoords={searchAreaCoords}
+                        isSearchDrawing={isSearchDrawing}
+                        startSearchPolygon={() => startSearchPolygon(isCreating, editingId)}
+                        cancelSearchPolygon={cancelSearchPolygon}
+                        clearSearchPolygon={clearSearchPolygon}
+                        clearSearchFilters={clearSearchFilters}
+                        applySearchFilters={applySearchFilters}
+                        hasActiveSearchFilters={hasActiveSearchFilters}
+                        disabled={isCreating || !!editingId}
+                        t={t}
                     />
+                    {!isSearchOpen && (
+                        <MapToolbar
+                            showPreview={showPreview} setShowPreview={setShowPreview} overlapWarning={overlapWarning} setPreviewVisibility={setPreviewVisibility} previewVisibility={previewVisibility} allowCreate={allowCreate} editingId={editingId} isCreating={isCreating} createPointCount={createPointCount}
+                            startCreate={() => handleStartCreate(null)} finishCreate={() => editor.finishCreate(handleCreated)} cancelCreate={() => editor.cancelCreate()} finishEdit={() => editor.finishEdit()} cancelEdit={() => editor.cancelEdit()} setIsSearchOpen={setIsSearchOpen} hasActiveSearchFilters={hasActiveSearchFilters} onDeleteLastVertex={onDeleteLastVertex} t={t}
+                            autoCorrectEnabled={editor.autoCorrectEnabled}
+                            toggleAutoCorrect={() => editor.setAutoCorrectEnabled(!editor.autoCorrectEnabled)}
+                            closeLoopMidpointEnabled={editor.closeLoopMidpointEnabled}
+                            toggleCloseLoopMidpoint={() => editor.setCloseLoopMidpointEnabled(!editor.closeLoopMidpointEnabled)}
+                            minLayer={minLayer}
+                            setMinLayer={setMinLayer}
+                            maxLayer={maxLayer}
+                            setMaxLayer={setMaxLayer}
+                            familyScopeAvailable={!!familyRootId}
+                            restrictToFamily={restrictToFamily}
+                            setRestrictToFamily={setRestrictToFamily}
+                            onRemoveLastHover={setHighlightLastPoint}
+                        />
+                    )}
                 </div>
             </div>
-
-            <MapSearchFilters
-                isSearchOpen={isSearchOpen} isImportMode={isImportMode} searchDraft={searchDraft} setSearchDraft={setSearchDraft} tools={tools} products={products} periods={periods} operationTypes={operationTypes} searchAreaCoords={searchAreaCoords} isSearchDrawing={isSearchDrawing}
-                startSearchPolygon={() => startSearchPolygon(isCreating, editingId)} cancelSearchPolygon={cancelSearchPolygon} clearSearchPolygon={clearSearchPolygon} clearSearchFilters={clearSearchFilters} applySearchFilters={applySearchFilters} t={t}
-                disabled={isCreating || !!editingId}
-            />
         </div>
     );
 }

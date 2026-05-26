@@ -5,6 +5,7 @@ import ProtectedRoute from "~/components/ProtectedRoute";
 import { useFarm } from "~/contexts/FarmContext";
 import { apiDelete, apiGet, apiPut } from "~/utils/api";
 import UserSearchInput from "~/components/UserSearchInput";
+import { useDateTimeFormatter } from "~/utils/datetime";
 
 interface ParcelSummaryDto {
     id: number;
@@ -15,6 +16,7 @@ interface ParcelShareDto {
     userId: number;
     username: string;
     role: string;
+    includeChildren?: boolean;
 }
 
 interface ParcelShareRow {
@@ -23,6 +25,7 @@ interface ParcelShareRow {
     userId: number;
     username: string;
     role: string;
+    includeChildren: boolean;
 }
 
 interface ResearchZoneShareDto {
@@ -73,6 +76,7 @@ export default function FarmSharesPage() {
     const { t } = useTranslation();
     const { selectedFarm } = useFarm();
     const farmId = selectedFarm?.id;
+    const { formatDateTime } = useDateTimeFormatter();
 
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -137,6 +141,7 @@ export default function FarmSharesPage() {
                         userId: share.userId,
                         username: share.username,
                         role: share.role,
+                        includeChildren: share.includeChildren ?? true,
                     }));
                 });
 
@@ -229,6 +234,20 @@ export default function FarmSharesPage() {
             )));
         } catch (err) {
             console.error("Failed to update parcel share role", err);
+            setError(t("farmShares.errors.save", { defaultValue: "Unable to save share changes." }));
+        }
+    }, [farmId, t]);
+
+    const handleUpdateParcelShareIncludeChildren = useCallback(async (row: ParcelShareRow, includeChildren: boolean) => {
+        if (!farmId) return;
+        try {
+            const res = await apiPut(`/farm/${farmId}/parcels/${row.parcelId}/shares/${row.userId}`, { includeChildren });
+            if (!res.ok) throw new Error("failed");
+            setParcelShares((prev) => prev.map((item) => (
+                item.parcelId === row.parcelId && item.userId === row.userId ? { ...item, includeChildren } : item
+            )));
+        } catch (err) {
+            console.error("Failed to update parcel share includeChildren", err);
             setError(t("farmShares.errors.save", { defaultValue: "Unable to save share changes." }));
         }
     }, [farmId, t]);
@@ -457,8 +476,8 @@ export default function FarmSharesPage() {
                                     <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                                         {t("farmShares.research.window", {
                                             defaultValue: "Window: {{start}} -> {{end}}",
-                                            start: share.shareStartAt ? new Date(share.shareStartAt).toLocaleString() : t("farmShares.research.now", { defaultValue: "now" }),
-                                            end: share.shareEndAt ? new Date(share.shareEndAt).toLocaleString() : t("farmShares.research.noEnd", { defaultValue: "no end" }),
+                                            start: share.shareStartAt ? formatDateTime(share.shareStartAt) : t("farmShares.research.now", { defaultValue: "now" }),
+                                            end: share.shareEndAt ? formatDateTime(share.shareEndAt) : t("farmShares.research.noEnd", { defaultValue: "no end" }),
                                         })}
                                     </p>
                                     <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -516,6 +535,15 @@ export default function FarmSharesPage() {
                                             {group.rows.map((row) => (
                                                 <div key={`${row.parcelId}-${row.userId}`} className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900/70">
                                                     <span className="min-w-40 flex-1 text-slate-700 dark:text-slate-200">{row.username}</span>
+                                                    <label className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-300">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={row.includeChildren}
+                                                            onChange={(event) => handleUpdateParcelShareIncludeChildren(row, event.target.checked)}
+                                                            className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                                                        />
+                                                        {t("map.sharing.includeChildrenShort", { defaultValue: "Includes sub-parcels" })}
+                                                    </label>
                                                     <select
                                                         value={row.role}
                                                         onChange={(event) => handleUpdateParcelShareRole(row, event.target.value)}
@@ -611,12 +639,12 @@ export default function FarmSharesPage() {
                                         <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                                             {t("farmShares.research.window", {
                                                 defaultValue: "Window: {{start}} -> {{end}}",
-                                                start: share.shareStartAt ? new Date(share.shareStartAt).toLocaleString() : "now",
-                                                end: share.shareEndAt ? new Date(share.shareEndAt).toLocaleString() : "no end",
+                                                start: share.shareStartAt ? formatDateTime(share.shareStartAt) : "now",
+                                                end: share.shareEndAt ? formatDateTime(share.shareEndAt) : "no end",
                                             })}
                                         </p>
                                         <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                                            {t("farmShares.research.createdAt", { defaultValue: "Created" })}: {share.createdAt ? new Date(share.createdAt).toLocaleString() : t("farmShares.research.unknown", { defaultValue: "unknown" })}
+                                            {t("farmShares.research.createdAt", { defaultValue: "Created" })}: {share.createdAt ? formatDateTime(share.createdAt) : t("farmShares.research.unknown", { defaultValue: "unknown" })}
                                         </p>
                                     </div>
                                 ))}

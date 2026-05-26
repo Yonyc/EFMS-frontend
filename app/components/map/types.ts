@@ -67,7 +67,7 @@ export interface ParcelOperationDto {
 }
 
 export interface PeriodDto { id: number; name?: string; startDate?: string; endDate?: string; }
-export interface ParcelShareDto { userId: number; username: string; role: string; }
+export interface ParcelShareDto { userId: number; username: string; role: string; includeChildren?: boolean; }
 export interface ResearchZoneShareDto {
     id: number;
     userId?: number | null;

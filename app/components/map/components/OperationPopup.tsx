@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { SearchableSelect } from "./SearchableSelect";
+import { useDateTimeFormatter } from "~/utils/datetime";
 import type {
     PolygonData,
     OperationTypeDto,
@@ -60,6 +61,7 @@ interface OperationPopupProps {
 }
 
 const OperationPopup = React.memo((props: OperationPopupProps) => {
+    const { formatDateTime } = useDateTimeFormatter();
     const {
         operationPopup, popupCoords, isMobile, startDrag, polygons, t,
         preferTopRight, setPreferTopRight, closeOperationPopup,
@@ -348,7 +350,7 @@ const OperationPopup = React.memo((props: OperationPopupProps) => {
                                             {op.typeName || t('operations.selectTypePlaceholder', { defaultValue: 'Operation' })}
                                         </div>
                                         <div className="text-xs text-slate-200/80">
-                                            {op.date ? new Date(op.date).toLocaleString() : ''}
+                                            {formatDateTime(op.date)}
                                         </div>
                                     </div>
                                     {op.durationSeconds != null && (

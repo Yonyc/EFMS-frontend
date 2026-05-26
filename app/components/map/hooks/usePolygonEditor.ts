@@ -1,15 +1,13 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import L from "leaflet";
-import { snapLatLng, getAncestorIds, getDescendantIds } from "./useSnappyEditing";
-import { checkOverlap, isPointInOrOnPolygon, isPointInPolygon, doEdgesIntersect, getClosestPointOnPolygon } from "../utils/geometry";
-import { coordsToWKT } from "../utils/mapUtils";
-import type { PolygonData, EditState, OverlapWarning, ManualEditContext } from "../types";
-import { apiDelete, apiPut, apiPatch } from "~/utils/api";
-
-const normalizeParentParcelId = (value: unknown): number | null => {
-    const n = Number(value);
-    return Number.isFinite(n) && n > 0 ? n : null;
-};
+import { getAncestorIds, getDescendantIds } from "./useSnappyEditing";
+import { checkOverlap } from "../utils/geometry";
+import { useSketchConstraints, pointDistanceSq, findLastPointAlongSegmentByPredicate } from "./useSketchConstraints";
+import { saveParcelCoords, autoCorrectChild, pickManualEditOverrides } from "../utils/parcelPersistence";
+import { useOverlapModalState } from "./useOverlapModalState";
+import { useSketchLifecycleState } from "./useSketchLifecycleState";
+import type { PolygonData } from "../types";
+import { apiDelete } from "~/utils/api";
 
 interface UsePolygonEditorProps {
     polygons: PolygonData[];
@@ -37,36 +35,33 @@ export function usePolygonEditor({
     polygons, setPolygons, setAllPolygons, parcelsEndpoint, contextType, getMap, t, areaName, setAreaName, setModal, setRenamingId, setSelectedPeriodId, setRenameValue, setRenamePeriodId,
     selectedParentId, setSelectedParentId, updateGhost, clearGhost, setSnapPreview
 }: UsePolygonEditorProps) {
-    const [editingId, setEditingId] = useState<string | null>(null);
-    const [isCreating, setIsCreating] = useState(false);
-    const [createPointCount, setCreatePointCount] = useState(0);
-    const [overlapWarning, setOverlapWarning] = useState<OverlapWarning | null>(null);
-    const [showPreview, setShowPreview] = useState(false);
-    const [pendingManualEditId, setPendingManualEditId] = useState<string | null>(null);
-    const [manualEditContext, setManualEditContext] = useState<ManualEditContext | null>(null);
-    const [previewVisibility, setPreviewVisibility] = useState<{ original: boolean; fixed: boolean }>({ original: false, fixed: true });
+    const sketch = useSketchLifecycleState();
+    const {
+        editingId, isCreating, createPointCount, drawingPoints, ghostCoords, createPreviewPoint, sketchInsertPreview,
+        pointsRef: drawingPointsRef, ghostRef: ghostCoordsRef, previewPointRef: createPreviewPointRef, originalCoordsRef,
+        beginCreate, beginEdit, goIdle,
+        setGhost: setGhostCoords, setPreviewPoint: setCreatePreviewPoint, setInsertPreview: setSketchInsertPreview,
+        setIsCreating, setEditingId, setCreatePointCount,
+    } = sketch;
+    const commitDrawingPoints = sketch.setPoints;
+    const {
+        overlapWarning, showPreview, previewVisibility, manualEditContext, pendingManualEditId,
+        flagOverlap, dismissOverlap, clearManualEdit, restoreOverlapFromContext,
+        setOverlapWarning, setShowPreview, setPreviewVisibility, setManualEditContext, setPendingManualEditId,
+    } = useOverlapModalState();
 
-    const originalCoordsRef = useRef<Record<string, [number, number][]>>({});
-    const editStateRef = useRef<EditState | null>(null);
     const createdLayerRef = useRef<any>(null);
     const createHandlerRef = useRef<any>(null);
-    const [drawingPoints, setDrawingPoints] = useState<[number, number][]>([]);
-    const [ghostCoords, setGhostCoords] = useState<[number, number][]>([]);
-    const [createPreviewPoint, setCreatePreviewPoint] = useState<[number, number] | null>(null);
     const [autoCorrectEnabled, setAutoCorrectEnabled] = useState(true);
     const [edgeSnapEnabled, setEdgeSnapEnabled] = useState(false);
     const [closeLoopMidpointEnabled, setCloseLoopMidpointEnabled] = useState(false);
     const [isHoveringSketchHandle, setIsHoveringSketchHandle] = useState(false);
     const suppressSketchClickUntilRef = useRef(0);
-    const drawingPointsRef = useRef<[number, number][]>([]);
-    const createPreviewPointRef = useRef<[number, number] | null>(null);
     const lastPreviewCursorRef = useRef<L.LatLng | null>(null);
     const edgeSnapEnabledRef = useRef(edgeSnapEnabled);
     const autoCorrectEnabledRef = useRef(autoCorrectEnabled);
     const closeLoopMidpointEnabledRef = useRef(closeLoopMidpointEnabled);
     const isHoveringSketchHandleRef = useRef(isHoveringSketchHandle);
-    useEffect(() => { drawingPointsRef.current = drawingPoints; }, [drawingPoints]);
-    useEffect(() => { createPreviewPointRef.current = createPreviewPoint; }, [createPreviewPoint]);
     useEffect(() => { edgeSnapEnabledRef.current = edgeSnapEnabled; }, [edgeSnapEnabled]);
     useEffect(() => { autoCorrectEnabledRef.current = autoCorrectEnabled; }, [autoCorrectEnabled]);
     useEffect(() => { closeLoopMidpointEnabledRef.current = closeLoopMidpointEnabled; }, [closeLoopMidpointEnabled]);
@@ -77,11 +72,6 @@ export function usePolygonEditor({
     }, []);
 
     const isSketchClickSuppressed = useCallback(() => Date.now() < suppressSketchClickUntilRef.current, []);
-
-    const commitDrawingPoints = useCallback((next: [number, number][]) => {
-        drawingPointsRef.current = next;
-        setDrawingPoints(next);
-    }, []);
 
     const requestPreviewRecompute = useCallback(() => {
         const map = getMap();
@@ -128,7 +118,7 @@ export function usePolygonEditor({
     updateGhostRef.current = updateGhost;
     clearGhostRef.current = clearGhost;
 
-    // LIVE GHOST DURING SKETCH (creation + editing)
+    // live ghost during sketch for create and edit
     useEffect(() => {
         if (!isCreating && !editingId) return;
 
@@ -144,7 +134,7 @@ export function usePolygonEditor({
             return;
         }
 
-        // While a handle is active, avoid expensive polygon fixing on every drag tick.
+        // skip the expensive fix while a handle is being dragged
         if (isHoveringSketchHandleRef.current) {
             setGhostCoords(drawingPoints);
             return;
@@ -190,661 +180,17 @@ export function usePolygonEditor({
         setAllPolygons(updater);
     }, [setPolygons, setAllPolygons]);
 
-    const getParentForSketch = useCallback((activeEditId?: string | null): string | null => {
-        if (activeEditId) {
-            return polygonsRef.current.find(p => p.id === activeEditId)?.parentId ?? parentIdRef.current;
-        }
-        return parentIdRef.current;
-    }, []);
-
-    const clampPointToParentBoundary = useCallback((
-        point: [number, number],
-        activeParentId?: string | null,
-    ): [number, number] => {
-        const pStr = activeParentId ? String(activeParentId) : null;
-        if (!pStr) return point;
-
-        const parentParcel = polygonsRef.current.find(p => String(p.id) === pStr);
-        if (!parentParcel) return point;
-        if (isPointInOrOnPolygon(point, parentParcel.coords)) return point;
-
-        return getClosestPointOnPolygon(point, parentParcel.coords);
-    }, []);
-
-    const distanceToPolygonEdge = useCallback((point: [number, number], polygon: [number, number][]): number => {
-        if (!polygon.length) return Infinity;
-        const closest = getClosestPointOnPolygon(point, polygon);
-        const lngScale = Math.cos(point[0] * Math.PI / 180) || 1;
-        const dLat = point[0] - closest[0];
-        const dLng = (point[1] - closest[1]) * lngScale;
-        return Math.hypot(dLat, dLng);
-    }, []);
-
-    const pointDistanceSq = useCallback((a: [number, number], b: [number, number]): number => {
-        const lngScale = Math.cos(((a[0] + b[0]) * 0.5) * Math.PI / 180) || 1;
-        const dLat = a[0] - b[0];
-        const dLng = (a[1] - b[1]) * lngScale;
-        return dLat * dLat + dLng * dLng;
-    }, []);
-
-    const isPointAllowed = useCallback((point: [number, number], activeEditId?: string | null): boolean => {
-        const parentForSketch = getParentForSketch(activeEditId);
-        const ancestorIds = getAncestorIds(parentForSketch, polygonsRef.current);
-        const descendantIds = activeEditId ? getDescendantIds(activeEditId, polygonsRef.current) : [];
-
-        // Use fixed geographic epsilons so behavior is independent of zoom level.
-        const FORBIDDEN_EDGE_EPS = 6e-7;
-        const NO_SPACE_CLEARANCE_EPS = 2.4e-6;
-        const NARROW_CORRIDOR_GAP_EPS = 4.0e-6;
-        const PARENT_FORBIDDEN_GAP_EPS = 2.8e-6;
-        const CORNER_VERTEX_EPS = 8e-7;
-        const JUNCTION_VERTEX_EPS = 2.2e-6;
-
-        const parentParcel = parentForSketch ? polygonsRef.current.find(p => String(p.id) === String(parentForSketch)) : undefined;
-        if (parentParcel && !isPointInOrOnPolygon(point, parentParcel.coords)) {
-            return false;
-        }
-        const parentEdgeDistance = parentParcel ? distanceToPolygonEdge(point, parentParcel.coords) : Number.POSITIVE_INFINITY;
-
-        let forbiddenBoundaryTouchCount = 0;
-        let nearbyForbiddenCount = 0;
-        const forbiddenEdges: Array<{ polyCoords: [number, number][]; edgeDistance: number }> = [];
-
-        for (const poly of polygonsRef.current) {
-            if (!poly.visible) continue;
-            if (activeEditId && poly.id === activeEditId) continue;
-            if (ancestorIds.includes(poly.id)) continue;
-            if (descendantIds.includes(poly.id)) continue;
-
-            // Never allow points strictly inside forbidden parcels.
-            if (isPointInPolygon(point, poly.coords)) return false;
-
-            // Allow touching one forbidden boundary (needed for parent/child corner snaps),
-            // but disallow touching two forbidden boundaries simultaneously (shared sibling borders).
-            const edgeDistance = distanceToPolygonEdge(point, poly.coords);
-            forbiddenEdges.push({ polyCoords: poly.coords, edgeDistance });
-            if (edgeDistance < NO_SPACE_CLEARANCE_EPS) {
-                nearbyForbiddenCount += 1;
-            }
-            if (edgeDistance < FORBIDDEN_EDGE_EPS) {
-                forbiddenBoundaryTouchCount += 1;
-            }
-        }
-
-        const junctionVertexEpsSq = JUNCTION_VERTEX_EPS * JUNCTION_VERTEX_EPS;
-        const forbiddenVertexTouchCount = forbiddenEdges.reduce((acc, { polyCoords }) => {
-            const touches = polyCoords.some(vertex => pointDistanceSq(point, vertex) <= junctionVertexEpsSq);
-            return acc + (touches ? 1 : 0);
-        }, 0);
-        const touchesParentVertex = parentParcel
-            ? parentParcel.coords.some(vertex => pointDistanceSq(point, vertex) <= junctionVertexEpsSq)
-            : false;
-
-        // Allow precise shared corners (two parcel vertices meeting, or parcel+parent vertex junction).
-        if (forbiddenVertexTouchCount >= 2 || (forbiddenVertexTouchCount >= 1 && touchesParentVertex)) {
-            return true;
-        }
-
-        const hasSharedForbiddenCornerException = (): boolean => {
-            const nearForbiddenPolys = forbiddenEdges
-                .filter(({ edgeDistance }) => edgeDistance < NO_SPACE_CLEARANCE_EPS)
-                .map(({ polyCoords }) => polyCoords);
-
-            if (nearForbiddenPolys.length < 2) return false;
-
-            const cornerEpsSq = CORNER_VERTEX_EPS * CORNER_VERTEX_EPS;
-            const sharedVertexEpsSq = (CORNER_VERTEX_EPS * 2.0) * (CORNER_VERTEX_EPS * 2.0);
-
-            for (let i = 0; i < nearForbiddenPolys.length; i++) {
-                for (let j = i + 1; j < nearForbiddenPolys.length; j++) {
-                    const aCoords = nearForbiddenPolys[i];
-                    const bCoords = nearForbiddenPolys[j];
-
-                    for (const aVertex of aCoords) {
-                        if (pointDistanceSq(point, aVertex) > cornerEpsSq) continue;
-                        for (const bVertex of bCoords) {
-                            if (pointDistanceSq(point, bVertex) > cornerEpsSq) continue;
-                            if (pointDistanceSq(aVertex, bVertex) <= sharedVertexEpsSq) {
-                                return true;
-                            }
-                        }
-                    }
-                }
-            }
-
-            return false;
-        };
-
-        if ((nearbyForbiddenCount >= 2 || forbiddenBoundaryTouchCount >= 2) && !hasSharedForbiddenCornerException()) {
-            return false;
-        }
-
-        const hasParentSiblingCornerException = (): boolean => {
-            if (!parentParcel) return false;
-            if (parentEdgeDistance >= NO_SPACE_CLEARANCE_EPS) return false;
-
-            const cornerEpsSq = CORNER_VERTEX_EPS * CORNER_VERTEX_EPS;
-            for (const { polyCoords, edgeDistance } of forbiddenEdges) {
-                if (edgeDistance >= NO_SPACE_CLEARANCE_EPS) continue;
-                for (const vertex of polyCoords) {
-                    if (pointDistanceSq(point, vertex) > cornerEpsSq) continue;
-                    const vertexToParentEdge = distanceToPolygonEdge(vertex, parentParcel.coords);
-                    if (vertexToParentEdge <= CORNER_VERTEX_EPS * 1.5) {
-                        return true;
-                    }
-                }
-            }
-            return false;
-        };
-
-        const forbiddenEdgeDistances = forbiddenEdges.map(({ edgeDistance }) => edgeDistance);
-
-        // Reject very narrow corridors between two forbidden polygons even when the point
-        // is not exactly touching both edges due floating precision.
-        if (forbiddenEdgeDistances.length >= 2) {
-            const sorted = [...forbiddenEdgeDistances].sort((a, b) => a - b);
-            if ((sorted[0] + sorted[1]) < NARROW_CORRIDOR_GAP_EPS) {
-                if (!hasSharedForbiddenCornerException()) return false;
-            }
-        }
-
-        // Reject no-space corridors between parent border and a forbidden sibling border.
-        if (parentParcel && forbiddenEdgeDistances.length >= 1) {
-            const nearestForbidden = Math.min(...forbiddenEdgeDistances);
-            const nearParentBoundary = parentEdgeDistance < NO_SPACE_CLEARANCE_EPS;
-            const nearForbiddenBoundary = nearestForbidden < NO_SPACE_CLEARANCE_EPS;
-            if (nearParentBoundary && nearForbiddenBoundary && (parentEdgeDistance + nearestForbidden) < PARENT_FORBIDDEN_GAP_EPS) {
-                if (!hasParentSiblingCornerException() && !hasSharedForbiddenCornerException()) return false;
-            }
-        }
-
-        return true;
-    }, [distanceToPolygonEdge, getParentForSketch, pointDistanceSq]);
-
-    const getStrictSnapTarget = useCallback((
-        latlng: L.LatLng,
-        activeEditId?: string | null,
-        options?: { forceEdgeSnap?: boolean; respectShift?: boolean },
-    ): [number, number] => {
-        const map = getMap();
-        const parentForSketch = getParentForSketch(activeEditId);
-        const ancestorIds = getAncestorIds(parentForSketch, polygonsRef.current);
-        const descendantIds = activeEditId ? getDescendantIds(activeEditId, polygonsRef.current) : [];
-        const parentParcel = parentForSketch
-            ? polygonsRef.current.find(p => String(p.id) === String(parentForSketch))
-            : undefined;
-
-        let point: [number, number] = [latlng.lat, latlng.lng];
-
-        // Parent clamp first: outside parent -> nearest parent border.
-        if (parentParcel && !isPointInOrOnPolygon(point, parentParcel.coords)) {
-            point = getClosestPointOnPolygon(point, parentParcel.coords);
-        }
-
-        const obstacles = polygonsRef.current.filter(poly => {
-            if (!poly.visible) return false;
-            if (activeEditId && poly.id === activeEditId) return false;
-            if (ancestorIds.includes(poly.id)) return false;
-            if (descendantIds.includes(poly.id)) return false;
-            return true;
-        });
-
-        // Interior prevention: if snapped into forbidden polygon, push to its edge.
-        for (let pass = 0; pass < 3; pass++) {
-            let changed = false;
-            for (const obstacle of obstacles) {
-                if (!isPointInPolygon(point, obstacle.coords)) continue;
-                point = getClosestPointOnPolygon(point, obstacle.coords);
-                changed = true;
-            }
-            if (!changed) break;
-        }
-
-        // Edge magnet near forbidden borders: prefer nearest border in screen pixels.
-        const shouldEdgeSnap = options?.forceEdgeSnap === true || ((options?.respectShift ?? true) && edgeSnapEnabledRef.current);
-        if (map && shouldEdgeSnap) {
-            const pointPx = map.latLngToLayerPoint(L.latLng(point[0], point[1]));
-
-            // Vertex priority near corners: this matches expected corner snapping behavior.
-            const VERTEX_SNAP_PX = 22;
-            let bestVertex: [number, number] | null = null;
-            let bestVertexDistPx = Number.POSITIVE_INFINITY;
-            const considerVertexList = (coords: [number, number][]) => {
-                for (const vertex of coords) {
-                    const vPx = map.latLngToLayerPoint(L.latLng(vertex[0], vertex[1]));
-                    const dPx = pointPx.distanceTo(vPx);
-                    if (dPx < bestVertexDistPx) {
-                        bestVertexDistPx = dPx;
-                        bestVertex = vertex;
-                    }
-                }
-            };
-            if (parentParcel) considerVertexList(parentParcel.coords);
-            for (const obstacle of obstacles) considerVertexList(obstacle.coords);
-
-            if (bestVertex && bestVertexDistPx < VERTEX_SNAP_PX) {
-                point = bestVertex;
-                return point;
-            }
-
-            const SNAP_PX = 18;
-            let bestSnap: [number, number] | null = null;
-            let bestDistPx = Number.POSITIVE_INFINITY;
-
-            for (const obstacle of obstacles) {
-                const edgePoint = getClosestPointOnPolygon(point, obstacle.coords);
-                const edgePx = map.latLngToLayerPoint(L.latLng(edgePoint[0], edgePoint[1]));
-                const distPx = pointPx.distanceTo(edgePx);
-                if (distPx < SNAP_PX && distPx < bestDistPx) {
-                    bestDistPx = distPx;
-                    bestSnap = edgePoint;
-                }
-            }
-
-            if (bestSnap) point = bestSnap;
-        }
-
-        return point;
-    }, [getMap, getParentForSketch]);
-
-    const isSketchGeometryStructurallyAllowed = useCallback((candidateCoords: [number, number][], activeEditId?: string | null, strict: boolean = true): boolean => {
-        if (candidateCoords.length < 3 || !strict) return true;
-
-        const parentForSketch = getParentForSketch(activeEditId);
-        const ancestorIds = getAncestorIds(parentForSketch, polygonsRef.current);
-        const descendantIds = activeEditId ? getDescendantIds(activeEditId, polygonsRef.current) : [];
-        const parentParcel = parentForSketch
-            ? polygonsRef.current.find(p => String(p.id) === String(parentForSketch))
-            : undefined;
-
-        // If an edge crosses outside parent and re-enters, points-only checks miss it.
-        if (parentParcel && doEdgesIntersect(candidateCoords, parentParcel.coords)) {
-            return false;
-        }
-
-        for (const poly of polygonsRef.current) {
-            if (!poly.visible) continue;
-            if (activeEditId && poly.id === activeEditId) continue;
-            if (ancestorIds.includes(poly.id)) continue;
-            if (descendantIds.includes(poly.id)) continue;
-
-            // Disallow any area/edge overlap.
-            if (checkOverlap(candidateCoords, poly.coords)) {
-                return false;
-            }
-        }
-
-        return true;
-    }, [getParentForSketch]);
-
-    const isSketchGeometryAllowed = useCallback((candidateCoords: [number, number][], activeEditId?: string | null, strict: boolean = true): boolean => {
-        if (candidateCoords.length === 0) return true;
-
-        // Always enforce point-level containment first.
-        if (candidateCoords.some(pt => !isPointAllowed(pt, activeEditId))) {
-            return false;
-        }
-
-        return isSketchGeometryStructurallyAllowed(candidateCoords, activeEditId, strict);
-    }, [isPointAllowed, isSketchGeometryStructurallyAllowed]);
-
-    const isEditCandidateAllowed = useCallback((
-        candidateCoords: [number, number][],
-        changedPoint: [number, number],
-        activeEditId?: string | null,
-        strict: boolean = true,
-    ): boolean => {
-        // In edit mode, validate the point being moved/inserted strictly,
-        // while allowing unchanged legacy points to remain until corrected.
-        if (!isPointAllowed(changedPoint, activeEditId)) return false;
-        return isSketchGeometryStructurallyAllowed(candidateCoords, activeEditId, strict);
-    }, [isPointAllowed, isSketchGeometryStructurallyAllowed]);
-
-    const resolveConstrainedLatLng = useCallback((
-        latlng: L.LatLng,
-        activeEditId?: string | null,
-        fallbackPoint?: [number, number],
-        options?: { respectShift?: boolean },
-    ): L.LatLng => {
-        const map = getMap();
-        if (!map) return latlng;
-        const parentForSketch = getParentForSketch(activeEditId);
-        const skipId = activeEditId ?? undefined;
-        const shouldEdgeSnap = !!options?.respectShift && edgeSnapEnabledRef.current;
-        const constrained = snapLatLng(latlng, polygonsRef.current, parentForSketch, map, skipId, {
-            edgeSnap: shouldEdgeSnap,
-        });
-        const strictTarget = getStrictSnapTarget(constrained, activeEditId, { respectShift: !!options?.respectShift });
-        return L.latLng(strictTarget[0], strictTarget[1]);
-    }, [getMap, getParentForSketch, getStrictSnapTarget]);
-
-    const findNearestValidPoint = useCallback((
-        target: [number, number],
-        buildCandidate: (pt: [number, number]) => [number, number][],
-        activeEditId?: string | null,
-        fallbackPoint?: [number, number],
-        strict: boolean = true
-    ): [number, number] | null => {
-        const distanceSq = (a: [number, number], b: [number, number]) => {
-            const lngScale = Math.cos(((a[0] + b[0]) * 0.5) * Math.PI / 180) || 1;
-            const dLat = a[0] - b[0];
-            const dLng = (a[1] - b[1]) * lngScale;
-            return dLat * dLat + dLng * dLng;
-        };
-
-        const search = (strictMode: boolean): [number, number] | null => {
-            const isValid = (pt: [number, number]) => isSketchGeometryAllowed(buildCandidate(pt), activeEditId, strictMode);
-
-            if (isValid(target)) return target;
-
-            const map = getMap();
-            if (map) {
-                const basePoint = map.latLngToContainerPoint(L.latLng(target[0], target[1]));
-                const angleCount = 24;
-                for (let radiusPx = 3; radiusPx <= 220; radiusPx += 3) {
-                    let ringBest: [number, number] | null = null;
-                    let ringBestDist = Number.POSITIVE_INFINITY;
-                    for (let a = 0; a < angleCount; a++) {
-                        const angle = (2 * Math.PI * a) / angleCount;
-                        const probePoint = L.point(
-                            basePoint.x + Math.cos(angle) * radiusPx,
-                            basePoint.y + Math.sin(angle) * radiusPx,
-                        );
-                        const ll = map.containerPointToLatLng(probePoint);
-                        const candidate: [number, number] = [ll.lat, ll.lng];
-                        if (!isValid(candidate)) continue;
-                        const d2 = distanceSq(candidate, target);
-                        if (d2 < ringBestDist) {
-                            ringBestDist = d2;
-                            ringBest = candidate;
-                        }
-                    }
-                    if (ringBest) return ringBest;
-                }
-            } else {
-                const latStep = 0.000004;
-                const lngScale = Math.cos(target[0] * Math.PI / 180) || 1;
-                const lngStep = latStep / lngScale;
-                const angleCount = 24;
-                for (let ring = 1; ring <= 48; ring++) {
-                    const rLat = latStep * ring;
-                    const rLng = lngStep * ring;
-                    let ringBest: [number, number] | null = null;
-                    let ringBestDist = Number.POSITIVE_INFINITY;
-                    for (let a = 0; a < angleCount; a++) {
-                        const angle = (2 * Math.PI * a) / angleCount;
-                        const candidate: [number, number] = [
-                            target[0] + Math.sin(angle) * rLat,
-                            target[1] + Math.cos(angle) * rLng,
-                        ];
-                        if (!isValid(candidate)) continue;
-                        const d2 = distanceSq(candidate, target);
-                        if (d2 < ringBestDist) {
-                            ringBestDist = d2;
-                            ringBest = candidate;
-                        }
-                    }
-                    if (ringBest) return ringBest;
-                }
-            }
-
-            if (fallbackPoint && isValid(fallbackPoint)) return fallbackPoint;
-            return null;
-        };
-
-        if (strict) return search(true);
-        return search(false);
-    }, [getMap, isSketchGeometryAllowed]);
-
-    const findNearestValidPointNearTarget = useCallback((
-        target: [number, number],
-        buildCandidate: (pt: [number, number]) => [number, number][],
-        activeEditId?: string | null,
-        maxRadiusPx: number = 36,
-    ): [number, number] | null => {
-        const isValid = (pt: [number, number]) => isSketchGeometryAllowed(buildCandidate(pt), activeEditId, true);
-        if (isValid(target)) return target;
-
-        const map = getMap();
-        if (map) {
-            const basePoint = map.latLngToContainerPoint(L.latLng(target[0], target[1]));
-            const angleCount = 20;
-
-            for (let radiusPx = 3; radiusPx <= maxRadiusPx; radiusPx += 3) {
-                let ringBest: [number, number] | null = null;
-                let ringBestDist = Number.POSITIVE_INFINITY;
-
-                for (let a = 0; a < angleCount; a++) {
-                    const angle = (2 * Math.PI * a) / angleCount;
-                    const probePoint = L.point(
-                        basePoint.x + Math.cos(angle) * radiusPx,
-                        basePoint.y + Math.sin(angle) * radiusPx,
-                    );
-                    const ll = map.containerPointToLatLng(probePoint);
-                    const candidate: [number, number] = [ll.lat, ll.lng];
-                    if (!isValid(candidate)) continue;
-
-                    const d2 = pointDistanceSq(candidate, target);
-                    if (d2 < ringBestDist) {
-                        ringBestDist = d2;
-                        ringBest = candidate;
-                    }
-                }
-
-                if (ringBest) return ringBest;
-            }
-
-            return null;
-        }
-
-        return findNearestValidPoint(target, buildCandidate, activeEditId, undefined, true);
-    }, [findNearestValidPoint, getMap, isSketchGeometryAllowed, pointDistanceSq]);
-
-    const findLastValidPointAlongSegment = useCallback((
-        fromPoint: [number, number],
-        toPoint: [number, number],
-        buildCandidate: (pt: [number, number]) => [number, number][],
-        activeEditId?: string | null,
-    ): [number, number] | null => {
-        const isValid = (pt: [number, number]) => isSketchGeometryAllowed(buildCandidate(pt), activeEditId, true);
-
-        if (!isValid(fromPoint)) return null;
-        if (isValid(toPoint)) return toPoint;
-
-        const interpolate = (a: [number, number], b: [number, number], t: number): [number, number] => [
-            a[0] + (b[0] - a[0]) * t,
-            a[1] + (b[1] - a[1]) * t,
-        ];
-
-        let low = fromPoint;
-        let high = toPoint;
-        for (let i = 0; i < 18; i++) {
-            const mid = interpolate(low, high, 0.5);
-            if (isValid(mid)) low = mid;
-            else high = mid;
-        }
-
-        return low;
-    }, [isSketchGeometryAllowed]);
-
-    const findLastPointAlongSegmentByPredicate = useCallback((
-        fromPoint: [number, number],
-        toPoint: [number, number],
-        isValidPoint: (pt: [number, number]) => boolean,
-    ): [number, number] | null => {
-        if (!isValidPoint(fromPoint)) return null;
-        if (isValidPoint(toPoint)) return toPoint;
-
-        const interpolate = (a: [number, number], b: [number, number], t: number): [number, number] => [
-            a[0] + (b[0] - a[0]) * t,
-            a[1] + (b[1] - a[1]) * t,
-        ];
-
-        let low = fromPoint;
-        let high = toPoint;
-        for (let i = 0; i < 18; i++) {
-            const mid = interpolate(low, high, 0.5);
-            if (isValidPoint(mid)) low = mid;
-            else high = mid;
-        }
-
-        return low;
-    }, []);
-
-    const findNearestPointByPredicate = useCallback((
-        target: [number, number],
-        isValidPoint: (pt: [number, number]) => boolean,
-        maxRadiusPx: number = 24,
-    ): [number, number] | null => {
-        if (isValidPoint(target)) return target;
-
-        const map = getMap();
-        if (!map) return null;
-
-        const basePoint = map.latLngToContainerPoint(L.latLng(target[0], target[1]));
-        const angleCount = 20;
-
-        for (let radiusPx = 3; radiusPx <= maxRadiusPx; radiusPx += 3) {
-            let ringBest: [number, number] | null = null;
-            let ringBestDist = Number.POSITIVE_INFINITY;
-
-            for (let a = 0; a < angleCount; a++) {
-                const angle = (2 * Math.PI * a) / angleCount;
-                const probePoint = L.point(
-                    basePoint.x + Math.cos(angle) * radiusPx,
-                    basePoint.y + Math.sin(angle) * radiusPx,
-                );
-                const ll = map.containerPointToLatLng(probePoint);
-                const candidate: [number, number] = [ll.lat, ll.lng];
-                if (!isValidPoint(candidate)) continue;
-
-                const d2 = pointDistanceSq(candidate, target);
-                if (d2 < ringBestDist) {
-                    ringBestDist = d2;
-                    ringBest = candidate;
-                }
-            }
-
-            if (ringBest) return ringBest;
-        }
-
-        return null;
-    }, [getMap, pointDistanceSq]);
-
-    const resolvePreviewPoint = useCallback((
-        target: [number, number],
-        previousPreview: [number, number] | null,
-        buildCandidate: (pt: [number, number]) => [number, number][],
-        activeEditId?: string | null,
-        anchorPoint?: [number, number] | null,
-        allowNearestSearch: boolean = false,
-        validatePoint?: (pt: [number, number]) => boolean,
-    ): [number, number] | null => {
-        const isValid = validatePoint
-            ? validatePoint
-            : (pt: [number, number]) => isSketchGeometryAllowed(buildCandidate(pt), activeEditId, true);
-        const accepts = (pt: [number, number]) => isValid(pt);
-        const targetValid = isValid(target);
-        const candidates: [number, number][] = [];
-
-        const map = getMap();
-        const findNearestSnapVertex = (center: [number, number], maxRadiusPx: number): [number, number] | null => {
-            if (!map) return null;
-
-            const parentForSketch = getParentForSketch(activeEditId);
-            const ancestorIds = getAncestorIds(parentForSketch, polygonsRef.current);
-            const descendantIds = activeEditId ? getDescendantIds(activeEditId, polygonsRef.current) : [];
-            const parentParcel = parentForSketch
-                ? polygonsRef.current.find(p => String(p.id) === String(parentForSketch))
-                : undefined;
-
-            const centerPx = map.latLngToLayerPoint(L.latLng(center[0], center[1]));
-            let bestVertex: [number, number] | null = null;
-            let bestDistPx = Number.POSITIVE_INFINITY;
-
-            const considerVertices = (coords: [number, number][]) => {
-                for (const vertex of coords) {
-                    const vertexPx = map.latLngToLayerPoint(L.latLng(vertex[0], vertex[1]));
-                    const distPx = centerPx.distanceTo(vertexPx);
-                    if (distPx < bestDistPx) {
-                        bestDistPx = distPx;
-                        bestVertex = vertex;
-                    }
-                }
-            };
-
-            if (parentParcel) considerVertices(parentParcel.coords);
-            for (const poly of polygonsRef.current) {
-                if (!poly.visible) continue;
-                if (activeEditId && poly.id === activeEditId) continue;
-                if (ancestorIds.includes(poly.id)) continue;
-                if (descendantIds.includes(poly.id)) continue;
-                considerVertices(poly.coords);
-            }
-
-            if (bestVertex && bestDistPx <= maxRadiusPx) return bestVertex;
-            return null;
-        };
-
-        const pushCandidate = (pt: [number, number] | null | undefined) => {
-            if (!pt || !accepts(pt)) return;
-            if (candidates.some(c => pointDistanceSq(c, pt) <= 1e-16)) return;
-            candidates.push(pt);
-        };
-
-        const strictTarget = getStrictSnapTarget(
-            L.latLng(target[0], target[1]),
-            activeEditId,
-            { forceEdgeSnap: edgeSnapEnabledRef.current || !targetValid, respectShift: true },
-        );
-
-        const cornerTarget = findNearestSnapVertex(target, 24);
-        if (cornerTarget && accepts(cornerTarget)) return cornerTarget;
-        const cornerStrictTarget = findNearestSnapVertex(strictTarget, 18);
-        if (cornerStrictTarget && accepts(cornerStrictTarget)) return cornerStrictTarget;
-
-        const findNearestAround = (center: [number, number], radiusPx: number): [number, number] | null => {
-            if (!allowNearestSearch) return null;
-            return validatePoint
-                ? findNearestPointByPredicate(center, validatePoint, radiusPx)
-                : findNearestValidPointNearTarget(center, buildCandidate, activeEditId, radiusPx);
-        };
-
-        // Shift should affect preview snap only.
-        if (edgeSnapEnabledRef.current) {
-            if (accepts(strictTarget)) return strictTarget;
-            const snappedNear = findNearestAround(strictTarget, 160);
-            if (snappedNear && accepts(snappedNear)) return snappedNear;
-        }
-
-        // Deterministic candidate queue (closest-to-cursor preference).
-        pushCandidate(cornerTarget);
-        pushCandidate(cornerStrictTarget);
-        pushCandidate(target);
-        pushCandidate(findNearestAround(target, 160));
-
-        if (!targetValid) {
-            // If cursor is in invalid region, broaden search and prioritize edge/corner fallback.
-            pushCandidate(findNearestAround(target, 240));
-            pushCandidate(strictTarget);
-            pushCandidate(findNearestAround(strictTarget, 160));
-            pushCandidate(findNearestAround(strictTarget, 240));
-        } else {
-            pushCandidate(strictTarget);
-            pushCandidate(findNearestAround(strictTarget, 160));
-        }
-
-        // Continuity candidates are last-resort only.
-        pushCandidate(previousPreview);
-        pushCandidate(anchorPoint ?? null);
-
-        if (candidates.length === 0) return null;
-
-        const orderedCandidates = [...candidates].sort((a, b) => pointDistanceSq(a, target) - pointDistanceSq(b, target));
-
-        // Never hard-block preview when a point is otherwise valid.
-        return orderedCandidates[0];
-    }, [findNearestPointByPredicate, findNearestValidPointNearTarget, getMap, getParentForSketch, getStrictSnapTarget, isSketchGeometryAllowed, pointDistanceSq]);
+    const {
+        clampPointToParentBoundary,
+        isPointAllowed,
+        isSketchGeometryAllowed,
+        isEditCandidateAllowed,
+        resolveConstrainedLatLng,
+        findNearestValidPoint,
+        findLastValidPointAlongSegment,
+        findNearestPointByPredicate,
+        resolvePreviewPoint,
+    } = useSketchConstraints({ polygonsRef, parentIdRef, edgeSnapEnabledRef, getMap });
 
     const constrainSketchPoint = useCallback((nextPoint: [number, number], activeEditId?: string | null, fallbackPoint?: [number, number]): [number, number] => {
         const constrained = resolveConstrainedLatLng(L.latLng(nextPoint[0], nextPoint[1]), activeEditId, fallbackPoint);
@@ -903,88 +249,80 @@ export function usePolygonEditor({
         return candidate;
     }, [commitDrawingPoints, editingId, findLastPointAlongSegmentByPredicate, findNearestPointByPredicate, pointDistanceSq, resolveConstrainedLatLng, isEditCandidateAllowed, isPointAllowed, isSketchGeometryAllowed]);
 
-    const insertSketchPoint = useCallback((insertIndex: number, nextPoint: [number, number]): boolean => {
+    // shared by commit and live drag preview so the drag matches the saved shape
+    const resolveSketchInsertion = useCallback((insertIndex: number, nextPoint: [number, number]): [number, number][] | null => {
         const prev = drawingPointsRef.current;
         const insertAt = Math.max(0, Math.min(insertIndex + 1, prev.length));
-        const rawTarget: [number, number] = [nextPoint[0], nextPoint[1]];
         const buildCandidate = (pt: [number, number]) => [
             ...prev.slice(0, insertAt),
             pt,
             ...prev.slice(insertAt),
         ];
 
-        const constrained = resolveConstrainedLatLng(L.latLng(nextPoint[0], nextPoint[1]), editingId);
+        // go through the constrained resolver so shift-snap applies, like moveSketchPoint
+        const constrained = resolveConstrainedLatLng(L.latLng(nextPoint[0], nextPoint[1]), editingId, undefined, { respectShift: true });
         const target: [number, number] = [constrained.lat, constrained.lng];
 
         if (editingId) {
             const isEditPointValid = (pt: [number, number]) => isEditCandidateAllowed(buildCandidate(pt), pt, editingId, true);
 
-            const rawNext = buildCandidate(rawTarget);
-            if (isEditPointValid(rawTarget)) {
-                commitDrawingPoints(rawNext);
-                return true;
-            }
-
-            const next = buildCandidate(target);
-            if (isEditPointValid(target)) {
-                commitDrawingPoints(next);
-                return true;
-            }
+            if (isEditPointValid(target)) return buildCandidate(target);
 
             const anchor = prev.length > 0 ? prev[Math.max(0, insertAt - 1)] : null;
-            if (!anchor) return false;
+            if (!anchor) return null;
 
             const alongSegment = findLastPointAlongSegmentByPredicate(anchor, target, isEditPointValid);
             if (alongSegment && pointDistanceSq(alongSegment, anchor) > 1e-16) {
-                commitDrawingPoints(buildCandidate(alongSegment));
-                return true;
+                return buildCandidate(alongSegment);
             }
 
             const nearest = findNearestPointByPredicate(target, isEditPointValid, 24);
-            if (nearest) {
-                commitDrawingPoints(buildCandidate(nearest));
-                return true;
-            }
+            if (nearest) return buildCandidate(nearest);
 
             const relaxed = findNearestPointByPredicate(target, (pt) => isPointAllowed(pt, editingId), 24);
-            if (!relaxed) return false;
-            commitDrawingPoints(buildCandidate(relaxed));
-            return true;
-        }
-
-        const rawNext = buildCandidate(rawTarget);
-        if (isSketchGeometryAllowed(rawNext, editingId, true)) {
-            commitDrawingPoints(rawNext);
-            return true;
+            if (!relaxed) return null;
+            return buildCandidate(relaxed);
         }
 
         const next = buildCandidate(target);
-        if (isSketchGeometryAllowed(next, editingId, true)) {
-            commitDrawingPoints(next);
-            return true;
-        }
+        if (isSketchGeometryAllowed(next, editingId, true)) return next;
 
         const anchor = prev.length > 0 ? prev[Math.max(0, insertAt - 1)] : null;
-        if (!anchor) return false;
+        if (!anchor) return null;
 
         const alongSegment = findLastValidPointAlongSegment(anchor, target, buildCandidate, editingId);
         if (!alongSegment || pointDistanceSq(alongSegment, anchor) <= 1e-16) {
             const relaxed = findNearestValidPoint(target, buildCandidate, editingId, undefined, false);
-            if (!relaxed) return false;
-            const relaxedNext = buildCandidate(relaxed);
-            commitDrawingPoints(relaxedNext);
-            return true;
+            if (!relaxed) return null;
+            return buildCandidate(relaxed);
         }
 
         const adjusted = buildCandidate(alongSegment);
-        if (!isSketchGeometryAllowed(adjusted, editingId, true)) return false;
+        if (!isSketchGeometryAllowed(adjusted, editingId, true)) return null;
+        return adjusted;
+    }, [editingId, findLastPointAlongSegmentByPredicate, findLastValidPointAlongSegment, findNearestPointByPredicate, findNearestValidPoint, isEditCandidateAllowed, isPointAllowed, isSketchGeometryAllowed, resolveConstrainedLatLng]);
 
-        commitDrawingPoints(adjusted);
+    const insertSketchPoint = useCallback((insertIndex: number, nextPoint: [number, number]): boolean => {
+        const resolved = resolveSketchInsertion(insertIndex, nextPoint);
+        if (!resolved) return false;
+        commitDrawingPoints(resolved);
         return true;
-    }, [commitDrawingPoints, editingId, findLastPointAlongSegmentByPredicate, findLastValidPointAlongSegment, findNearestPointByPredicate, findNearestValidPoint, isEditCandidateAllowed, isPointAllowed, isSketchGeometryAllowed, resolveConstrainedLatLng]);
+    }, [commitDrawingPoints, resolveSketchInsertion]);
 
-    // In edit mode, "Add Point" toggle enables cursor-based insertion on the
-    // closing edge (last -> first) with live preview.
+    // returns the resolved point so the drag handler can pin the midpoint marker
+    const previewSketchInsertion = useCallback((edgeIndex: number, point: [number, number]): [number, number] | null => {
+        const resolved = resolveSketchInsertion(edgeIndex, point);
+        if (!resolved) return null;
+        setSketchInsertPreview(resolved);
+        const insertedIdx = Math.min(edgeIndex + 1, drawingPointsRef.current.length);
+        return resolved[insertedIdx] ?? null;
+    }, [resolveSketchInsertion]);
+
+    const clearSketchInsertPreview = useCallback(() => {
+        setSketchInsertPreview(null);
+    }, []);
+
+    // edit-mode "add point" toggle, cursor inserts on the closing edge with live preview
     useEffect(() => {
         const map = getMap();
         if (!map) return;
@@ -1093,15 +431,11 @@ export function usePolygonEditor({
     }, [editingId, isCreating, closeLoopMidpointEnabled, getMap, insertSketchPoint, isPointAllowed, isSketchClickSuppressed, pointDistanceSq, resolvePreviewPoint, setSnapPreview]);
 
     const cleanupEdit = useCallback(() => {
-        editStateRef.current = null;
-        drawingPointsRef.current = [];
-        setDrawingPoints([]);
-        setGhostCoords([]);
-        setCreatePreviewPoint(null);
+        goIdle();
         setIsHoveringSketchHandle(false);
         setSnapPreview(null);
         clearGhost();
-    }, [clearGhost, setSnapPreview]);
+    }, [clearGhost, goIdle, setSnapPreview]);
 
     const startEdit = useCallback((id: string, canEdit: boolean, forceCoords?: [number, number][]) => {
         if (!canEdit) return;
@@ -1111,16 +445,12 @@ export function usePolygonEditor({
         if (!rawCoords || rawCoords.length < 3) return;
 
         const coords = rawCoords.map(c => [c[0], c[1]] as [number, number]);
-        originalCoordsRef.current[id] = coords.map(c => [c[0], c[1]] as [number, number]);
+        const originalSnapshot = coords.map(c => [c[0], c[1]] as [number, number]);
 
         clearGhost();
         setSnapPreview(null);
-        setCreatePreviewPoint(null);
         setIsHoveringSketchHandle(false);
-        setIsCreating(false);
-        setEditingId(id);
         setCloseLoopMidpointEnabled(false);
-        setDrawingPoints(coords);
 
         const parentForEdit = poly?.parentId ?? selectedParentId;
         const ignoreIds = [id, ...getDescendantIds(id, polygons)];
@@ -1128,10 +458,10 @@ export function usePolygonEditor({
             edgeSnap: true,
             autoCorrect: autoCorrectEnabledRef.current,
         });
-        setGhostCoords(snapped || coords);
+        beginEdit(id, originalSnapshot, snapped || coords);
 
         getMap()?.closePopup?.();
-    }, [polygons, clearGhost, setSnapPreview, selectedParentId, updateGhost, getMap]);
+    }, [polygons, clearGhost, setSnapPreview, selectedParentId, updateGhost, getMap, beginEdit]);
 
     const finishEdit = useCallback(async (_forceParam: boolean | any = false) => {
         if (!editingId) return;
@@ -1142,10 +472,20 @@ export function usePolygonEditor({
         if (!newCoords || newCoords.length < 3) return;
 
         const ignoreIds = [editingId, ...getDescendantIds(editingId, polygons)];
-        const finalCoords = updateGhost(newCoords, parentId, ignoreIds, {
-            edgeSnap: true,
-            autoCorrect: autoCorrectEnabledRef.current,
-        }) || newCoords;
+        // commit the displayed ghost so the save matches what's on screen
+        // recomputing here with different params would save a different shape
+        const displayedGhost = ghostCoordsRef.current;
+        const canUseDisplayedGhost =
+            autoCorrectEnabledRef.current &&
+            !isHoveringSketchHandleRef.current &&
+            Array.isArray(displayedGhost) &&
+            displayedGhost.length >= 3;
+        const finalCoords = canUseDisplayedGhost
+            ? displayedGhost
+            : (updateGhost(newCoords, parentId, ignoreIds, {
+                edgeSnap: false,
+                autoCorrect: autoCorrectEnabledRef.current,
+            }) || newCoords);
 
         if (!autoCorrectEnabledRef.current) {
             const overlapping = detectOverlaps(editingId, finalCoords, parentId ?? null);
@@ -1154,7 +494,7 @@ export function usePolygonEditor({
                     edgeSnap: true,
                     autoCorrect: true,
                 }) || finalCoords;
-                setOverlapWarning({
+                flagOverlap({
                     polygonId: editingId,
                     overlappingPolygons: overlapping,
                     originalCoords: finalCoords,
@@ -1163,7 +503,6 @@ export function usePolygonEditor({
                     areaNameSnapshot: currentPoly?.name || t('map.defaultPolygonName'),
                     selectedPeriodIdSnapshot: currentPoly?.periodId ? String(currentPoly.periodId) : '',
                 });
-                setShowPreview(false);
                 return;
             }
         }
@@ -1172,111 +511,90 @@ export function usePolygonEditor({
         const coordsToSave = finalCoords;
         let alreadyUpdated = false;
 
-        // save existing polygon coords
+        // skip persistence for unsaved drafts, they live entirely client-side
         if (!editingId.startsWith('poly-')) {
             try {
-                const currentName = currentPoly?.name || t('map.defaultPolygonName');
+                const defaultName = t('map.defaultPolygonName');
+                const overrides = pickManualEditOverrides({ manualEditContext });
 
-                const isImportMode = contextType === 'import';
-                let response;
-                let finalName = '';
-                let finalPeriodId: number | null = null;
+                const result = await saveParcelCoords({
+                    parcelId: editingId,
+                    coords: coordsToSave,
+                    currentPoly,
+                    contextType,
+                    parcelsEndpoint,
+                    defaultName,
+                    ...overrides,
+                });
 
-                if (isImportMode) {
-                    // imports need patch
-                    const payload = { geodata: coordsToWKT(coordsToSave), validationNotes: "Manual edit" };
-                    response = await apiPatch(`/imports/parcels/${editingId}`, payload);
-                    finalName = currentPoly?.name || t('map.defaultPolygonName');
-                    finalPeriodId = currentPoly?.periodId ? Number(currentPoly.periodId) : null;
-                } else {
-                    // farms need put
-                    const periodIdNum = currentPoly?.periodId ? Number(currentPoly.periodId) : null;
-                    const payload: any = {
-                        geodata: coordsToWKT(coordsToSave),
-                        name: (currentName).trim() || t('map.defaultPolygonName'),
-                        active: true,
-                        periodId: (periodIdNum && periodIdNum > 0) ? periodIdNum : null,
-                        parentParcelId: normalizeParentParcelId(currentPoly?.parentId),
-                        startValidity: new Date().toISOString(),
-                        endValidity: null
-                    };
-
-                    // send farm id just in case
-                    if (contextType === 'farm') {
-                        const match = parcelsEndpoint.match(/\/farm\/([^\/]+)/);
-                        if (match) payload.farmId = Number(match[1]);
-                    }
-
-                    // save names if we fixed overlap
-                    if (manualEditContext && !manualEditContext.isNewPolygon) {
-                        const snpName = (manualEditContext.areaNameSnapshot || '').trim();
-                        if (snpName) payload.name = snpName;
-                        if (manualEditContext.selectedPeriodIdSnapshot) {
-                            const snpPeriodNum = Number(manualEditContext.selectedPeriodIdSnapshot);
-                            payload.periodId = (snpPeriodNum > 0) ? snpPeriodNum : null;
-                        }
-                    }
-
-                    response = await apiPut(`${parcelsEndpoint}/${editingId}`, payload);
-                    finalName = payload.name;
-                    finalPeriodId = payload.periodId;
-                }
-
-                if (!response.ok) {
-                    let details = '';
-                    try {
-                        details = await response.text();
-                    } catch {
-                        details = '';
-                    }
-                    console.error("Failed to update parcel", {
-                        status: response.status,
-                        statusText: response.statusText,
-                        details,
-                    });
-                }
-                else {
+                if (result.ok) {
                     const updateFn = (prev: PolygonData[]) => prev.map(p => p.id === editingId
-                        ? { ...p, name: finalName, periodId: finalPeriodId, coords: coordsToSave, version: (p.version || 0) + 1 }
+                        ? { ...p, name: result.finalName, periodId: result.finalPeriodId, coords: coordsToSave, version: (p.version || 0) + 1 }
                         : p
                     );
                     setPolygons(updateFn);
                     setAllPolygons(updateFn);
                     alreadyUpdated = true;
+
+                    // re-fit children to the new parent shape
+                    const childrenToUpdate = polygons.filter(p =>
+                        String(p.parentId) === String(editingId) && !p.id.startsWith('poly-')
+                    );
+                    for (const child of childrenToUpdate) {
+                        try {
+                            const childResult = await autoCorrectChild({
+                                child,
+                                parentCoords: coordsToSave,
+                                contextType,
+                                parcelsEndpoint,
+                                defaultName,
+                            });
+                            if (childResult.ok && childResult.coords) {
+                                const finalChildCoords = childResult.coords;
+                                const updateChildFn = (prev: PolygonData[]) => prev.map(p =>
+                                    p.id === child.id
+                                        ? { ...p, coords: finalChildCoords, version: (p.version || 0) + 1 }
+                                        : p
+                                );
+                                setPolygons(updateChildFn);
+                                setAllPolygons(updateChildFn);
+                            }
+                        } catch (e) {
+                            console.error("Error auto-correcting child on save:", e);
+                        }
+                    }
                 }
             } catch (err) {
                 console.error("Failed to update parcel:", err);
             }
         }
 
-        // re-open create modal if new polygon
+        // re-open the create modal for a new polygon
         if (manualEditContext?.isNewPolygon) {
             setAreaName(manualEditContext.areaNameSnapshot || t('map.defaultPolygonName'));
             setSelectedPeriodId(manualEditContext.selectedPeriodIdSnapshot || '');
             setModal({ open: true, coords: coordsToSave });
-            setOverlapWarning(null);
+            dismissOverlap();
         }
 
         if (!manualEditContext?.isNewPolygon && !alreadyUpdated) {
             updatePolygon(editingId, coordsToSave, true);
         }
 
-        delete originalCoordsRef.current[editingId];
-        setManualEditContext(null);
-        setPendingManualEditId(null);
+        clearManualEdit();
         setSelectedParentId(null);
         setCloseLoopMidpointEnabled(true);
         cleanupEdit();
-        setEditingId(null);
         getMap()?.closePopup?.();
-    }, [editingId, polygons, selectedParentId, updateGhost, clearGhost, detectOverlaps, contextType, parcelsEndpoint, manualEditContext, t, updatePolygon, cleanupEdit, getMap, setSelectedParentId]);
+    }, [editingId, polygons, selectedParentId, updateGhost, clearGhost, detectOverlaps, contextType, parcelsEndpoint, manualEditContext, t, updatePolygon, cleanupEdit, getMap, setSelectedParentId, flagOverlap, dismissOverlap, clearManualEdit, setAreaName, setSelectedPeriodId, setModal]);
 
     const cancelEdit = useCallback(() => {
         if (!editingId) return;
+        // snapshot the original before cleanupEdit clears the editing state
+        const original = originalCoordsRef.current;
+
         if (manualEditContext && manualEditContext.warning.polygonId === editingId) {
             cleanupEdit();
-            setEditingId(null);
-            delete originalCoordsRef.current[editingId];
             if (manualEditContext.isNewPolygon) {
                 setPolygons(prev => prev.filter(p => p.id !== editingId));
                 setAreaName(manualEditContext.areaNameSnapshot);
@@ -1285,26 +603,20 @@ export function usePolygonEditor({
             } else {
                 setRenamingId(editingId);
             }
-            setOverlapWarning(manualEditContext.warning);
-            setShowPreview(false);
-            setManualEditContext(null);
-            setPendingManualEditId(null);
+            restoreOverlapFromContext(manualEditContext.warning);
             setCloseLoopMidpointEnabled(true);
             getMap()?.closePopup?.();
             return;
         }
 
-        const original = originalCoordsRef.current[editingId];
         if (original && editingId.startsWith('poly-')) {
             updatePolygon(editingId, original, true);
         }
-        delete originalCoordsRef.current[editingId];
         setCloseLoopMidpointEnabled(true);
         cleanupEdit();
-        setEditingId(null);
         setSelectedParentId(null);
         getMap()?.closePopup?.();
-    }, [editingId, manualEditContext, cleanupEdit, getMap, setPolygons, setAreaName, setSelectedParentId, updatePolygon]);
+    }, [editingId, manualEditContext, cleanupEdit, getMap, setPolygons, setAreaName, setSelectedParentId, updatePolygon, restoreOverlapFromContext, setModal, setRenamingId, setSelectedPeriodId, originalCoordsRef]);
 
     const deletePolygon = useCallback(async (id: string, canEdit: boolean) => {
         if (!canEdit) return;
@@ -1320,20 +632,14 @@ export function usePolygonEditor({
         setAllPolygons(prev => prev.filter(p => p.id !== id));
         if (id === editingId) {
             cleanupEdit();
-            setEditingId(null);
         }
     }, [contextType, editingId, cleanupEdit, setPolygons, setAllPolygons]);
     const startCreate = useCallback(() => {
-        drawingPointsRef.current = [];
-        setDrawingPoints([]);
-        setIsCreating(true);
-        setEditingId(null);
-        setCreatePointCount(0);
+        beginCreate();
         setIsHoveringSketchHandle(false);
         setCloseLoopMidpointEnabled(true);
-        
-        // Listen to map pointer-down to add points reliably.
-        // `click` can be dropped by tiny drags on some devices.
+
+        // pointer-down is more reliable than click, which some devices drop on tiny drags
         const map = getMap();
         if (!map) return;
 
@@ -1431,7 +737,7 @@ export function usePolygonEditor({
             if (target?.closest('.custom-vertex-icon, .custom-midpoint-icon')) return;
             maybeAddPoint(e.latlng, original?.timeStamp);
         };
-        
+
         const computePreviewAt = (latlng: L.LatLng) => {
             const canCursorInsert = drawingPointsRef.current.length < 3 || closeLoopMidpointEnabledRef.current;
             if (!canCursorInsert || isHoveringSketchHandleRef.current) {
@@ -1491,14 +797,14 @@ export function usePolygonEditor({
             }
             pendingMoveLatLng = null;
         };
-        
-        // Store for cleanup
+
+        // stored for cleanup
         (map as any)._sketchDownHandler = downHandler;
         (map as any)._sketchUpHandler = upHandler;
         (map as any)._sketchClickHandler = clickHandler;
         (map as any)._sketchMoveHandler = moveHandler;
         (map as any)._sketchCancelMoveRaf = cancelMoveRaf;
-    }, [clampPointToParentBoundary, commitDrawingPoints, getMap, isPointAllowed, pointDistanceSq, resolvePreviewPoint]);
+    }, [beginCreate, clampPointToParentBoundary, commitDrawingPoints, getMap, isPointAllowed, pointDistanceSq, resolvePreviewPoint]);
 
     const cancelCreate = useCallback((options?: { preserveSelectedParent?: boolean }) => {
         const map = getMap();
@@ -1519,14 +825,9 @@ export function usePolygonEditor({
             delete mapAny._sketchWasDoubleClickZoomEnabled;
 
             setSnapPreview(null);
-            setCreatePreviewPoint(null);
         }
-        setIsCreating(false);
-        setCreatePointCount(0);
-        drawingPointsRef.current = [];
+        goIdle();
         suppressSketchClickUntilRef.current = 0;
-        setDrawingPoints([]);
-        setGhostCoords([]);
         setIsHoveringSketchHandle(false);
         clearGhostRef.current();
         setCloseLoopMidpointEnabled(true);
@@ -1537,7 +838,7 @@ export function usePolygonEditor({
         if (createdLayerRef.current) map?.removeLayer(createdLayerRef.current);
         createdLayerRef.current = null;
         createHandlerRef.current = null;
-    }, [getMap, setAreaName, setSelectedParentId]);
+    }, [getMap, goIdle, setAreaName, setSelectedParentId, setSnapPreview]);
 
     const finishCreate = useCallback((handleCreated: (e: any) => void) => {
         const coords = drawingPointsRef.current;
@@ -1547,14 +848,18 @@ export function usePolygonEditor({
         }
         const map = getMap();
         if (!map) return;
-        
-        // Final Snap & Avoidance
-        const snapped = updateGhostRef.current(coords, parentIdRef.current, [], {
-            edgeSnap: false,
-            autoCorrect: autoCorrectEnabledRef.current,
-        }) || coords;
+
+        // commit the displayed ghost, recompute only as fallback
+        const displayedGhost = ghostCoordsRef.current;
+        const snapped =
+            (autoCorrectEnabledRef.current && !isHoveringSketchHandleRef.current && displayedGhost.length >= 3)
+                ? displayedGhost
+                : (updateGhostRef.current(coords, parentIdRef.current, [], {
+                    edgeSnap: false,
+                    autoCorrect: autoCorrectEnabledRef.current,
+                }) || coords);
         handleCreated({ layer: L.polygon(snapped) });
-        
+
         cancelCreate({ preserveSelectedParent: true });
     }, [cancelCreate, getMap]);
 
@@ -1590,9 +895,9 @@ export function usePolygonEditor({
         editingId, setEditingId,
         isCreating, setIsCreating,
         createPointCount, setCreatePointCount,
-        drawingPoints, setDrawingPoints,
-        ghostCoords, setGhostCoords,
-        createPreviewPoint, setCreatePreviewPoint,
+        drawingPoints,
+        ghostCoords,
+        createPreviewPoint,
         autoCorrectEnabled, setAutoCorrectEnabled,
         edgeSnapEnabled,
         closeLoopMidpointEnabled, setCloseLoopMidpointEnabled,
@@ -1600,6 +905,7 @@ export function usePolygonEditor({
         suppressSketchClickTemporarily,
         constrainSketchPoint,
         moveSketchPoint, insertSketchPoint,
+        sketchInsertPreview, previewSketchInsertion, clearSketchInsertPreview,
         removeLastSketchPoint, removeSketchPoint,
         startCreate, cancelCreate, finishCreate,
         overlapWarning, setOverlapWarning,
@@ -1607,7 +913,7 @@ export function usePolygonEditor({
         pendingManualEditId, setPendingManualEditId,
         manualEditContext, setManualEditContext,
         previewVisibility, setPreviewVisibility,
-        originalCoordsRef, editStateRef, createdLayerRef, createHandlerRef,
+        createdLayerRef, createHandlerRef,
         detectOverlaps, updatePolygon, cleanupEdit, startEdit, finishEdit, cancelEdit, deletePolygon,
     };
 }

@@ -18,7 +18,7 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      navigate(buildLocalizedPath(locale, '/login'));
+      navigate(buildLocalizedPath(locale, '/login'), { state: { notice: 'signInRequired' } });
     }
   }, [isAuthenticated, isLoading, locale, navigate]);
 

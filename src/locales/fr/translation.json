@@ -22,7 +22,7 @@
   "imports": {
     "title": "Listes d'import",
     "subtitle": "Validez vos prochaines importations",
-    "description": "Sélectionnez un lot pour vérifier ses polygones avant de l'appliquer à votre exploitation.",
+    "description": "Sélectionnez un lot pour vérifier ses parcelles avant de l'appliquer à votre exploitation.",
     "status": {
       "pending": "En attente",
       "approved": "Approuvée",
@@ -34,7 +34,7 @@
       "empty": "Aucun lot d'importation pour le moment.",
       "createdAt": "Créé le {{date}}",
       "untitled": "Lot sans nom",
-      "polygons": "Polygones",
+      "polygons": "Parcelles",
       "source": "Source",
       "open": "Ouvrir pour validation",
       "rename": "Renommer",
@@ -44,8 +44,8 @@
       "title": "Validation d'import",
       "loadingMap": "Chargement de la carte...",
       "loadingDetails": "Chargement des détails du lot...",
-      "polygonsCount": "{{count}} polygones à valider",
-      "instructions": "Ajustez les polygones puis approuvez la liste pour l'importer.",
+      "polygonsCount": "{{count}} parcelles à valider",
+      "instructions": "Ajustez les parcelles puis approuvez la liste pour l'importer.",
       "noSelectionTitle": "Sélectionnez un lot d'importation",
       "noSelectionDescription": "Choisissez un lot dans la liste des importations pour commencer la validation.",
       "returnToList": "Retour aux importations",
@@ -163,26 +163,26 @@
           "title": "1. Préparer l'espace de travail",
           "body": "Avant de dessiner, assurez-vous d'être connecté et d'avoir sélectionné la bonne exploitation dans la barre de navigation.",
           "actions": [
-            "Choisissez une exploitation avec le sélecteur près de votre photo de profil. Les polygones et la palette de couleurs se chargent alors.",
+            "Choisissez une exploitation avec le sélecteur près de votre photo de profil. Les parcelles et la palette de couleurs se chargent alors.",
             "Cliquez sur le lien \"Carte\" dans la navigation pour ouvrir l'éditeur.",
             "Patientez jusqu'à la fin du chargement de la carte de base (indicateur dans le panneau droit)."
           ]
         },
         {
-          "title": "2. Créer un polygone",
+          "title": "2. Créer une parcelle",
           "body": "Dessinez des parcelles expérimentales en déposant des sommets sur l'imagerie.",
           "actions": [
-            "Cliquez sur le bouton \"Ajouter\" dans la barre latérale, puis sélectionnez \"Polygone\".",
+            "Cliquez sur le bouton \"Nouvelle parcelle\" dans la barre latérale pour commencer le tracé.",
             "Cliquez gauche sur la carte pour poser chaque sommet. Utilisez la molette pour zoomer avec précision.",
             "Fermez la forme en cliquant sur le premier sommet ou appuyez sur Entrée pour auto-terminer.",
             "Donnez un nom à la parcelle dans la fenêtre qui s'affiche puis validez pour l'enregistrer."
           ]
         },
         {
-          "title": "3. Modifier un polygone",
+          "title": "3. Modifier une parcelle",
           "body": "Ajustez les formes lorsque les essais évoluent.",
           "actions": [
-            "Sélectionnez le polygone depuis la liste ou directement sur la carte.",
+            "Sélectionnez la parcelle depuis la liste ou directement sur la carte.",
             "Utilisez l'action \"Modifier\" de la barre d'outils pour afficher les sommets déplaçables.",
             "Faites glisser les poignées, double-cliquez pour insérer un sommet, appuyez sur Suppr pour en retirer un.",
             "Cliquez sur \"Enregistrer\" une fois satisfait ou \"Annuler\" pour revenir à l'état initial."
@@ -190,9 +190,9 @@
         },
         {
           "title": "4. Gérer visibilité et couleurs",
-          "body": "Gardez une vue lisible en affichant/masquant les polygones et en appliquant des couleurs parlantes.",
+          "body": "Gardez une vue lisible en affichant/masquant les parcelles et en appliquant des couleurs parlantes.",
           "actions": [
-            "Ouvrez la liste des polygones à droite et utilisez la case à cocher pour afficher ou masquer une parcelle.",
+            "Ouvrez la liste des parcelles à droite et utilisez la case à cocher pour afficher ou masquer une parcelle.",
             "Cliquez sur le point coloré pour choisir une nouvelle teinte associée à une culture ou un type d'essai.",
             "Regroupez les sous-parcelles liées en leur attribuant la même palette."
           ]
@@ -201,7 +201,7 @@
           "title": "5. Supprimer",
           "body": "Nettoyez vos prototypes.",
           "actions": [
-            "Utilisez le menu d'un polygone pour le supprimer.",
+            "Utilisez le menu d'une parcelle pour la supprimer.",
             "Choisissez \"Supprimer\" pour retirer une parcelle. Une confirmation évite les suppressions accidentelles.",
             "Lors d'une suppression, EFMS conserve l'historique mais retire la parcelle de la carte active."
           ]
@@ -210,7 +210,7 @@
       "tips": {
         "title": "Astuces de terrain",
         "items": [
-          "Nommez les polygones avec une convention cohérente comme CHAMP-PARCELLE-SOUSPARCELLE (ex : B1-Rouge-2025)."
+          "Nommez les parcelles avec une convention cohérente comme CHAMP-PARCELLE-SOUSPARCELLE (ex : B1-Rouge-2025)."
         ]
       },
       "shortcuts": {
@@ -230,7 +230,7 @@
           },
           {
             "keys": "Ctrl + D",
-            "description": "Duplique le polygone sélectionné."
+            "description": "Duplique la parcelle sélectionnée."
           }
         ]
       }
@@ -253,10 +253,13 @@
     "previous": "Précédent",
     "next": "Suivant",
     "loading": "Chargement...",
+    "searching": "Recherche en cours...",
+    "userNotFound": "Aucun utilisateur trouvé",
     "yes": "Oui",
     "no": "Non",
     "success": "Succès",
-    "error": "Erreur"
+    "error": "Erreur",
+    "close": "Fermer"
   },
   "farmSelector": {
     "noFarms": "Aucune exploitation disponible",
@@ -436,6 +439,7 @@
       "title": "Se connecter à EFMS",
       "submit": "Se connecter",
       "submitting": "Connexion...",
+      "signInRequired": "Vous devez avoir un compte pour accéder à cette page.",
       "errors": {
         "invalidCredentials": "Nom d'utilisateur ou mot de passe invalide"
       },
@@ -614,6 +618,29 @@
     "preferences": "Préférences",
     "pinTopRight": "Ouvrir la fenêtre d'opérations en haut à droite",
     "pinTopRightHint": "Utilisé aussi pour la fenêtre d'opérations sur la carte.",
+    "timeFormat": "Format de l'heure",
+    "timeFormatHint": "Comment les heures sont affichées dans l'application.",
+    "timeFormatOptions": {
+      "24h": "24 heures (13:45)",
+      "12h": "12 heures (1:45 PM)"
+    },
+    "dateFormat": "Format de la date",
+    "dateFormatHint": "Auto suit votre langue ; choisissez un format fixe pour forcer.",
+    "dateFormatOptions": {
+      "auto": "Auto (selon la langue)"
+    },
+    "preferredLanguage": "Langue",
+    "preferredLanguageHint": "Remplace la langue du navigateur.",
+    "preferredLanguageOptions": {
+      "auto": "Auto (langue du navigateur)",
+      "en": "Anglais",
+      "fr": "Français"
+    },
+    "defaultFarm": "Exploitation par défaut",
+    "defaultFarmHint": "Sélectionnée automatiquement après une nouvelle connexion. Un rafraîchissement conserve la dernière exploitation utilisée.",
+    "defaultFarmNone": "Pas de défaut (afficher le sélecteur)",
+    "emailNotifications": "Notifications par email",
+    "emailNotificationsHint": "Interrupteur principal pour partages, imports et alertes de parcelles.",
     "save": "Enregistrer",
     "saving": "Enregistrement...",
     "saved": "Profil mis à jour",
@@ -637,7 +664,7 @@
       "selectButton": "Utiliser cette exploitation",
       "stepLabel": "Pour commencer",
       "emptyTitle": "Vous n'avez pas encore d'exploitation",
-      "emptyDescription": "Créez votre première exploitation pour démarrer la cartographie.",
+      "emptyDescription": "Créez votre première exploitation pour démarrer la cartographie, ou demandez à un autre utilisateur de vous en partager une.",
       "createButton": "Créer une exploitation"
     },
     "tour": {
@@ -656,14 +683,14 @@
         },
         "toolbar": {
           "title": "Barre d'outils de dessin",
-          "description": "Créez, terminez ou annulez un polygone avec ces commandes flottantes. Elles s'adaptent automatiquement lorsque vous modifiez une parcelle."
+          "description": "Créez, terminez ou annulez une parcelle avec ces commandes flottantes. Elles s'adaptent automatiquement lorsque vous modifiez une parcelle."
         },
         "canvas": {
           "title": "Carte interactive",
           "description": "Cliquez pour sélectionner des parcelles, clic droit pour les actions rapides et zoomez pour numériser vos sous-parcelles avec précision."
         },
         "list": {
-          "title": "Liste des polygones",
+          "title": "Liste des parcelles",
           "description": "Recherchez, renommez, recolorez ou masquez des parcelles depuis ce panneau. Repliez-le quand vous avez besoin d'espace."
         }
       }
@@ -707,14 +734,14 @@
       "endDate": "Date de fin",
       "mapAreaLabel": "Utiliser la zone visible",
       "mapAreaHint": "Utilise la fenêtre de la carte au moment de l'application.",
-      "polygonLabel": "Zone polygonale",
-      "polygonReady": "Polygone prêt",
-      "polygonEmpty": "Aucun polygone",
-      "drawPolygon": "Dessiner un polygone",
-      "clearPolygon": "Effacer le polygone",
+      "polygonLabel": "Zone parcellaire",
+      "polygonReady": "Parcelle prête",
+      "polygonEmpty": "Aucune parcelle",
+      "drawPolygon": "Dessiner une parcelle",
+      "clearPolygon": "Effacer la parcelle",
       "drawingHint": "Cliquez sur la carte pour dessiner la zone de recherche.",
       "cancelDraw": "Annuler",
-      "usePolygon": "Limiter la recherche à ce polygone",
+      "usePolygon": "Limiter la recherche à cette parcelle",
       "usePolygonHint": "Utilise le contour que vous venez de dessiner.",
       "apply": "Appliquer les filtres",
       "clear": "Effacer"
@@ -734,7 +761,7 @@
       "errorUpdate": "Impossible de mettre à jour la période"
     },
     "contextMenu": {
-      "addPolygon": "Ajouter une nouvelle parcelle"
+      "addPolygon": "Nouvelle parcelle"
     },
     "polygonMenu": {
       "rename": "Renommer",
@@ -756,6 +783,8 @@
       "currentShares": "Personnes ayant accès",
       "noShares": "Pas encore partagé",
       "remove": "Retirer",
+      "includeChildren": "Partager aussi les sous-parcelles",
+      "includeChildrenShort": "Inclut les sous-parcelles",
       "roles": {
         "editor": "Éditeur",
         "viewer": "Lecteur"
@@ -763,7 +792,8 @@
       "errors": {
         "loadFailed": "Impossible de charger les partages.",
         "saveFailed": "Impossible d'enregistrer le partage.",
-        "usernameRequired": "Saisissez un nom d'utilisateur."
+        "usernameRequired": "Saisissez un nom d'utilisateur.",
+        "cannotShareWithSelf": "Vous ne pouvez pas partager une parcelle avec vous-même."
       }
     },
     "deletePrompt": "Supprimer \"{{name}}\" ?",
@@ -785,18 +815,25 @@
       "fixed": "Auto-corrigé"
     },
     "toolbar": {
-      "addTitle": "Ajouter",
+      "addTitle": "Nouvelle parcelle",
       "toggleAutoCorrect": "Activer/désactiver la correction automatique des chevauchements",
-      "toggleCloseLoopMidpoint": "Activer/désactiver l'ajout de point sur le bord de fermeture",
+      "toggleCloseLoopMidpoint": "Activer/désactiver l'ajout d'un nouveau point sur le bord de fermeture",
       "autoCorrectOn": "Correction auto : activée",
       "autoCorrectOff": "Correction auto : désactivée",
-      "closeLoopMidpointOn": "Point de fermeture : activé",
-      "closeLoopMidpointOff": "Point de fermeture : désactivé",
+      "closeLoopMidpointOn": "Nouveau point : activé",
+      "closeLoopMidpointOff": "Nouveau point : désactivé",
       "finishDrawing": "Terminer le dessin",
       "cancelDrawing": "Annuler le dessin",
       "removeLastPoint": "Supprimer le dernier point",
       "saveEdit": "Enregistrer",
-      "cancelEdit": "Annuler"
+      "cancelEdit": "Annuler",
+      "layersTitle": "Choisir les couches de parcelles à afficher",
+      "layersLabel": "Couches",
+      "layersFrom": "De",
+      "layersTo": "À",
+      "layersAll": "Tous",
+      "scopeFamilyOnly": "Masquer les autres parcelles",
+      "scopeShowAll": "Tout afficher"
     },
     "overlap": {
       "title": "Chevauchement détecté",

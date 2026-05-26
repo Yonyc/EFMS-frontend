@@ -22,7 +22,7 @@
   "imports": {
     "title": "Import lists",
     "subtitle": "Validate your upcoming imports",
-    "description": "Select a batch to review its polygons before applying it to your farm.",
+    "description": "Select a batch to review its parcels before applying it to your farm.",
     "status": {
       "pending": "Pending",
       "approved": "Approved",
@@ -34,7 +34,7 @@
       "empty": "No import batches found yet.",
       "createdAt": "Created on {{date}}",
       "untitled": "Untitled batch",
-      "polygons": "Polygons",
+      "polygons": "Parcels",
       "source": "Source",
       "open": "Open for validation",
       "rename": "Rename",
@@ -44,10 +44,10 @@
       "title": "Import validation",
       "loadingMap": "Loading map...",
       "loadingDetails": "Loading batch details...",
-      "polygonsCount": "{{count}} polygons ready for review",
-      "instructions": "Adjust polygons, then approve the list to import it.",
+      "polygonsCount": "{{count}} parcels ready for review",
+      "instructions": "Adjust parcels, then approve the list to import it.",
       "noSelectionTitle": "Select an import batch",
-      "noSelectionDescription": "Choose a batch from the imports list to start validating polygons.",
+      "noSelectionDescription": "Choose a batch from the imports list to start validating parcels.",
       "returnToList": "Back to imports",
       "approveButton": "Approve import list",
       "approvedLabel": "This import list has been approved.",
@@ -163,26 +163,26 @@
           "title": "1. Prepare the workspace",
           "body": "Before drawing, make sure you are authenticated and that the right farm is selected in the navigation bar.",
           "actions": [
-            "Choose a farm with the selector next to your profile picture. This loads its polygons and color palette.",
+            "Choose a farm with the selector next to your profile picture. This loads its parcels and color palette.",
             "Press the map link in the navbar to open the editor.",
             "Wait for the base map to finish loading (spinner in the right panel)."
           ]
         },
         {
-          "title": "2. Create a polygon",
+          "title": "2. Create a parcel",
           "body": "Draw experimental parcels by placing vertices on the imagery layer.",
           "actions": [
-            "Click the \"Add\" button in the left toolbar, then select \"Polygon\".",
+            "Click the \"New parcel\" button in the left toolbar to start drawing.",
             "Left-click on the map to drop each vertex. Use scroll to zoom for higher precision.",
-            "Close the polygon by clicking on the first vertex or by pressing Enter to auto-complete.",
+            "Close the parcel by clicking on the first vertex or by pressing Enter to auto-complete.",
             "Give the parcel a name in the modal that appears and confirm to save it."
           ]
         },
         {
-          "title": "3. Edit an existing polygon",
+          "title": "3. Edit an existing parcel",
           "body": "Adjust shapes whenever trials evolve.",
           "actions": [
-            "Select the polygon either from the list or by clicking it on the map.",
+            "Select the parcel either from the list or by clicking it on the map.",
             "Use the toolbar action \"Edit\" to expose draggable vertices.",
             "Drag handles to new positions; double-click to insert a new vertex, press Delete to remove one.",
             "Hit \"Save\" when you are satisfied or \"Cancel\" to revert changes."
@@ -190,9 +190,9 @@
         },
         {
           "title": "4. Manage visibility & colors",
-          "body": "Keep the view readable by toggling polygons on and off and applying semantic colors.",
+          "body": "Keep the view readable by toggling parcels on and off and applying semantic colors.",
           "actions": [
-            "Open the polygon list on the right and use the checkbox to show or hide a parcel.",
+            "Open the parcel list on the right and use the checkbox to show or hide a parcel.",
             "Click the colored dot to choose a new hue that matches crops or experiment types.",
             "Group related sub-parcels by assigning the same color family."
           ]
@@ -201,7 +201,7 @@
           "title": "5. Delete",
           "body": "Clean up prototypes.",
           "actions": [
-            "Use the menu on a polygon.",
+            "Use the menu on a parcel.",
             "Select \"Delete\" to remove a parcel. You will be asked to confirm to avoid accidental loss.",
             "When deleting, EFMS keeps the historical log but removes it from the live map."
           ]
@@ -210,7 +210,7 @@
       "tips": {
         "title": "Field-tested tips",
         "items": [
-          "Name polygons with a consistent convention such as FIELD-PLOT-SUBPLOT (e.g., B1-Red-2025)."
+          "Name parcels with a consistent convention such as FIELD-PLOT-SUBPLOT (e.g., B1-Red-2025)."
         ]
       },
       "shortcuts": {
@@ -230,7 +230,7 @@
           },
           {
             "keys": "Ctrl + D",
-            "description": "Duplicate the selected polygon."
+            "description": "Duplicate the selected parcel."
           }
         ]
       }
@@ -253,10 +253,13 @@
     "previous": "Previous",
     "next": "Next",
     "loading": "Loading...",
+    "searching": "Searching...",
+    "userNotFound": "No user found",
     "yes": "Yes",
     "no": "No",
     "success": "Success",
-    "error": "Error"
+    "error": "Error",
+    "close": "Close"
   },
   "farmSelector": {
     "noFarms": "No farms available",
@@ -436,6 +439,7 @@
       "title": "Sign in to EFMS",
       "submit": "Sign in",
       "submitting": "Signing in...",
+      "signInRequired": "You need an account to access this page.",
       "errors": {
         "invalidCredentials": "Invalid username or password"
       },
@@ -614,6 +618,29 @@
     "preferences": "Preferences",
     "pinTopRight": "Open operations popup at top-right",
     "pinTopRightHint": "Also used on the map operations popup.",
+    "timeFormat": "Time format",
+    "timeFormatHint": "How clock times are shown across the app.",
+    "timeFormatOptions": {
+      "24h": "24-hour (13:45)",
+      "12h": "12-hour (1:45 PM)"
+    },
+    "dateFormat": "Date format",
+    "dateFormatHint": "Auto matches your language; pick a fixed format to override.",
+    "dateFormatOptions": {
+      "auto": "Auto (from language)"
+    },
+    "preferredLanguage": "Language",
+    "preferredLanguageHint": "Overrides your browser language.",
+    "preferredLanguageOptions": {
+      "auto": "Auto (browser language)",
+      "en": "English",
+      "fr": "French"
+    },
+    "defaultFarm": "Default farm",
+    "defaultFarmHint": "Auto-selected after fresh login. A refresh keeps whatever farm you last used.",
+    "defaultFarmNone": "No default (show picker)",
+    "emailNotifications": "Email notifications",
+    "emailNotificationsHint": "Master switch for shares, imports and parcel alerts.",
     "save": "Save changes",
     "saving": "Saving...",
     "saved": "Profile updated",
@@ -627,7 +654,7 @@
     "avatarError": "Failed to update avatar"
   },
   "map": {
-    "defaultPolygonName": "Polygon",
+    "defaultPolygonName": "Parcel",
     "unnamedParcel": "Unnamed Parcel",
     "farmSelection": {
       "chooseLabel": "Step 1 · Choose a farm",
@@ -637,7 +664,7 @@
       "selectButton": "Use this farm",
       "stepLabel": "Get started",
       "emptyTitle": "You don't have any farms yet",
-      "emptyDescription": "Create your first farm to start mapping parcels.",
+      "emptyDescription": "Create your first farm to start mapping parcels, or have one shared with you by another user.",
       "createButton": "Create a farm"
     },
     "tour": {
@@ -656,29 +683,29 @@
         },
         "toolbar": {
           "title": "Drawing toolbar",
-          "description": "Create, finish or cancel polygons with these floating controls. They change automatically when you edit an existing parcel."
+          "description": "Create, finish or cancel parcels with these floating controls. They change automatically when you edit an existing parcel."
         },
         "canvas": {
           "title": "Interactive map",
           "description": "Click to select parcels, right-click for quick actions and zoom in to digitize sub-plots with centimeter precision."
         },
         "list": {
-          "title": "Polygon list",
+          "title": "Parcel list",
           "description": "Search, rename, recolor or hide parcels from this drawer. Collapse it when you need extra space."
         }
       }
     },
     "polygonList": {
-      "title": "Polygons",
-      "empty": "No polygons yet",
-      "placeholder": "Polygon name",
+      "title": "Parcels",
+      "empty": "No parcels yet",
+      "placeholder": "Parcel name",
       "visible": "Visible on map",
       "hidden": "Hidden on map",
-      "toggle": "Toggle polygon list",
+      "toggle": "Toggle parcel list",
       "helper": "Click name to rename",
       "center": "Center on map",
-      "emptyFiltered": "No polygons match this filter",
-      "searchPlaceholder": "Search polygons",
+      "emptyFiltered": "No parcels match this filter",
+      "searchPlaceholder": "Search parcels",
       "clearSearch": "Clear search",
       "filters": {
         "label": "Filters",
@@ -707,15 +734,15 @@
       "endDate": "End date",
       "mapAreaLabel": "Use current map area",
       "mapAreaHint": "Applies the map viewport at the moment you click Apply.",
-      "polygonLabel": "Polygon area",
-      "polygonReady": "Polygon ready",
-      "polygonEmpty": "No polygon yet",
-      "drawPolygon": "Draw polygon",
-      "clearPolygon": "Clear polygon",
-      "drawingHint": "Click on the map to draw the search polygon.",
+      "polygonLabel": "Parcel area",
+      "polygonReady": "Parcel ready",
+      "polygonEmpty": "No parcel yet",
+      "drawPolygon": "Draw parcel",
+      "clearPolygon": "Clear parcel",
+      "drawingHint": "Click on the map to draw the search parcel.",
       "cancelDraw": "Cancel",
-      "usePolygon": "Restrict search to this polygon",
-      "usePolygonHint": "Uses the polygon boundary you just drew.",
+      "usePolygon": "Restrict search to this parcel",
+      "usePolygonHint": "Uses the parcel boundary you just drew.",
       "apply": "Apply filters",
       "clear": "Clear"
     },
@@ -734,12 +761,12 @@
       "errorUpdate": "Unable to update period"
     },
     "contextMenu": {
-      "addPolygon": "Add New Polygon"
+      "addPolygon": "New parcel"
     },
     "polygonMenu": {
       "rename": "Rename",
       "edit": "Edit",
-      "addChild": "Add child parcel",
+      "addChild": "Add sub-parcel",
       "selectParent": "Select parent",
       "color": "Color",
       "delete": "Delete"
@@ -756,6 +783,8 @@
       "currentShares": "People with access",
       "noShares": "Not shared with anyone yet",
       "remove": "Remove",
+      "includeChildren": "Also share sub-parcels",
+      "includeChildrenShort": "Includes sub-parcels",
       "roles": {
         "editor": "Editor",
         "viewer": "Viewer"
@@ -763,13 +792,14 @@
       "errors": {
         "loadFailed": "Unable to load shares.",
         "saveFailed": "Unable to save share.",
-        "usernameRequired": "Enter a username to share."
+        "usernameRequired": "Enter a username to share.",
+        "cannotShareWithSelf": "You cannot share a parcel with yourself."
       }
     },
     "deletePrompt": "Delete \"{{name}}\"?",
     "renameModal": {
-      "title": "Rename Polygon",
-      "placeholder": "Polygon name",
+      "title": "Rename Parcel",
+      "placeholder": "Parcel name",
       "periodLabel": "Period",
       "periodPlaceholder": "No period"
     },
@@ -785,27 +815,34 @@
       "fixed": "Auto-fixed"
     },
     "toolbar": {
-      "addTitle": "Add",
+      "addTitle": "New parcel",
       "toggleAutoCorrect": "Toggle auto overlap correction",
-      "toggleCloseLoopMidpoint": "Toggle cursor add point on closing edge",
+      "toggleCloseLoopMidpoint": "Toggle adding a new point on the closing edge",
       "autoCorrectOn": "Auto-correct: on",
       "autoCorrectOff": "Auto-correct: off",
-      "closeLoopMidpointOn": "Close-edge point: on",
-      "closeLoopMidpointOff": "Close-edge point: off",
+      "closeLoopMidpointOn": "New point: on",
+      "closeLoopMidpointOff": "New point: off",
       "finishDrawing": "Finish drawing",
       "cancelDrawing": "Cancel drawing",
       "removeLastPoint": "Remove last point",
       "saveEdit": "Save",
-      "cancelEdit": "Cancel"
+      "cancelEdit": "Cancel",
+      "layersTitle": "Choose which parcel layers to display",
+      "layersLabel": "Layers",
+      "layersFrom": "From",
+      "layersTo": "To",
+      "layersAll": "All",
+      "scopeFamilyOnly": "Hide other parcels",
+      "scopeShowAll": "Show all"
     },
     "overlap": {
       "title": "Overlap Detected",
-      "polygonNameLabel": "Polygon Name",
-      "polygonNamePlaceholder": "Enter polygon name",
-      "description_one": "The polygon overlaps with the following area:",
-      "description_other": "The polygon overlaps with the following areas:",
+      "polygonNameLabel": "Parcel Name",
+      "polygonNamePlaceholder": "Enter parcel name",
+      "description_one": "The parcel overlaps with the following area:",
+      "description_other": "The parcel overlaps with the following areas:",
       "autoFixTitle": "Auto-fix available",
-      "autoFixMessage": "We can shrink the polygon to avoid overlap ({{vertices}} vertices, {{percentage}}% of original area).",
+      "autoFixMessage": "We can shrink the parcel to avoid overlap ({{vertices}} vertices, {{percentage}}% of original area).",
       "previewButton": "Show preview on map",
       "manualEdit": "Manually edit",
       "continueEditing": "Continue editing",

@@ -133,8 +133,8 @@ export default function ImportMapPage() {
                                 {loadingInfo
                                     ? t('imports.map.loadingDetails', { defaultValue: 'Loading batch details...' })
                                     : importInfo?.polygonsCount != null
-                                        ? t('imports.map.polygonsCount', { count: importInfo.polygonsCount, defaultValue: '{{count}} polygons ready for review' })
-                                        : t('imports.map.instructions', { defaultValue: 'Adjust polygons, then approve the list to import it.' })}
+                                        ? t('imports.map.polygonsCount', { count: importInfo.polygonsCount, defaultValue: '{{count}} parcels ready for review' })
+                                        : t('imports.map.instructions', { defaultValue: 'Adjust parcels, then approve the list to import it.' })}
                             </p>
                         </div>
                         <div className="flex items-center gap-3">

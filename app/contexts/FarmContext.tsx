@@ -36,7 +36,7 @@ export function FarmProvider({ children }: { children: ReactNode }) {
   const [selectedFarm, setSelectedFarm] = useState<Farm | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { isAuthenticated, token } = useAuth();
+  const { isAuthenticated, token, user } = useAuth();
 
   const setAndPersistSelectedFarm = (farm: Farm | null) => {
     setSelectedFarm(farm);
@@ -105,14 +105,18 @@ export function FarmProvider({ children }: { children: ReactNode }) {
 
       if (preferredFarm) {
         setAndPersistSelectedFarm(preferredFarm);
-      } else if (data.length > 0 && !selectedFarm) {
-        setAndPersistSelectedFarm(data[0]);
-      } else if (selectedFarm) {
+      } else if (!selectedFarm) {
+        // fall to defaultFarmId because localStorage was already tried via the preferred arg 
+        const defaultId = user?.defaultFarmId;
+        const fromDefault = defaultId ? data.find((f: Farm) => f.id === defaultId) : null;
+        if (fromDefault) setAndPersistSelectedFarm(fromDefault);
+      } else {
+        // current selection got revoked or deleted on the server
         const stillExists = data.find((f: Farm) => f.id === selectedFarm.id);
-        if (!stillExists && data.length > 0) {
-          setAndPersistSelectedFarm(data[0]);
-        } else if (!stillExists) {
-          setAndPersistSelectedFarm(null);
+        if (!stillExists) {
+          const defaultId = user?.defaultFarmId;
+          const fromDefault = defaultId ? data.find((f: Farm) => f.id === defaultId) : null;
+          setAndPersistSelectedFarm(fromDefault || null);
         }
       }
 
@@ -128,26 +132,16 @@ export function FarmProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Load farms when authenticated
+  // prefer last-used farm, then user default
   useEffect(() => {
     if (isAuthenticated && token) {
-      fetchFarms();
+      const stored = typeof window !== 'undefined' ? localStorage.getItem('selectedFarmId') : null;
+      fetchFarms(stored || user?.defaultFarmId || undefined);
     } else {
       setFarms([]);
       setAndPersistSelectedFarm(null);
     }
-  }, [isAuthenticated, token]);
-
-  // Restore selected farm from localStorage on mount
-  useEffect(() => {
-    const storedFarmId = localStorage.getItem('selectedFarmId');
-    if (storedFarmId && farms.length > 0) {
-      const farm = farms.find(f => f.id === storedFarmId);
-      if (farm) {
-        setSelectedFarm(farm);
-      }
-    }
-  }, [farms]);
+  }, [isAuthenticated, token, user?.defaultFarmId]);
 
   const selectFarm = async (farmId: string | null) => {
     if (!farmId) {

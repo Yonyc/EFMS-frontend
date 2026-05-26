@@ -1,9 +1,13 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { ReactNode } from 'react';
+import i18n from '~/i18n';
+import { isSupportedLocale } from '~/utils/locale';
 import { apiRequest } from '~/utils/api';
 import { apiUrl } from '~/config';
 
 export type TutorialState = 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED';
+export type TimeFormat = '24h' | '12h';
+export type DateFormat = 'auto' | 'DD-MM-YYYY' | 'MM-DD-YYYY' | 'YYYY-MM-DD';
 
 interface User {
   id: string;
@@ -13,6 +17,11 @@ interface User {
   operationsPopupTopRight?: boolean;
   avatarUrl?: string;
   admin?: boolean;
+  timeFormat?: TimeFormat;
+  dateFormat?: DateFormat;
+  defaultFarmId?: string | null;
+  emailNotificationsEnabled?: boolean;
+  preferredLanguage?: string | null;
 }
 
 interface AuthContextType {
@@ -34,6 +43,24 @@ const absolutizeAvatar = (url?: string): string | undefined => {
   const cacheBust = `v=${Date.now()}`;
   return absolute.includes('?') ? `${absolute}&${cacheBust}` : `${absolute}?${cacheBust}`;
 };
+
+// shared so login, refresh and update can't drift on new fields
+function userFromApi(data: any, fallbackUsername?: string): User {
+  return {
+    id: String(data.id ?? data.user_id),
+    username: data.username ?? fallbackUsername ?? '',
+    email: data.email,
+    tutorialState: data.tutorialState as TutorialState | undefined,
+    operationsPopupTopRight: data.operationsPopupTopRight,
+    avatarUrl: absolutizeAvatar(data.avatarUrl),
+    admin: data.admin,
+    timeFormat: data.timeFormat,
+    dateFormat: data.dateFormat,
+    defaultFarmId: data.defaultFarmId ?? null,
+    emailNotificationsEnabled: data.emailNotificationsEnabled,
+    preferredLanguage: data.preferredLanguage ?? null,
+  };
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -68,15 +95,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return null;
       }
       const data = await response.json();
-      const refreshedUser: User = {
-        id: String(data.id),
-        username: data.username,
-        email: data.email,
-        tutorialState: data.tutorialState as TutorialState,
-        operationsPopupTopRight: data.operationsPopupTopRight,
-        avatarUrl: absolutizeAvatar(data.avatarUrl),
-        admin: data.admin,
-      };
+      const refreshedUser = userFromApi(data);
       persistSession(activeToken, refreshedUser);
       return refreshedUser;
     } catch (error) {
@@ -84,6 +103,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return null;
     }
   }, [logout, token]);
+
+  // account preference is the last layer in the locale chain
+  useEffect(() => {
+    const pref = user?.preferredLanguage;
+    if (pref && isSupportedLocale(pref) && i18n.language !== pref) {
+      i18n.changeLanguage(pref);
+      try { localStorage.setItem('preferredLanguage', pref); } catch {}
+    }
+  }, [user?.preferredLanguage]);
 
   // Load token from localStorage on mount
   useEffect(() => {
@@ -129,18 +157,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       const data = await response.json();
-      const { token: newToken, user_id, tutorialState, operationsPopupTopRight, email: userEmail, avatarUrl, admin } = data;
-
-      const newUser: User = {
-        id: String(user_id),
-        username,
-        email: userEmail,
-        tutorialState: tutorialState as TutorialState,
-        operationsPopupTopRight,
-        avatarUrl: absolutizeAvatar(avatarUrl),
-        admin,
-      };
+      const newToken: string = data.token;
+      const newUser = userFromApi(data, username);
       persistSession(newToken, newUser);
+      // drop per-browser last farm so defaultFarmId is used on next load
+      localStorage.removeItem('selectedFarmId');
     } catch (error) {
       console.error('Login error:', error);
       throw error;
@@ -161,15 +182,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return null;
       }
       const data = await response.json();
-      const updatedUser: User = {
-        id: String(data.id),
-        username: data.username,
-        email: data.email,
-        tutorialState: data.tutorialState as TutorialState,
-        operationsPopupTopRight: data.operationsPopupTopRight,
-        avatarUrl: absolutizeAvatar(data.avatarUrl),
-        admin: data.admin,
-      };
+      const updatedUser = userFromApi(data);
       persistSession(token, updatedUser);
       return updatedUser;
     } catch (error) {

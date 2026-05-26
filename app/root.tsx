@@ -7,18 +7,16 @@ import {
   ScrollRestoration,
   useLocation,
 } from "react-router";
-import { useEffect, useLayoutEffect } from "react";
+import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { Route } from "./+types/root";
 import "./app.css";
 import Navbar from "./components/Navbar";
-import "./i18n";
+import i18n, { applyPostHydrationLanguage } from "./i18n";
 import { AuthProvider } from "./contexts/AuthContext";
 import { FarmProvider } from "./contexts/FarmContext";
 import { getLocaleFromPathname } from "./utils/locale";
-
-const useIsomorphicLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
 export const links: Route.LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -35,24 +33,24 @@ export const links: Route.LinksFunction = () => [
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
-  const { i18n } = useTranslation();
+  const { i18n: i18nFromHook } = useTranslation();
   const currentLocale = getLocaleFromPathname(location.pathname ?? "/");
 
-  if (typeof window === "undefined" && i18n.language !== currentLocale) {
-    i18n.changeLanguage(currentLocale);
+  // align SSR i18n with the URL so hydration matches
+  if (typeof window === "undefined" && i18nFromHook.language !== currentLocale) {
+    i18nFromHook.changeLanguage(currentLocale);
   }
 
-  useIsomorphicLayoutEffect(() => {
-    if (i18n.language !== currentLocale) {
-      i18n.changeLanguage(currentLocale);
-    }
-  }, [currentLocale, i18n]);
+  // session, then browser
+  useEffect(() => {
+    applyPostHydrationLanguage();
+  }, []);
 
   // Get API URL from environment variable (server-side)
   const apiUrl = typeof process !== 'undefined' ? (process as any).env?.API_URL : undefined;
 
   return (
-    <html lang={currentLocale}>
+    <html lang={i18n.language}>
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />

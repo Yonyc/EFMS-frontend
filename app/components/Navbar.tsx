@@ -5,6 +5,7 @@ import { CircleFlagLanguage } from 'react-circle-flags'
 import { useAuth } from '../contexts/AuthContext'
 import { Link, NavLink, useLocation, useNavigate } from 'react-router';
 import FarmSelector from './FarmSelector';
+import { apiPut } from '../utils/api';
 import { buildLocalizedPath, buildLocalizedUrl, SUPPORTED_LOCALES } from '../utils/locale';
 import type { Locale } from '../utils/locale';
 import { resolveUploadUrl } from '../utils/api';
@@ -35,11 +36,18 @@ export default function Navbar({ currentLocale }: NavbarProps) {
     const localizedPath = (slug: string) => buildLocalizedPath(currentLocale, slug ? `/${slug}` : '/');
 
     const handleLanguageChange = (lang: Locale) => {
-        if (lang === currentLocale) {
+        if (lang === currentLocale && i18n.language === lang) {
             return;
         }
 
         i18n.changeLanguage(lang);
+        try { localStorage.setItem('preferredLanguage', lang); } catch {}
+        if (isAuthenticated) {
+            // fire and forget so the ui doesn't wait on the round-trip
+            apiPut('/users/me', { preferredLanguage: lang }).catch((err) => {
+                console.error('Failed to persist language preference', err);
+            });
+        }
         const nextUrl = buildLocalizedUrl(lang, location.pathname, location.search, location.hash);
         navigate(nextUrl, { replace: true });
     };
@@ -52,7 +60,7 @@ export default function Navbar({ currentLocale }: NavbarProps) {
     return (
         <Disclosure
             as="nav"
-            className="relative bg-gray-800/50 after:pointer-events-none after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-white/10"
+            className="relative z-[10050] bg-gray-800/50 after:pointer-events-none after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-white/10"
         >
             <div className="mx-auto max-w-7xl px-2 sm:px-6 lg:px-8">
                 <div className="relative flex h-16 items-center justify-between">
@@ -106,7 +114,7 @@ export default function Navbar({ currentLocale }: NavbarProps) {
                             </MenuButton>
                             <MenuItems
                                 transition
-                                className="absolute right-0 z-500 mt-2 w-48 origin-top-right rounded-md bg-gray-800 py-1 outline -outline-offset-1 outline-white/10 transition data-closed:scale-95 data-closed:transform data-closed:opacity-0 data-enter:duration-100 data-enter:ease-out data-leave:duration-75 data-leave:ease-in"
+                                className="absolute right-0 z-50 mt-2 w-48 origin-top-right rounded-md bg-gray-800 py-1 outline -outline-offset-1 outline-white/10 transition data-closed:scale-95 data-closed:transform data-closed:opacity-0 data-enter:duration-100 data-enter:ease-out data-leave:duration-75 data-leave:ease-in"
                             >
                                 {SUPPORTED_LOCALES.filter((lang) => lang !== currentLocale).map((lang) => (
                                     <MenuItem key={lang}>
@@ -144,7 +152,7 @@ export default function Navbar({ currentLocale }: NavbarProps) {
 
                                 <MenuItems
                                     transition
-                                    className="absolute right-0 z-500 mt-2 w-48 origin-top-right rounded-md bg-gray-800 py-1 outline -outline-offset-1 outline-white/10 transition data-closed:scale-95 data-closed:transform data-closed:opacity-0 data-enter:duration-100 data-enter:ease-out data-leave:duration-75 data-leave:ease-in"
+                                    className="absolute right-0 z-50 mt-2 w-48 origin-top-right rounded-md bg-gray-800 py-1 outline -outline-offset-1 outline-white/10 transition data-closed:scale-95 data-closed:transform data-closed:opacity-0 data-enter:duration-100 data-enter:ease-out data-leave:duration-75 data-leave:ease-in"
                                 >
                                     <div className="px-4 py-2 text-xs text-gray-400 border-b border-white/10">
                                         {user?.username}

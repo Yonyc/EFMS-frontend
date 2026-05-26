@@ -6,6 +6,7 @@ import ProtectedRoute from "~/components/ProtectedRoute";
 import { apiGet, apiRequest } from "~/utils/api";
 import { useCurrentLocale } from "~/hooks/useCurrentLocale";
 import { buildLocalizedPath } from "~/utils/locale";
+import { useDateTimeFormatter } from "~/utils/datetime";
 
 interface ImportGroup {
     id: string | number;
@@ -21,6 +22,7 @@ interface ImportGroup {
 export default function ImportsPage() {
     const { t } = useTranslation();
     const locale = useCurrentLocale();
+    const { formatDate } = useDateTimeFormatter();
     const [groups, setGroups] = useState<ImportGroup[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -166,7 +168,7 @@ export default function ImportsPage() {
                         <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
                                 <p className="text-xs uppercase tracking-wide text-slate-400">
-                                    {t('imports.list.createdAt', { defaultValue: 'Created on {{date}}', date: group.createdAt ? new Date(group.createdAt).toLocaleDateString() : '—' })}
+                                    {t('imports.list.createdAt', { defaultValue: 'Created on {{date}}', date: group.createdAt ? formatDate(group.createdAt) : '—' })}
                                 </p>
                                 <h3 className="mt-1 truncate text-lg font-semibold text-slate-900">{group.name || group.filename || t('imports.list.untitled', { defaultValue: 'Untitled batch' })}</h3>
                             </div>
@@ -178,7 +180,7 @@ export default function ImportsPage() {
                         </div>
                         <dl className="mt-4 space-y-2 text-sm text-slate-500">
                             <div className="flex justify-between">
-                                <dt>{t('imports.list.polygons', { defaultValue: 'Polygons' })}</dt>
+                                <dt>{t('imports.list.polygons', { defaultValue: 'Parcels' })}</dt>
                                 <dd className="font-semibold text-slate-900">{group.polygonsCount ?? '—'}</dd>
                             </div>
                             {group.sourceName && (

@@ -29,10 +29,12 @@ export function useMapSidebarControls({ polygons, allPolygons, isImportMode }: U
         return base;
     }, [isImportMode, t]);
 
+    // show the selected filter names instead of a count
     const activeFilterLabel = useMemo(() => {
         if (!listFilter.length) return t('map.polygonList.filters.all', { defaultValue: 'All' });
-        return t('map.polygonList.filters.selected', { defaultValue: '{{count}} selected', count: listFilter.length });
-    }, [listFilter, t]);
+        const labelByKey = new Map(filterOptions.map(o => [o.key, o.label]));
+        return listFilter.map(k => labelByKey.get(k)).filter(Boolean).join(', ');
+    }, [listFilter, filterOptions, t]);
 
     const filteredPolygons = useMemo(() => {
         let next = allPolygons;

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { apiGet } from "../utils/api";
 
 interface UserSearchInputProps {
@@ -11,10 +12,12 @@ interface UserSearchInputProps {
 }
 
 export default function UserSearchInput({ value, onChange, onSelectUser, placeholder, className, multiple = false }: UserSearchInputProps) {
+    const { t } = useTranslation();
     const [query, setQuery] = useState(value);
     const [results, setResults] = useState<{ id: number; username: string }[]>([]);
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [searched, setSearched] = useState(false);
     const wrapperRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -42,6 +45,7 @@ export default function UserSearchInput({ value, onChange, onSelectUser, placeho
 
         if (!currentQuery || currentQuery.length < 3) {
             setResults([]);
+            setSearched(false);
             setOpen(false);
             return;
         }
@@ -53,6 +57,7 @@ export default function UserSearchInput({ value, onChange, onSelectUser, placeho
                 if (response.ok) {
                     const data = await response.json();
                     setResults(data);
+                    setSearched(true);
                     setOpen(true);
                 }
             } catch (error) {
@@ -112,7 +117,12 @@ export default function UserSearchInput({ value, onChange, onSelectUser, placeho
             )}
             {open && loading && (
                 <div className="absolute z-[100000] mt-1 w-full rounded-xl border border-slate-200 bg-white py-2 px-3 text-sm text-slate-500 shadow-xl">
-                    Searching...
+                    {t('common.searching', { defaultValue: 'Searching...' })}
+                </div>
+            )}
+            {open && !loading && searched && results.length === 0 && (
+                <div className="absolute z-[100000] mt-1 w-full rounded-xl border border-slate-200 bg-white py-2 px-3 text-sm text-slate-500 shadow-xl">
+                    {t('common.userNotFound', { defaultValue: 'No user found' })}
                 </div>
             )}
         </div>

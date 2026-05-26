@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import ProtectedRoute from "~/components/ProtectedRoute";
 import { useFarm } from "~/contexts/FarmContext";
 import { apiGet, apiPost, getPageMeta } from "~/utils/api";
+import { useDateTimeFormatter } from "~/utils/datetime";
 import AttachmentSection from "~/components/AttachmentSection";
 import type { AttachmentDto } from "~/components/AttachmentSection";
 import { SearchableSelect } from "~/components/map/components/SearchableSelect";
@@ -300,6 +301,7 @@ interface CardProps { op: ParcelOperationDto; farmId: string; }
 
 function OperationCard({ op, farmId }: CardProps) {
   const { t } = useTranslation();
+  const { formatDateTime } = useDateTimeFormatter();
   const [expanded, setExpanded] = useState(false);
   const [attachments, setAttachments] = useState<AttachmentDto[]>(op.attachments ?? []);
 
@@ -321,7 +323,7 @@ function OperationCard({ op, farmId }: CardProps) {
               </span>
             )}
           </div>
-          <p className="text-xs text-slate-400">{formatDate(op.date)}</p>
+          <p className="text-xs text-slate-400">{formatDateTime(op.date)}</p>
         </div>
         <div className="flex shrink-0 items-center gap-2.5">
           {op.durationSeconds != null && (
