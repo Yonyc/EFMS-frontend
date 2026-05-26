@@ -7,6 +7,7 @@ import { Link, NavLink, useLocation, useNavigate } from 'react-router';
 import FarmSelector from './FarmSelector';
 import { buildLocalizedPath, buildLocalizedUrl, SUPPORTED_LOCALES } from '../utils/locale';
 import type { Locale } from '../utils/locale';
+import { resolveUploadUrl } from '../utils/api';
 
 const NAV_ITEMS = [
     { translationId: 'nav.home', slug: '', end: true },
@@ -93,9 +94,9 @@ export default function Navbar({ currentLocale }: NavbarProps) {
                         </div>
                     </div>
                     <div className="absolute inset-y-0 right-0 flex items-center pr-2 gap-2 sm:static sm:inset-auto sm:ml-6 sm:pr-0">
-                        {/* Farm Selector - Only show when authenticated */}
-                        {isAuthenticated && <FarmSelector />}
-                        
+                        {/* Farm Selector - hidden on mobile, shown in disclosure panel instead */}
+                        {isAuthenticated && <div className="hidden sm:block"><FarmSelector /></div>}
+
                         {/* Language Switcher */}
                         <Menu as="div" className="relative ml-3">
                             <MenuButton className="relative flex rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500">
@@ -131,7 +132,7 @@ export default function Navbar({ currentLocale }: NavbarProps) {
                                     {user?.avatarUrl ? (
                                         <img
                                             alt="user avatar"
-                                            src={user.avatarUrl}
+                                            src={resolveUploadUrl(user.avatarUrl) ?? user.avatarUrl}
                                             className="size-8 rounded-full bg-gray-800 outline -outline-offset-1 outline-white/10 object-cover"
                                         />
                                     ) : (
@@ -179,14 +180,6 @@ export default function Navbar({ currentLocale }: NavbarProps) {
                                     )}
                                     {selectedFarm?.canManage && (
                                         <>
-                                            <MenuItem>
-                                                <Link
-                                                    to={localizedPath('periods')}
-                                                    className="block px-4 py-2 text-sm text-gray-300 data-focus:bg-white/5 data-focus:outline-hidden"
-                                                >
-                                                    {t('nav.periods')}
-                                                </Link>
-                                            </MenuItem>
                                             <MenuItem>
                                                 <Link
                                                     to={localizedPath('farm-shares')}
@@ -266,6 +259,36 @@ export default function Navbar({ currentLocale }: NavbarProps) {
                         </DisclosureButton>
                     ))}
                 </div>
+
+                {/* Farm selector in mobile panel */}
+                {isAuthenticated && (
+                    <div className="border-t border-white/10 px-2 py-3">
+                        <p className="px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                            {t('farmSelector.selectFarm', { defaultValue: 'Farm' })}
+                        </p>
+                        <FarmSelector />
+                    </div>
+                )}
+
+                {/* Quick links for authenticated users */}
+                {isAuthenticated && farms.length > 0 && (
+                    <div className="border-t border-white/10 px-2 py-3 space-y-1">
+                        <DisclosureButton as={NavLink} to={localizedPath('operations')}
+                            className="block rounded-md px-3 py-2 text-base font-medium text-gray-300 hover:bg-white/5 hover:text-white">
+                            {t('nav.operations')}
+                        </DisclosureButton>
+                        <DisclosureButton as={NavLink} to={localizedPath('assets')}
+                            className="block rounded-md px-3 py-2 text-base font-medium text-gray-300 hover:bg-white/5 hover:text-white">
+                            {t('nav.assets')}
+                        </DisclosureButton>
+                        {selectedFarm?.canManage && (
+                            <DisclosureButton as={NavLink} to={localizedPath('imports')}
+                                className="block rounded-md px-3 py-2 text-base font-medium text-gray-300 hover:bg-white/5 hover:text-white">
+                                {t('nav.imports')}
+                            </DisclosureButton>
+                        )}
+                    </div>
+                )}
             </DisclosurePanel>
         </Disclosure>
     )

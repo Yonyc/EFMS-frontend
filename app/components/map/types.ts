@@ -1,8 +1,40 @@
-export interface OperationTypeDto { id: number; name: string; }
+export interface AttachmentDto { id: number; originalFilename: string; url: string; mimeType?: string; fileSize?: number; createdAt?: string; }
+export interface OperationTypeDto { id: number; name: string; defaultToolId?: number; defaultToolName?: string; }
 export interface OperationTypeGroupDto { id: number; name: string; operationTypes: OperationTypeDto[]; }
 export interface UnitDto { id: number; value: string; }
-export interface ProductDto { id: number; name: string; }
-export interface ToolDto { id: number; name: string; }
+export interface ProductDto {
+    id: number;
+    name: string;
+    official?: boolean;
+    officialCurrent?: boolean;
+    officialAuthNumber?: string;
+    officialVersionTag?: string;
+    officialDecisionCode?: string;
+    officialDecisionCodeEn?: string;
+    officialDateFirstAuthorization?: string;
+    officialDateFrom?: string;
+    officialDateTo?: string;
+    officialUserGroupCode?: string;
+    officialUserGroupEn?: string;
+    officialFormulationTypeCode?: string;
+    officialFormulationTypeEn?: string;
+    officialProductTypeCodes?: string;
+    officialProductTypeEn?: string;
+    officialImportedAt?: string;
+    officialSaleTo?: string;
+    officialUseToleratedTo?: string;
+    productTypeId?: number;
+    unitId?: number;
+    defaultOperationTypeId?: number;
+    farmId?: number;
+}
+export interface ToolDto {
+    id: number;
+    name: string;
+    categoryId?: number;
+    categoryName?: string;
+    farmId?: number;
+}
 export interface OperationProductInputState { productId: string; quantity: string; unitId: string; toolId: string; }
 export interface OperationProductDto {
     id: number;
@@ -13,6 +45,14 @@ export interface OperationProductDto {
     unitValue?: string;
     toolId?: number;
     toolName?: string;
+    officialAuthNumber?: string;
+    officialDecisionCode?: string;
+    officialDateFrom?: string;
+    officialDateTo?: string;
+    officialUserGroupCode?: string;
+    officialFormulationTypeCode?: string;
+    officialProductTypeCodes?: string;
+    officialVersionTag?: string;
 }
 export interface ParcelOperationDto {
     id: number;
@@ -20,7 +60,10 @@ export interface ParcelOperationDto {
     durationSeconds?: number;
     typeId?: number;
     typeName?: string;
+    parcelId?: number;
+    parcelName?: string;
     products?: OperationProductDto[];
+    attachments?: AttachmentDto[];
 }
 
 export interface PeriodDto { id: number; name?: string; startDate?: string; endDate?: string; }
@@ -33,6 +76,8 @@ export interface ResearchZoneShareDto {
     zoneWkt: string;
     periodId?: number | null;
     periodIds?: number[];
+    operationTypeId?: number | null;
+    operationTypeIds?: number[];
     toolId?: number | null;
     toolIds?: number[];
     productId?: number | null;
@@ -47,6 +92,7 @@ export interface ResearchZoneShareDto {
 
 export interface ParcelSearchFilters {
     periodIds: string[];
+    operationTypeIds: string[];
     toolIds: string[];
     productIds: string[];
     startDate: string;

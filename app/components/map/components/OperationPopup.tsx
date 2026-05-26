@@ -1,13 +1,15 @@
-import React from "react";
+import React, { useRef, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
-import type { 
-    PolygonData, 
-    OperationTypeDto, 
-    UnitDto, 
-    ProductDto, 
-    ToolDto, 
-    ParcelOperationDto, 
-    OperationProductInputState 
+import { SearchableSelect } from "./SearchableSelect";
+import type {
+    PolygonData,
+    OperationTypeDto,
+    UnitDto,
+    ProductDto,
+    ToolDto,
+    ParcelOperationDto,
+    OperationProductInputState,
+    AttachmentDto
 } from "../types";
 
 interface OperationPopupProps {
@@ -41,10 +43,20 @@ interface OperationPopupProps {
     handleSaveOperation: () => Promise<void>;
     resetOperationForm: () => void;
     parcelOperations: ParcelOperationDto[];
-    operationsPage: number;
-    setOperationsPage: (page: number) => void;
-    operationsTotalPages: number;
-    loadParcelOperations: (parcelId: string, page: number) => Promise<void>;
+    hasMore: boolean;
+    loadMoreOperations: () => Promise<void>;
+    productHasMore: boolean;
+    productLoading: boolean;
+    loadMoreProducts: () => void;
+    toolHasMore: boolean;
+    toolLoading: boolean;
+    loadMoreTools: () => void;
+    opTypeHasMore: boolean;
+    opTypeLoading: boolean;
+    loadMoreOpTypes: () => void;
+    addOperationAttachment: (operationId: number, att: AttachmentDto) => void;
+    removeOperationAttachment: (operationId: number, attachmentId: number) => void;
+    farmId: number;
 }
 
 const OperationPopup = React.memo((props: OperationPopupProps) => {
@@ -57,38 +69,87 @@ const OperationPopup = React.memo((props: OperationPopupProps) => {
         setOperationDurationMinutes, handleAddOperationLine,
         operationLines, handleRemoveOperationLine, updateOperationLine,
         units, products, tools, handleSaveOperation, resetOperationForm,
-        parcelOperations, operationsPage, setOperationsPage,
-        operationsTotalPages, loadParcelOperations
+        parcelOperations, hasMore, loadMoreOperations,
+        productHasMore, productLoading, loadMoreProducts,
+        toolHasMore, toolLoading, loadMoreTools,
+        opTypeHasMore, opTypeLoading, loadMoreOpTypes,
+        addOperationAttachment, removeOperationAttachment, farmId,
     } = props;
+
+    const historyRef = useRef<HTMLDivElement>(null);
+    const hasMoreRef = useRef(hasMore);
+    const loadingRef = useRef(operationLoading);
+
+    useEffect(() => { hasMoreRef.current = hasMore; }, [hasMore]);
+    useEffect(() => { loadingRef.current = operationLoading; }, [operationLoading]);
+
+    // re-attaches when the parcel changes because loadMoreOperations is recreated each time
+    useEffect(() => {
+        const el = historyRef.current;
+        if (!el) return;
+        const onScroll = () => {
+            if (el.scrollTop + el.clientHeight >= el.scrollHeight - 80
+                    && hasMoreRef.current && !loadingRef.current) {
+                void loadMoreOperations();
+            }
+        };
+        el.addEventListener('scroll', onScroll, { passive: true });
+        return () => el.removeEventListener('scroll', onScroll);
+    }, [loadMoreOperations]);
+
+    const productLabel = (product: ProductDto) => {
+        if (product.official) {
+            const auth = product.officialAuthNumber ? ` (${product.officialAuthNumber})` : '';
+            return t('products.officialLabel', { defaultValue: 'Official: {{name}}{{auth}}', name: product.name, auth });
+        }
+        return product.name;
+    };
+
+    const isProductExpired = (product: ProductDto): boolean => {
+        const dateStr = product.officialUseToleratedTo ?? product.officialDateTo;
+        if (!dateStr) return false;
+        return new Date(dateStr) < new Date();
+    };
+
+    const opTypeOptions = useMemo(() => [
+        { value: "", label: t('operations.selectTypePlaceholder', { defaultValue: 'Select operation type' }) },
+        ...operationTypes.map(type => ({ value: String(type.id), label: type.name })),
+    ], [operationTypes, t]);
+
+    const productOptions = useMemo(() => [
+        { value: "", label: t('operations.selectProduct', { defaultValue: 'Select product' }) },
+        ...products.map(p => ({ value: String(p.id), label: productLabel(p) })),
+    ], [products, t]);
+
+    const toolOptions = useMemo(() => [
+        { value: "", label: t('operations.tool', { defaultValue: 'Tool' }) },
+        ...tools.map(tl => ({ value: String(tl.id), label: tl.name })),
+    ], [tools, t]);
+
+    const noResults = t('common.noResults', { defaultValue: 'No results' });
 
     if (!popupCoords) return null;
 
     const popupStyle = isMobile
-        ? {
-            left: 0,
-            top: 0, // logic handled by caller
-            width: '100vw',
-            maxWidth: '100vw',
-            height: 'auto',
-            maxHeight: '80vh',
-        }
+        ? { left: 0, top: 0, width: '100vw', maxWidth: '100vw', height: 'auto', maxHeight: '80vh' }
         : { left: popupCoords.left, top: popupCoords.top };
-
-    // old code had complex math here 
-    // keeping it simple by passing it in
-    // trying to keep jsx same
 
     return createPortal(
         <div
-            className="fixed z-[120000] w-[420px] max-w-[94vw] max-h-[82vh] overflow-y-auto rounded-2xl border border-white/10 bg-slate-900/95 p-4 text-white shadow-2xl shadow-black/40 backdrop-blur"
+            className="fixed z-[120000] w-[440px] max-w-[94vw] max-h-[88vh] overflow-y-auto rounded-2xl border border-white/10 bg-slate-900/95 p-4 text-white shadow-2xl shadow-black/40 backdrop-blur"
             style={popupStyle}
             onMouseDown={(e) => e.stopPropagation()}
             onClick={(e) => e.stopPropagation()}
         >
+            {/* Header */}
             <div className="mb-3 flex items-start justify-between gap-3">
                 <div className="cursor-move" onMouseDown={startDrag}>
-                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-indigo-200">{t('operations.title', { defaultValue: 'Parcel operations' })}</p>
-                    <h3 className="text-lg font-semibold text-white">{polygons.find(p => p.id === operationPopup.polygonId)?.name || t('map.unnamedParcel')}</h3>
+                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-indigo-200">
+                        {t('operations.title', { defaultValue: 'Parcel operations' })}
+                    </p>
+                    <h3 className="text-lg font-semibold text-white">
+                        {polygons.find(p => p.id === operationPopup.polygonId)?.name || t('map.unnamedParcel')}
+                    </h3>
                 </div>
                 <div className="flex items-center gap-2">
                     <label className="flex items-center gap-1 text-xs font-semibold text-slate-200">
@@ -116,142 +177,179 @@ const OperationPopup = React.memo((props: OperationPopupProps) => {
                 </div>
             )}
 
-            {operationLoading && (
-                <div className="mb-3 flex items-center gap-2 rounded-xl border border-indigo-300/30 bg-indigo-500/10 px-3 py-2 text-sm text-indigo-50">
-                    <span className="inline-block h-3 w-3 animate-pulse rounded-full bg-indigo-200" aria-hidden="true" />
-                    {t('common.loading', { defaultValue: 'Loading...' })}
-                </div>
-            )}
-
             <div className="space-y-3">
-                {canEditPolygon(currentParcelId ?? operationPopup.polygonId) ? <>
-                    <select
-                        value={operationTypeId}
-                        onChange={(e) => setOperationTypeId(e.target.value)}
-                        className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-indigo-300"
-                    >
-                        <option value="">{t('operations.selectTypePlaceholder', { defaultValue: 'Select operation type' })}</option>
-                        {operationTypes.map(type => (
-                            <option key={type.id} value={type.id}>{type.name}</option>
-                        ))}
-                    </select>
-
-                    <div className="grid grid-cols-2 gap-3">
-                        <input
-                            type="datetime-local"
-                            value={operationDate}
-                            onChange={(e) => setOperationDate(e.target.value)}
-                            className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-indigo-300"
+                {/* New operation form — only for editors */}
+                {canEditPolygon(currentParcelId ?? operationPopup.polygonId) && (
+                    <>
+                        <SearchableSelect
+                            value={operationTypeId}
+                            onChange={setOperationTypeId}
+                            options={opTypeOptions}
+                            placeholder={t('operations.selectTypePlaceholder', { defaultValue: 'Select operation type' })}
+                            noResultsText={noResults}
+                            hasMore={opTypeHasMore}
+                            loading={opTypeLoading}
+                            onLoadMore={loadMoreOpTypes}
                         />
-                        <input
-                            type="number"
-                            min="0"
-                            placeholder={t('operations.durationLabel', { defaultValue: 'Duration (minutes)' })}
-                            value={operationDurationMinutes}
-                            onChange={(e) => setOperationDurationMinutes(e.target.value)}
-                            className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-indigo-300"
-                        />
-                    </div>
 
-                    <div className="flex items-center justify-between text-sm text-slate-100">
-                        <span>{t('operations.productsTools', { defaultValue: 'Products & Tools' })}</span>
-                        <button
-                            type="button"
-                            onClick={handleAddOperationLine}
-                            className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-white hover:bg-white/10"
-                        >
-                            + {t('common.add', { defaultValue: 'Add' })}
-                        </button>
-                    </div>
+                        <div className="grid grid-cols-2 gap-3">
+                            <input
+                                type="datetime-local"
+                                value={operationDate}
+                                onChange={(e) => setOperationDate(e.target.value)}
+                                className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-indigo-300"
+                            />
+                            <input
+                                type="number"
+                                min="0"
+                                placeholder={t('operations.durationLabel', { defaultValue: 'Duration (minutes)' })}
+                                value={operationDurationMinutes}
+                                onChange={(e) => setOperationDurationMinutes(e.target.value)}
+                                className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-indigo-300"
+                            />
+                        </div>
 
-                    <div className="flex flex-col gap-2">
-                        {operationLines.map((line, index) => (
-                            <div key={index} className="grid grid-cols-5 gap-2 text-sm">
-                                <select
-                                    value={line.productId}
-                                    onChange={(e) => updateOperationLine(index, 'productId', e.target.value)}
-                                    className="rounded-md border border-white/10 bg-white/5 px-2 py-2 text-white outline-none focus:border-indigo-300"
-                                >
-                                    <option value="">{t('common.select', { defaultValue: 'Select' })}</option>
-                                    {products.map(p => (
-                                        <option key={p.id} value={p.id}>{p.name}</option>
-                                    ))}
-                                </select>
-                                <input
-                                    type="number"
-                                    min="0"
-                                    placeholder={t('common.quantity', { defaultValue: 'Qty' })}
-                                    value={line.quantity}
-                                    onChange={(e) => updateOperationLine(index, 'quantity', e.target.value)}
-                                    className="rounded-md border border-white/10 bg-white/5 px-2 py-2 text-white outline-none focus:border-indigo-300"
-                                />
-                                <select
-                                    value={line.unitId}
-                                    onChange={(e) => updateOperationLine(index, 'unitId', e.target.value)}
-                                    className="rounded-md border border-white/10 bg-white/5 px-2 py-2 text-white outline-none focus:border-indigo-300"
-                                >
-                                    <option value="">{t('operations.unit', { defaultValue: 'Unit' })}</option>
-                                    {units.map(u => (
-                                        <option key={u.id} value={u.id}>{u.value}</option>
-                                    ))}
-                                </select>
-                                <select
-                                    value={line.toolId}
-                                    onChange={(e) => updateOperationLine(index, 'toolId', e.target.value)}
-                                    className="rounded-md border border-white/10 bg-white/5 px-2 py-2 text-white outline-none focus:border-indigo-300"
-                                >
-                                    <option value="">{t('operations.tool', { defaultValue: 'Tool' })}</option>
-                                    {tools.map(tl => (
-                                        <option key={tl.id} value={tl.id}>{tl.name}</option>
-                                    ))}
-                                </select>
-                                <div className="flex items-center justify-end">
-                                    {operationLines.length > 1 && (
-                                        <button
-                                            type="button"
-                                            onClick={() => handleRemoveOperationLine(index)}
-                                            className="text-xs font-semibold text-rose-200 hover:text-rose-100"
-                                        >
-                                            {t('common.delete', { defaultValue: 'Remove' })}
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
+                        <div className="flex items-center justify-between text-sm text-slate-100">
+                            <span>{t('operations.productsTools', { defaultValue: 'Products & Tools' })}</span>
+                            <button
+                                type="button"
+                                onClick={handleAddOperationLine}
+                                className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-white hover:bg-white/10"
+                            >
+                                + {t('common.add', { defaultValue: 'Add' })}
+                            </button>
+                        </div>
 
-                    <div className="flex justify-end gap-2">
-                        <button
-                            type="button"
-                            onClick={resetOperationForm}
-                            disabled={operationLoading}
-                            className="rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-60"
-                        >
-                            {t('common.cancel', { defaultValue: 'Cancel' })}
-                        </button>
-                        <button
-                            type="button"
-                            onClick={handleSaveOperation}
-                            disabled={!currentParcelId || operationLoading || (currentParcelId ? !canEditPolygon(currentParcelId) : false)}
-                            className="rounded-xl border border-indigo-400/70 bg-gradient-to-r from-indigo-500 to-indigo-600 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-indigo-500/25 transition hover:from-indigo-500 hover:to-indigo-500 disabled:opacity-60"
-                        >
-                            {operationLoading ? t('common.loading', { defaultValue: 'Loading...' }) : t('operations.submit', { defaultValue: 'Save operation' })}
-                        </button>
-                    </div>
-                </> : <></>}
+                        <div className="flex flex-col gap-2">
+                            {operationLines.map((line, index) => {
+                                const selectedUnit = line.unitId ? units.find(u => String(u.id) === line.unitId) : null;
+                                const selectedProduct = line.productId ? products.find(p => String(p.id) === line.productId) : null;
+                                const productExpired = selectedProduct ? isProductExpired(selectedProduct) : false;
+                                return (
+                                    <div key={index} className="rounded-xl border border-white/8 bg-white/3 p-2">
+                                        <div className="grid grid-cols-[1fr_auto] gap-2 mb-2">
+                                            <SearchableSelect
+                                                value={line.productId}
+                                                onChange={(val) => updateOperationLine(index, 'productId', val)}
+                                                options={productOptions}
+                                                placeholder={t('operations.selectProduct', { defaultValue: 'Select product' })}
+                                                noResultsText={noResults}
+                                                hasMore={productHasMore}
+                                                loading={productLoading}
+                                                onLoadMore={loadMoreProducts}
+                                            />
+                                            {operationLines.length > 1 && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleRemoveOperationLine(index)}
+                                                    className="text-xs font-semibold text-rose-300 hover:text-rose-100 px-1"
+                                                >
+                                                    {t('common.delete', { defaultValue: 'Remove' })}
+                                                </button>
+                                            )}
+                                        </div>
+                                        {productExpired && (
+                                            <div className="mb-2 flex items-start gap-1.5 rounded-lg border border-amber-500/40 bg-amber-500/10 px-2.5 py-2 text-xs text-amber-300">
+                                                <span className="mt-px shrink-0">⚠</span>
+                                                <span>
+                                                    {t('operations.productExpiredWarning', {
+                                                        defaultValue: 'This product\'s use authorisation has expired ({{date}}).',
+                                                        date: selectedProduct!.officialUseToleratedTo ?? selectedProduct!.officialDateTo,
+                                                    })}
+                                                </span>
+                                            </div>
+                                        )}
+                                        <div className="grid grid-cols-[1fr_auto_1fr] gap-2 items-center">
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                placeholder={t('common.quantity', { defaultValue: 'Qty' })}
+                                                value={line.quantity}
+                                                onChange={(e) => updateOperationLine(index, 'quantity', e.target.value)}
+                                                className="rounded-md border border-white/10 bg-white/5 px-2 py-2 text-sm text-white outline-none focus:border-indigo-300"
+                                            />
+                                            <span className="text-sm text-slate-300 font-medium min-w-[2rem] text-center">
+                                                {selectedUnit?.value ?? '—'}
+                                            </span>
+                                            <SearchableSelect
+                                                value={line.toolId}
+                                                onChange={(val) => updateOperationLine(index, 'toolId', val)}
+                                                options={toolOptions}
+                                                placeholder={t('operations.tool', { defaultValue: 'Tool' })}
+                                                noResultsText={noResults}
+                                                hasMore={toolHasMore}
+                                                loading={toolLoading}
+                                                onLoadMore={loadMoreTools}
+                                            />
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
 
+                        <div className="flex justify-end gap-2">
+                            <button
+                                type="button"
+                                onClick={resetOperationForm}
+                                disabled={operationLoading}
+                                className="rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-60"
+                            >
+                                {t('common.cancel', { defaultValue: 'Cancel' })}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleSaveOperation}
+                                disabled={!currentParcelId || operationLoading || (currentParcelId ? !canEditPolygon(currentParcelId) : false)}
+                                className="rounded-xl border border-indigo-400/70 bg-gradient-to-r from-indigo-500 to-indigo-600 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-indigo-500/25 transition hover:from-indigo-500 hover:to-indigo-500 disabled:opacity-60"
+                            >
+                                {operationLoading
+                                    ? t('common.loading', { defaultValue: 'Loading...' })
+                                    : t('operations.submit', { defaultValue: 'Save operation' })}
+                            </button>
+                        </div>
+
+                        <div className="border-t border-white/10" />
+                    </>
+                )}
+
+                {/* History */}
                 <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-200">{t('operations.history', { defaultValue: 'History' })}</p>
-                    <div className="mt-2 flex max-h-56 flex-col gap-2 overflow-y-auto">
-                        {parcelOperations.length === 0 && (
-                            <div className="text-sm text-slate-200/80">{t('operations.emptyHistory', { defaultValue: 'No operations yet' })}</div>
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-200">
+                        {t('operations.history', { defaultValue: 'History' })}
+                    </p>
+
+                    <div ref={historyRef} className="flex max-h-72 flex-col gap-2 overflow-y-auto pr-0.5">
+                        {parcelOperations.length === 0 && operationLoading && (
+                            <>
+                                {[0, 1, 2].map(i => (
+                                    <div key={i} className="rounded-xl border border-white/10 bg-white/5 p-3 animate-pulse">
+                                        <div className="flex items-center justify-between gap-3">
+                                            <div className="space-y-1.5 flex-1">
+                                                <div className="h-3.5 w-2/5 rounded bg-white/15" />
+                                                <div className="h-2.5 w-1/3 rounded bg-white/10" />
+                                            </div>
+                                            <div className="h-6 w-12 rounded-full bg-white/10" />
+                                        </div>
+                                    </div>
+                                ))}
+                            </>
                         )}
+                        {parcelOperations.length === 0 && !operationLoading && (
+                            <div className="text-sm text-slate-200/80">
+                                {t('operations.emptyHistory', { defaultValue: 'No operations yet' })}
+                            </div>
+                        )}
+
                         {parcelOperations.map(op => (
                             <div key={op.id} className="rounded-xl border border-white/10 bg-white/5 p-3">
                                 <div className="flex items-center justify-between gap-3">
                                     <div>
-                                        <div className="font-semibold text-white">{op.typeName || t('operations.selectTypePlaceholder', { defaultValue: 'Operation' })}</div>
-                                        <div className="text-xs text-slate-200/80">{op.date ? new Date(op.date).toLocaleString() : ''}</div>
+                                        <div className="font-semibold text-white">
+                                            {op.typeName || t('operations.selectTypePlaceholder', { defaultValue: 'Operation' })}
+                                        </div>
+                                        <div className="text-xs text-slate-200/80">
+                                            {op.date ? new Date(op.date).toLocaleString() : ''}
+                                        </div>
                                     </div>
                                     {op.durationSeconds != null && (
                                         <span className="rounded-full bg-white/10 px-2 py-1 text-[11px] font-semibold text-white">
@@ -259,57 +357,79 @@ const OperationPopup = React.memo((props: OperationPopupProps) => {
                                         </span>
                                     )}
                                 </div>
-                                {op.products && op.products.length > 0 && (
-                                    <div className="mt-2 border-t border-white/10 pt-2 text-sm text-white">
-                                        {op.products.map(p => (
-                                            <div key={p.id || `${p.productId}-${p.toolId}`} className="flex items-center justify-between">
-                                                <span>
-                                                    <strong>{p.productName || t('operations.product', { defaultValue: 'Product' })}</strong>
-                                                    {p.quantity != null && (
-                                                        <span className="text-slate-200/80"> {p.quantity}{p.unitValue ? ` ${p.unitValue}` : ''}</span>
+
+                                {(op.products && op.products.length > 0) && (
+                                    <div className="mt-2 border-t border-white/10 pt-2 text-sm text-white space-y-1.5">
+                                        {op.products.map(p => {
+                                            const name = p.productName || t('operations.product', { defaultValue: 'Product' });
+                                            const auth = p.officialAuthNumber ? ` (${p.officialAuthNumber})` : '';
+                                            const isOfficial = Boolean(
+                                                p.officialAuthNumber || p.officialVersionTag || p.officialDecisionCode || p.officialProductTypeCodes
+                                            );
+                                            const label = isOfficial
+                                                ? t('products.officialLabel', { defaultValue: 'Official: {{name}}{{auth}}', name, auth })
+                                                : name;
+                                            const details: string[] = [];
+                                            if (p.officialDecisionCode)
+                                                details.push(`${t('products.decision', { defaultValue: 'Decision' })}: ${p.officialDecisionCode}`);
+                                            if (p.officialDateFrom || p.officialDateTo)
+                                                details.push(`${t('products.validity', { defaultValue: 'Validity' })}: ${[p.officialDateFrom, p.officialDateTo].filter(Boolean).join(' - ')}`);
+                                            if (p.officialUserGroupCode)
+                                                details.push(`${t('products.userGroup', { defaultValue: 'User group' })}: ${p.officialUserGroupCode}`);
+
+                                            return (
+                                                <div key={p.id ?? `${p.productId}-${p.toolId}`} className="flex items-start justify-between gap-3">
+                                                    <div>
+                                                        <div className="font-semibold text-white">{label}</div>
+                                                        {p.quantity != null && (
+                                                            <div className="text-slate-200/80">
+                                                                {p.quantity}{p.unitValue ? ` ${p.unitValue}` : ''}
+                                                            </div>
+                                                        )}
+                                                        {details.length > 0 && (
+                                                            <div className="mt-0.5 text-[11px] text-slate-200/70">{details.join(' · ')}</div>
+                                                        )}
+                                                    </div>
+                                                    {p.toolName && (
+                                                        <span className="rounded-full bg-indigo-500/20 px-2 py-1 text-[11px] font-semibold text-indigo-100">
+                                                            {p.toolName}
+                                                        </span>
                                                     )}
-                                                </span>
-                                                {p.toolName && (
-                                                    <span className="rounded-full bg-indigo-500/20 px-2 py-1 text-[11px] font-semibold text-indigo-100">{p.toolName}</span>
-                                                )}
-                                            </div>
-                                        ))}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+
+                                {/* Attachment indicator */}
+                                {op.attachments && op.attachments.length > 0 && (
+                                    <div className="mt-2 flex items-center gap-1 border-t border-white/10 pt-2 text-[11px] text-slate-400">
+                                        <svg className="h-3 w-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                                        </svg>
+                                        {op.attachments.length} {t('attachments.count', { defaultValue: 'attachment(s)', count: op.attachments.length })}
                                     </div>
                                 )}
                             </div>
                         ))}
+
+                        {/* Loading indicator / end sentinel */}
+                        {operationLoading && (
+                            <div className="flex items-center justify-center gap-2 py-3 text-sm text-indigo-200">
+                                <span className="inline-block h-3 w-3 animate-pulse rounded-full bg-indigo-300" />
+                                {t('common.loading', { defaultValue: 'Loading...' })}
+                            </div>
+                        )}
+                        {!operationLoading && hasMore && (
+                            <button
+                                type="button"
+                                onClick={() => void loadMoreOperations()}
+                                className="w-full rounded-lg border border-white/10 bg-white/5 py-2 text-xs font-semibold text-slate-300 hover:bg-white/10 transition-colors"
+                            >
+                                {t('common.loadMore', { defaultValue: 'Load more' })}
+                            </button>
+                        )}
                     </div>
-                    {operationsTotalPages > 1 && (
-                        <div className="mt-3 flex items-center justify-between border-t border-white/10 pt-2 text-xs">
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    const prev = Math.max(0, operationsPage - 1);
-                                    setOperationsPage(prev);
-                                    void loadParcelOperations(currentParcelId || operationPopup.polygonId, prev);
-                                }}
-                                disabled={operationsPage === 0}
-                                className="rounded bg-white/10 px-2 py-1 text-white hover:bg-white/15 disabled:opacity-40 transition-all"
-                            >
-                                {t('common.previous', { defaultValue: 'Prev' })}
-                            </button>
-                            <span className="text-slate-300">
-                                Page {operationsPage + 1} of {operationsTotalPages}
-                            </span>
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    const next = Math.min(operationsTotalPages - 1, operationsPage + 1);
-                                    setOperationsPage(next);
-                                    void loadParcelOperations(currentParcelId || operationPopup.polygonId, next);
-                                }}
-                                disabled={operationsPage === operationsTotalPages - 1}
-                                className="rounded bg-white/10 px-2 py-1 text-white hover:bg-white/15 disabled:opacity-40 transition-all"
-                            >
-                                {t('common.next', { defaultValue: 'Next' })}
-                            </button>
-                        </div>
-                    )}
                 </div>
             </div>
         </div>,

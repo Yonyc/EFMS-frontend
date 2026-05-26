@@ -32,6 +32,7 @@ interface ResearchZoneShareDto {
     shareToken: string;
     zoneWkt?: string;
     periodIds?: number[];
+    operationTypeIds?: number[];
     toolIds?: number[];
     productIds?: number[];
     filterStartDate?: string | null;
@@ -59,6 +60,13 @@ interface ToolDto {
 interface ProductDto {
     id: number;
     name: string;
+    official?: boolean;
+    officialAuthNumber?: string;
+}
+
+interface OperationTypeDto {
+    id: number;
+    name: string;
 }
 
 export default function FarmSharesPage() {
@@ -72,6 +80,7 @@ export default function FarmSharesPage() {
     const [researchShares, setResearchShares] = useState<ResearchZoneShareDto[]>([]);
     const [enrolledShares, setEnrolledShares] = useState<ResearchZoneShareDto[]>([]);
     const [periods, setPeriods] = useState<PeriodDto[]>([]);
+    const [operationTypes, setOperationTypes] = useState<OperationTypeDto[]>([]);
     const [tools, setTools] = useState<ToolDto[]>([]);
     const [products, setProducts] = useState<ProductDto[]>([]);
     const [editingResearchShare, setEditingResearchShare] = useState<ResearchZoneShareDto | null>(null);
@@ -79,6 +88,7 @@ export default function FarmSharesPage() {
     const [editUsername, setEditUsername] = useState("");
     const [editMaxUsers, setEditMaxUsers] = useState("");
     const [editPeriodIds, setEditPeriodIds] = useState<string[]>([]);
+    const [editOperationTypeIds, setEditOperationTypeIds] = useState<string[]>([]);
     const [editToolIds, setEditToolIds] = useState<string[]>([]);
     const [editProductIds, setEditProductIds] = useState<string[]>([]);
     const [editFilterStartDate, setEditFilterStartDate] = useState("");
@@ -147,10 +157,12 @@ export default function FarmSharesPage() {
             const enrolledData: ResearchZoneShareDto[] = await enrolledRes.json();
             setEnrolledShares(enrolledData);
 
-            const [periodsRes, toolsRes, productsRes] = await Promise.all([
+            const [periodsRes, operationTypesRes, toolsRes, productsRes, officialRes] = await Promise.all([
                 apiGet(`/farm/${farmId}/periods`),
+                apiGet(`/operations/types`),
                 apiGet(`/farm/${farmId}/tools`),
                 apiGet(`/farm/${farmId}/products`),
+                apiGet(`/products/official`),
             ]);
 
             if (periodsRes.ok) {
@@ -159,14 +171,22 @@ export default function FarmSharesPage() {
                 setPeriods([]);
             }
 
+            if (operationTypesRes.ok) {
+                setOperationTypes(await operationTypesRes.json());
+            } else {
+                setOperationTypes([]);
+            }
+
             if (toolsRes.ok) {
                 setTools(await toolsRes.json());
             } else {
                 setTools([]);
             }
 
-            if (productsRes.ok) {
-                setProducts(await productsRes.json());
+            if (productsRes.ok || officialRes.ok) {
+                const farmProducts = productsRes.ok ? await productsRes.json() : [];
+                const officialProducts = officialRes.ok ? await officialRes.json() : [];
+                setProducts([...farmProducts, ...officialProducts]);
             } else {
                 setProducts([]);
             }
@@ -268,6 +288,7 @@ export default function FarmSharesPage() {
         setEditUsername(share.username || "");
         setEditMaxUsers(share.maxUsers != null ? String(share.maxUsers) : "");
         setEditPeriodIds((share.periodIds || []).map((id) => String(id)));
+        setEditOperationTypeIds((share.operationTypeIds || []).map((id) => String(id)));
         setEditToolIds((share.toolIds || []).map((id) => String(id)));
         setEditProductIds((share.productIds || []).map((id) => String(id)));
         setEditFilterStartDate(share.filterStartDate || "");
@@ -294,6 +315,7 @@ export default function FarmSharesPage() {
                 username: editShareMode === "direct" ? editUsername.trim() : "",
                 zoneWkt: editingResearchShare.zoneWkt,
                 periodIds: editPeriodIds.map(Number),
+                operationTypeIds: editOperationTypeIds.map(Number),
                 toolIds: editToolIds.map(Number),
                 productIds: editProductIds.map(Number),
                 filterStartDate: editFilterStartDate || null,
@@ -316,20 +338,32 @@ export default function FarmSharesPage() {
         } finally {
             setSavingEdit(false);
         }
-    }, [closeEditResearchShare, editFilterEndDate, editFilterStartDate, editMaxUsers, editPeriodIds, editProductIds, editShareEndAt, editShareMode, editShareStartAt, editToolIds, editUsername, editingResearchShare, farmId, t]);
+    }, [closeEditResearchShare, editFilterEndDate, editFilterStartDate, editMaxUsers, editPeriodIds, editOperationTypeIds, editProductIds, editShareEndAt, editShareMode, editShareStartAt, editToolIds, editUsername, editingResearchShare, farmId, t]);
 
-    const lookupLabel = useCallback((type: "period" | "tool" | "product", id: number) => {
+    const productLabel = useCallback((product: ProductDto) => {
+        if (product.official) {
+            const auth = product.officialAuthNumber ? ` (${product.officialAuthNumber})` : "";
+            return t("products.officialLabel", { defaultValue: "Official: {{name}}{{auth}}", name: product.name, auth });
+        }
+        return product.name;
+    }, [t]);
+
+    const lookupLabel = useCallback((type: "period" | "operationType" | "tool" | "product", id: number) => {
         if (type === "period") {
             const found = periods.find((period) => period.id === id);
             return found?.name || `Period ${id}`;
+        }
+        if (type === "operationType") {
+            const found = operationTypes.find((op) => op.id === id);
+            return found?.name || `Type ${id}`;
         }
         if (type === "tool") {
             const found = tools.find((tool) => tool.id === id);
             return found?.name || `Tool ${id}`;
         }
         const found = products.find((product) => product.id === id);
-        return found?.name || `Product ${id}`;
-    }, [periods, products, tools]);
+        return found ? productLabel(found) : `Product ${id}`;
+    }, [operationTypes, periods, productLabel, products, tools]);
 
     function MultiSelectField({
         label,
@@ -558,6 +592,9 @@ export default function FarmSharesPage() {
                                             {t("farmShares.research.periods", { defaultValue: "Periods" })}: {share.periodIds && share.periodIds.length ? share.periodIds.map((id) => lookupLabel("period", id)).join(", ") : t("farmShares.research.any", { defaultValue: "Any" })}
                                         </p>
                                         <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                                            {t("farmShares.research.operationTypes", { defaultValue: "Operation types" })}: {share.operationTypeIds && share.operationTypeIds.length ? share.operationTypeIds.map((id) => lookupLabel("operationType", id)).join(", ") : t("farmShares.research.any", { defaultValue: "Any" })}
+                                        </p>
+                                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                                             {t("farmShares.research.tools", { defaultValue: "Tools" })}: {share.toolIds && share.toolIds.length ? share.toolIds.map((id) => lookupLabel("tool", id)).join(", ") : t("farmShares.research.any", { defaultValue: "Any" })}
                                         </p>
                                         <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
@@ -593,7 +630,9 @@ export default function FarmSharesPage() {
                     <div className="w-full max-w-2xl rounded-2xl border border-white/10 bg-slate-900/95 p-6 shadow-2xl shadow-black/40">
                         <div className="flex items-start justify-between">
                             <div>
-                                <h3 className="text-lg font-semibold text-white">Edit Share</h3>
+                                <h3 className="text-lg font-semibold text-white">
+                                    {t("farmShares.edit.title", { defaultValue: "Edit share" })}
+                                </h3>
                                 <p className="text-sm text-slate-300">{t("farmShares.edit.subtitle", { defaultValue: "Update constraints, timing, or revoke this share." })}</p>
                             </div>
                             <button
@@ -646,12 +685,18 @@ export default function FarmSharesPage() {
                                 </label>
                             )}
 
-                            <div className="grid gap-2 sm:grid-cols-3">
+                            <div className="grid gap-2 sm:grid-cols-4">
                                 <MultiSelectField
                                     label={t("farmShares.research.periods", { defaultValue: "Periods" })}
                                     selected={editPeriodIds}
                                     onChange={setEditPeriodIds}
                                     options={periods.map((period) => ({ id: period.id, label: period.name || `Period ${period.id}` }))}
+                                />
+                                <MultiSelectField
+                                    label={t("farmShares.research.operationTypes", { defaultValue: "Operation types" })}
+                                    selected={editOperationTypeIds}
+                                    onChange={setEditOperationTypeIds}
+                                    options={operationTypes.map((op) => ({ id: op.id, label: op.name }))}
                                 />
                                 <MultiSelectField
                                     label={t("farmShares.research.tools", { defaultValue: "Tools" })}
@@ -663,7 +708,7 @@ export default function FarmSharesPage() {
                                     label={t("farmShares.research.products", { defaultValue: "Products" })}
                                     selected={editProductIds}
                                     onChange={setEditProductIds}
-                                    options={products.map((product) => ({ id: product.id, label: product.name }))}
+                                    options={products.map((product) => ({ id: product.id, label: productLabel(product) }))}
                                 />
                             </div>
 

@@ -4,7 +4,7 @@ import ProtectedRoute from "~/components/ProtectedRoute";
 import { useAuth } from "~/contexts/AuthContext";
 import { useCurrentLocale } from "~/hooks/useCurrentLocale";
 import { buildLocalizedPath } from "~/utils/locale";
-import { apiPut, apiRequest } from "~/utils/api";
+import { apiPut, apiRequest, resolveUploadUrl } from "~/utils/api";
 import { Link } from "react-router";
 import Cropper, { type Area } from "react-easy-crop";
 
@@ -195,7 +195,7 @@ export default function ProfilePage() {
               <div className="flex gap-4 items-center">
                 <div className="relative h-16 w-16 overflow-hidden rounded-full border border-white/20 bg-white/10">
                   {avatarUrl ? (
-                    <img src={avatarUrl} alt="avatar" className="h-full w-full object-cover" />
+                    <img src={resolveUploadUrl(avatarUrl) ?? avatarUrl} alt="avatar" className="h-full w-full object-cover" />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center text-lg font-semibold text-slate-200">
                       {username ? username.charAt(0).toUpperCase() : "?"}

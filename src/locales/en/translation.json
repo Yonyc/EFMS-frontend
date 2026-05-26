@@ -92,9 +92,18 @@
       "primaryCta": "Open interactive map",
       "secondaryCta": "Create a farm",
       "stats": [
-        { "value": "Hélène Verhaeghe", "label": "supervisor" },
-        { "value": "Alexandre & Arnaud Wery", "label": "students" },
-        { "value": "LLN", "label": "experimental farm" }
+        {
+          "value": "Hélène Verhaeghe",
+          "label": "supervisor"
+        },
+        {
+          "value": "Alexandre & Arnaud Wery",
+          "label": "students"
+        },
+        {
+          "value": "LLN",
+          "label": "experimental farm"
+        }
       ]
     },
     "context": {
@@ -111,11 +120,26 @@
       "title": "What EFMS brings",
       "tagline": "Platform capabilities",
       "items": [
-        { "title": "Precise parcel editor", "description": "Draw, split and color-code main fields plus experimental sub-parcels with overlap detection." },
-        { "title": "Complete agronomic logbook", "description": "Record crops, treatments, experiments and yearly operations per zone with a full audit trail." },
-        { "title": "Regulation-ready exports", "description": "Generate reports compatible with Belgian administrative systems and research workflows." },
-        { "title": "Historical timeline", "description": "Travel through seasons to understand what happened on any square meter in seconds." },
-        { "title": "Collaboration-first UI", "description": "Role-friendly interface that stays fast on the field and intuitive in the office." }
+        {
+          "title": "Precise parcel editor",
+          "description": "Draw, split and color-code main fields plus experimental sub-parcels with overlap detection."
+        },
+        {
+          "title": "Complete agronomic logbook",
+          "description": "Record crops, treatments, experiments and yearly operations per zone with a full audit trail."
+        },
+        {
+          "title": "Regulation-ready exports",
+          "description": "Generate reports compatible with Belgian administrative systems and research workflows."
+        },
+        {
+          "title": "Historical timeline",
+          "description": "Travel through seasons to understand what happened on any square meter in seconds."
+        },
+        {
+          "title": "Collaboration-first UI",
+          "description": "Role-friendly interface that stays fast on the field and intuitive in the office."
+        }
       ]
     },
     "cta": {
@@ -125,92 +149,114 @@
       "secondary": "Create my first farm"
     }
   },
-    "wiki": {
-      "title": "EFMS Wiki",
-      "mapTutorial": {
-        "title": "Interactive map tutorial",
-        "intro": "Use this guided workflow to draw experimental parcels, edit them safely and keep your data organized.",
-        "cta": {
-          "openMap": "Open map",
-          "restartTour": "Replay in-app tutorial"
-        },
-        "sections": [
-          {
-            "title": "1. Prepare the workspace",
-            "body": "Before drawing, make sure you are authenticated and that the right farm is selected in the navigation bar.",
-            "actions": [
-              "Choose a farm with the selector next to your profile picture. This loads its polygons and color palette.",
-              "Press the map link in the navbar to open the editor.",
-              "Wait for the base map to finish loading (spinner in the right panel)."
-            ]
-          },
-          {
-            "title": "2. Create a polygon",
-            "body": "Draw experimental parcels by placing vertices on the imagery layer.",
-            "actions": [
-              "Click the \"Add\" button in the left toolbar, then select \"Polygon\".",
-              "Left-click on the map to drop each vertex. Use scroll to zoom for higher precision.",
-              "Close the polygon by clicking on the first vertex or by pressing Enter to auto-complete.",
-              "Give the parcel a name in the modal that appears and confirm to save it."
-            ]
-          },
-          {
-            "title": "3. Edit an existing polygon",
-            "body": "Adjust shapes whenever trials evolve.",
-            "actions": [
-              "Select the polygon either from the list or by clicking it on the map.",
-              "Use the toolbar action \"Edit\" to expose draggable vertices.",
-              "Drag handles to new positions; double-click to insert a new vertex, press Delete to remove one.",
-              "Hit \"Save\" when you are satisfied or \"Cancel\" to revert changes."
-            ]
-          },
-          {
-            "title": "4. Manage visibility & colors",
-            "body": "Keep the view readable by toggling polygons on and off and applying semantic colors.",
-            "actions": [
-              "Open the polygon list on the right and use the checkbox to show or hide a parcel.",
-              "Click the colored dot to choose a new hue that matches crops or experiment types.",
-              "Group related sub-parcels by assigning the same color family."
-            ]
-          },
-          {
-            "title": "5. Delete",
-            "body": "Clean up prototypes.",
-            "actions": [
-              "Use the menu on a polygon.",
-              "Select \"Delete\" to remove a parcel. You will be asked to confirm to avoid accidental loss.",
-              "When deleting, EFMS keeps the historical log but removes it from the live map."
-            ]
-          }
-        ],
-        "tips": {
-          "title": "Field-tested tips",
-          "items": [
-            "Name polygons with a consistent convention such as FIELD-PLOT-SUBPLOT (e.g., B1-Red-2025)."
+  "wiki": {
+    "title": "EFMS Wiki",
+    "mapTutorial": {
+      "title": "Interactive map tutorial",
+      "intro": "Use this guided workflow to draw experimental parcels, edit them safely and keep your data organized.",
+      "cta": {
+        "openMap": "Open map",
+        "restartTour": "Replay in-app tutorial"
+      },
+      "sections": [
+        {
+          "title": "1. Prepare the workspace",
+          "body": "Before drawing, make sure you are authenticated and that the right farm is selected in the navigation bar.",
+          "actions": [
+            "Choose a farm with the selector next to your profile picture. This loads its polygons and color palette.",
+            "Press the map link in the navbar to open the editor.",
+            "Wait for the base map to finish loading (spinner in the right panel)."
           ]
         },
-        "shortcuts": {
-          "title": "Keyboard shortcuts",
-          "items": [
-            { "keys": "Esc", "description": "Cancel the current drawing or exit edit mode." },
-            { "keys": "Enter", "description": "Finish drawing and open the naming modal." },
-            { "keys": "Ctrl + Z", "description": "Undo the last vertex while drawing." },
-            { "keys": "Ctrl + D", "description": "Duplicate the selected polygon." }
+        {
+          "title": "2. Create a polygon",
+          "body": "Draw experimental parcels by placing vertices on the imagery layer.",
+          "actions": [
+            "Click the \"Add\" button in the left toolbar, then select \"Polygon\".",
+            "Left-click on the map to drop each vertex. Use scroll to zoom for higher precision.",
+            "Close the polygon by clicking on the first vertex or by pressing Enter to auto-complete.",
+            "Give the parcel a name in the modal that appears and confirm to save it."
+          ]
+        },
+        {
+          "title": "3. Edit an existing polygon",
+          "body": "Adjust shapes whenever trials evolve.",
+          "actions": [
+            "Select the polygon either from the list or by clicking it on the map.",
+            "Use the toolbar action \"Edit\" to expose draggable vertices.",
+            "Drag handles to new positions; double-click to insert a new vertex, press Delete to remove one.",
+            "Hit \"Save\" when you are satisfied or \"Cancel\" to revert changes."
+          ]
+        },
+        {
+          "title": "4. Manage visibility & colors",
+          "body": "Keep the view readable by toggling polygons on and off and applying semantic colors.",
+          "actions": [
+            "Open the polygon list on the right and use the checkbox to show or hide a parcel.",
+            "Click the colored dot to choose a new hue that matches crops or experiment types.",
+            "Group related sub-parcels by assigning the same color family."
+          ]
+        },
+        {
+          "title": "5. Delete",
+          "body": "Clean up prototypes.",
+          "actions": [
+            "Use the menu on a polygon.",
+            "Select \"Delete\" to remove a parcel. You will be asked to confirm to avoid accidental loss.",
+            "When deleting, EFMS keeps the historical log but removes it from the live map."
           ]
         }
+      ],
+      "tips": {
+        "title": "Field-tested tips",
+        "items": [
+          "Name polygons with a consistent convention such as FIELD-PLOT-SUBPLOT (e.g., B1-Red-2025)."
+        ]
+      },
+      "shortcuts": {
+        "title": "Keyboard shortcuts",
+        "items": [
+          {
+            "keys": "Esc",
+            "description": "Cancel the current drawing or exit edit mode."
+          },
+          {
+            "keys": "Enter",
+            "description": "Finish drawing and open the naming modal."
+          },
+          {
+            "keys": "Ctrl + Z",
+            "description": "Undo the last vertex while drawing."
+          },
+          {
+            "keys": "Ctrl + D",
+            "description": "Duplicate the selected polygon."
+          }
+        ]
       }
-    },
+    }
+  },
   "common": {
     "cancel": "Cancel",
     "confirm": "Confirm",
     "save": "Save",
+    "saving": "Saving…",
     "add": "Add",
     "delete": "Delete",
+    "rename": "Rename",
+    "edit": "Edit",
     "select": "Select",
+    "search": "Search",
+    "filters": "Filters",
+    "clearFilters": "Clear filters",
     "quantity": "Quantity",
+    "previous": "Previous",
+    "next": "Next",
     "loading": "Loading...",
     "yes": "Yes",
-    "no": "No"
+    "no": "No",
+    "success": "Success",
+    "error": "Error"
   },
   "farmSelector": {
     "noFarms": "No farms available",
@@ -323,6 +369,7 @@
       "copyLink": "Copy link",
       "accessUsers": "Users with access",
       "periods": "Periods",
+      "operationTypes": "Operation types",
       "tools": "Tools",
       "products": "Products",
       "any": "Any",
@@ -344,6 +391,7 @@
       "leave": "Leave share"
     },
     "edit": {
+      "title": "Edit share",
       "subtitle": "Update constraints, timing, or revoke this share.",
       "direct": "Direct user",
       "link": "Link-based",
@@ -436,6 +484,108 @@
     "refreshFarms": "Refresh farms",
     "refreshParcels": "Reload parcels",
     "pinTopRight": "Open top-right"
+  },
+  "assets": {
+    "title": "Assets",
+    "heading": "Products & Tools",
+    "subtitle": "Manage the consumables and equipment available on the selected farm.",
+    "refresh": "Refresh farms",
+    "selectFarm": "Select a farm first to manage its assets.",
+    "readOnly": "You can view assets but do not have permission to edit this farm.",
+    "pagination": "Page {{page}} of {{total}}",
+    "errors": {
+      "loadProducts": "Unable to load products.",
+      "loadTools": "Unable to load tools.",
+      "loadOfficial": "Unable to load official products.",
+      "addProduct": "Failed to add product.",
+      "addTool": "Failed to add tool."
+    },
+    "nav": {
+      "products": "Products",
+      "tools": "Tools",
+      "reference": "Reference data",
+      "official": "Official catalog"
+    },
+    "products": {
+      "label": "Products",
+      "title": "Farm products",
+      "addPlaceholder": "Add a product (e.g., seed, fertilizer)",
+      "typeLabel": "Product type",
+      "typePlaceholder": "No type",
+      "unitLabel": "Unit",
+      "unitPlaceholder": "No unit",
+      "defaultOpTypeLabel": "Default operation type",
+      "defaultOpTypePlaceholder": "No default operation type",
+      "noDefaultOpType": "No default operation type",
+      "searchPlaceholder": "Search products…",
+      "filterType": "All types",
+      "filterUnit": "All units",
+      "filterOpType": "All operation types",
+      "empty": "No products yet.",
+      "noResults": "No products match your search."
+    },
+    "tools": {
+      "label": "Tools",
+      "title": "Farm tools",
+      "addPlaceholder": "Add a tool (e.g., sprayer, tractor)",
+      "categoryLabel": "Category",
+      "categoryPlaceholder": "No category",
+      "searchPlaceholder": "Search tools…",
+      "filterCategory": "All categories",
+      "empty": "No tools yet.",
+      "noResults": "No tools match your search."
+    },
+    "official": {
+      "label": "Official catalog",
+      "title": "Official PHYTO products",
+      "subtitle": "Read-only list of products imported from the PHYTO registry.",
+      "subtitleAdmin": "Click any product to view and edit its sheet.",
+      "searchPlaceholder": "Search by name or auth number",
+      "empty": "No official products found."
+    },
+    "refdata": {
+      "label": "Reference data",
+      "title": "Units, product types & operation types",
+      "subtitleAdmin": "Manage global reference data and promote farm-specific items to global.",
+      "subtitleFarm": "Create farm-specific reference data and configure default tools per operation.",
+      "scopeFarm": "Farm",
+      "addFarm": "Add to farm",
+      "addGlobal": "Add globally",
+      "promote": "↑ Make global",
+      "units": {
+        "title": "Units",
+        "placeholder": "e.g. kg, L, seeds/m²",
+        "empty": "No units yet."
+      },
+      "productTypes": {
+        "title": "Product types",
+        "placeholder": "e.g. Herbicide",
+        "unitPlaceholder": "Default unit (optional)",
+        "noUnit": "No default unit",
+        "empty": "No product types yet."
+      },
+      "opTypes": {
+        "title": "Operation types",
+        "placeholder": "e.g. Spraying",
+        "noTool": "No default tool for this farm",
+        "empty": "No operation types yet."
+      },
+      "toolCategories": {
+        "title": "Tool categories",
+        "placeholder": "e.g. Sprayer, Tractor",
+        "empty": "No tool categories yet."
+      }
+    }
+  },
+  "products": {
+    "officialLabel": "Official: {{name}}{{auth}}",
+    "officialTag": "Official",
+    "version": "Version",
+    "decision": "Decision",
+    "validity": "Validity",
+    "userGroup": "User group",
+    "formulation": "Formulation",
+    "productTypes": "Product types"
   },
   "periods": {
     "title": "Manage periods",
@@ -675,7 +825,20 @@
       "requireFarmApprovalDesc": "New farms created by users must be approved by an admin before they are fully active and public.",
       "saveBtn": "Save Preferences",
       "savingBtn": "Saving...",
-      "loading": "Loading settings..."
+      "loading": "Loading settings...",
+      "phytoTitle": "PHYTO catalog import",
+      "phytoSubtitle": "Import official products from a PHYTO_DB JSON file.",
+      "phytoFileLabel": "JSON file path",
+      "phytoFilePlaceholder": "/path/to/PHYTO_DB/2026_05_01_FULL_1.json",
+      "phytoFileHint": "Use an absolute path on the server where EFMS is running.",
+      "phytoVersionLabel": "Version tag (optional)",
+      "phytoVersionPlaceholder": "e.g., 2026-05-01 FULL",
+      "phytoPathRequired": "File path is required.",
+      "phytoImportError": "Failed to import PHYTO file.",
+      "phytoImportSuccess": "Import completed.",
+      "phytoImportSummary": "Total {{total}} · Created {{created}} · Updated {{updated}} · Skipped {{skipped}}",
+      "phytoImporting": "Importing...",
+      "phytoImportBtn": "Import PHYTO file"
     },
     "users": {
       "title": "Users",
@@ -791,6 +954,80 @@
         "restoreConfirm": "Restore farm \"{{name}}\" and its cascade-deleted children?",
         "deleteFailed": "Failed to delete farm",
         "restoreFailed": "Failed to restore farm"
+      }
+    },
+    "reference": {
+      "title": "Reference Data",
+      "subtitle": "Manage global reference data used across all farms.",
+      "navLabel": "Reference Data",
+      "units": {
+        "title": "Units",
+        "desc": "Units of measure used for products and operations.",
+        "placeholder": "New unit (e.g. L, kg)",
+        "empty": "No units defined yet."
+      },
+      "productTypes": {
+        "title": "Product Types",
+        "desc": "Categories for classifying products.",
+        "placeholder": "New product type",
+        "noUnit": "No unit",
+        "empty": "No product types defined yet."
+      },
+      "opTypes": {
+        "title": "Operation Types",
+        "desc": "Global operation types available to all farms.",
+        "placeholder": "New operation type",
+        "empty": "No global operation types defined yet."
+      },
+      "toolCategories": {
+        "title": "Tool Categories",
+        "desc": "Categories for organizing tools.",
+        "placeholder": "New tool category",
+        "empty": "No tool categories defined yet."
+      }
+    },
+    "officialProducts": {
+      "title": "Official Products Catalog",
+      "subtitle": "Browse the Belgian phytosanitary product catalog and manage automated sync.",
+      "navLabel": "Official Products",
+      "sync": {
+        "title": "Catalog Sync",
+        "desc": "Connect to the Belgian FTP server, detect new catalog files and import them directly.",
+        "running": "Syncing…",
+        "history": "Import history",
+        "file": "File",
+        "status": "Status",
+        "created": "Created",
+        "updated": "Updated",
+        "total": "Total",
+        "processedAt": "Processed at",
+        "btn": "Sync from remote"
+      },
+      "catalog": {
+        "title": "Products",
+        "count": "{{count}} products",
+        "searchPlaceholder": "Search by name, auth number, substance…",
+        "empty": "No products found.",
+        "page": "Page {{current}} of {{total}}"
+      },
+      "detail": {
+        "authNumber": "Auth. number",
+        "version": "Version",
+        "decision": "Decision",
+        "holder": "Holder",
+        "activeSubstances": "Active substances",
+        "productType": "Product type",
+        "formulation": "Formulation",
+        "userGroup": "User group",
+        "dateFrom": "Auth. from",
+        "dateTo": "Auth. to",
+        "saleTo": "Sale to",
+        "useToleratedTo": "Use tolerated to"
+      },
+      "filters": {
+        "allDecisions": "All decisions",
+        "allGroups": "All user groups",
+        "allTypes": "All product types"
       }
     }
   }

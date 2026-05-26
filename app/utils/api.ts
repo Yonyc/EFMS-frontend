@@ -1,13 +1,16 @@
 import { apiUrl } from '../config';
 
+export function resolveUploadUrl(url: string | null | undefined): string | undefined {
+  if (!url) return undefined;
+  if (url.startsWith('/uploads/')) return `${apiUrl}${url}`;
+  return url;
+}
+
 export interface ApiRequestOptions extends RequestInit {
   requireAuth?: boolean;
   suppressUnauthorizedRedirect?: boolean;
 }
 
-/**
- * Make an authenticated API request with Bearer token
- */
 export async function apiRequest(
   endpoint: string,
   options: ApiRequestOptions = {}
@@ -26,7 +29,6 @@ export async function apiRequest(
     ...providedHeaders,
   };
 
-  // Add Bearer token if authentication is required
   if (requireAuth) {
     const token = localStorage.getItem('authToken');
     if (token) {
@@ -42,25 +44,17 @@ export async function apiRequest(
     headers: requestHeaders,
   });
 
-  // Do not force a global logout on every 401.
-  // Specific flows (e.g. AuthContext refresh) should decide whether to clear session.
+  // 401 handling is left to the caller — not every 401 should kill the session
   if (response.status === 401 && requireAuth && suppressUnauthorizedRedirect) {
-    // Explicitly suppressed; caller will handle unauthorized state.
   }
 
   return response;
 }
 
-/**
- * Convenience method for GET requests
- */
 export async function apiGet(endpoint: string, options: ApiRequestOptions = {}) {
   return apiRequest(endpoint, { ...options, method: 'GET' });
 }
 
-/**
- * Convenience method for POST requests
- */
 export async function apiPost(
   endpoint: string,
   data?: any,
@@ -73,9 +67,6 @@ export async function apiPost(
   });
 }
 
-/**
- * Convenience method for PUT requests
- */
 export async function apiPut(
   endpoint: string,
   data?: any,
@@ -88,7 +79,6 @@ export async function apiPut(
   });
 }
 
-// quick patch request
 export async function apiPatch(
   endpoint: string,
   data?: any,
@@ -101,9 +91,16 @@ export async function apiPatch(
   });
 }
 
-/**
- * Convenience method for DELETE requests
- */
 export async function apiDelete(endpoint: string, options: ApiRequestOptions = {}) {
   return apiRequest(endpoint, { ...options, method: 'DELETE' });
+}
+
+// Spring returns pagination either at root (legacy) or nested under .page (VIA_DTO)
+export function getPageMeta(data: any): { totalPages: number; number: number; totalElements: number } {
+  const meta = data?.page ?? data;
+  return {
+    totalPages: meta?.totalPages ?? 0,
+    number: meta?.number ?? 0,
+    totalElements: meta?.totalElements ?? 0,
+  };
 }

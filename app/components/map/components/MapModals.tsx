@@ -1,5 +1,5 @@
 import React from "react";
-import type { PeriodDto, PolygonData, ParcelShareDto } from "../types";
+import type { PeriodDto, PolygonData, ParcelShareDto, OperationTypeDto } from "../types";
 import { XMarkIcon } from "@heroicons/react/24/outline";
 import { createPortal } from "react-dom";
 import MultiSelectCombobox from "../../MultiSelectCombobox";
@@ -30,6 +30,7 @@ interface MapModalsProps {
     allPolygons: PolygonData[];
     tools: ToolDto[];
     products: ProductDto[];
+    operationTypes: OperationTypeDto[];
 }
 
 const MapModals = React.memo((props: MapModalsProps) => {
@@ -37,14 +38,22 @@ const MapModals = React.memo((props: MapModalsProps) => {
         t,
         renamingId, setRenamingId, renameValue, setRenameValue, renamePeriodId, setRenamePeriodId, handleRenameConfirm, periods,
         isAreaModalOpen, areaName, setAreaName, selectedPeriodId, setSelectedPeriodId, handleAreaConfirm, handleAreaCancel,
-        sharing, tools, products, allPolygons
+        sharing, tools, products, operationTypes, allPolygons
     } = props;
+
+    const productLabel = (product: ProductDto) => {
+        if (product.official) {
+            const auth = product.officialAuthNumber ? ` (${product.officialAuthNumber})` : '';
+            return t('products.officialLabel', { defaultValue: 'Official: {{name}}{{auth}}', name: product.name, auth });
+        }
+        return product.name;
+    };
 
     const {
         shareParcelId, closeShareModal, shareList, shareUsername, setShareUsername, shareRole, setShareRole, shareError, shareLoading,
         handleAddShare, handleUpdateShare, handleRemoveShare,
         researchShares, setResearchShares, researchShareUsername, setResearchShareUsername, researchSharePeriodIds, setResearchSharePeriodIds,
-        researchShareToolIds, setResearchShareToolIds, researchShareProductIds, setResearchShareProductIds, researchShareFilterStartDate,
+        researchShareOperationTypeIds, setResearchShareOperationTypeIds, researchShareToolIds, setResearchShareToolIds, researchShareProductIds, setResearchShareProductIds, researchShareFilterStartDate,
         setResearchShareFilterStartDate, researchShareFilterEndDate, setResearchShareFilterEndDate, researchShareStartAt, setResearchShareStartAt,
         researchShareEndAt, setResearchShareEndAt, researchShareMode, setResearchShareMode, researchShareMaxUsers, setResearchShareMaxUsers,
         researchShareFeedback, setResearchShareFeedback, researchShareLastLink, researchShareLoading, quickShareLink, quickShareFeedback, setQuickShareFeedback,
@@ -283,13 +292,20 @@ const MapModals = React.memo((props: MapModalsProps) => {
                                     </label>
                                 )}
 
-                                <div className="grid gap-2 sm:grid-cols-3">
+                                <div className="grid gap-2 sm:grid-cols-4">
                                     <MultiSelectCombobox
                                         label="Periods"
                                         options={periods.map(p => ({ value: String(p.id), label: p.name || `${p.startDate || ''} - ${p.endDate || ''}` }))}
                                         selectedValues={researchSharePeriodIds}
                                         onChange={setResearchSharePeriodIds}
                                         placeholder="Any period"
+                                    />
+                                    <MultiSelectCombobox
+                                        label="Operation types"
+                                        options={operationTypes.map(o => ({ value: String(o.id), label: o.name }))}
+                                        selectedValues={researchShareOperationTypeIds}
+                                        onChange={setResearchShareOperationTypeIds}
+                                        placeholder="Any type"
                                     />
                                     <MultiSelectCombobox
                                         label="Tools"
@@ -300,7 +316,7 @@ const MapModals = React.memo((props: MapModalsProps) => {
                                     />
                                     <MultiSelectCombobox
                                         label="Products"
-                                        options={products.map(p => ({ value: String(p.id), label: p.name }))}
+                                        options={products.map(p => ({ value: String(p.id), label: productLabel(p) }))}
                                         selectedValues={researchShareProductIds}
                                         onChange={setResearchShareProductIds}
                                         placeholder="Any product"

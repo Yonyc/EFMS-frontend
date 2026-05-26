@@ -92,9 +92,18 @@
       "primaryCta": "Ouvrir la carte interactive",
       "secondaryCta": "Créer une exploitation",
       "stats": [
-        { "value": "Hélène Verhaeghe", "label": "promotrice" },
-        { "value": "Alexandre & Arnaud Wery", "label": "étudiants" },
-        { "value": "LLN", "label": "ferme expérimentale" }
+        {
+          "value": "Hélène Verhaeghe",
+          "label": "promotrice"
+        },
+        {
+          "value": "Alexandre & Arnaud Wery",
+          "label": "étudiants"
+        },
+        {
+          "value": "LLN",
+          "label": "ferme expérimentale"
+        }
       ]
     },
     "context": {
@@ -111,11 +120,26 @@
       "title": "Ce qu'apporte EFMS",
       "tagline": "Fonctionnalités clés",
       "items": [
-        { "title": "Éditeur de parcelles précis", "description": "Dessinez, scindez et codez par couleur les champs principaux et les sous-parcelles expérimentales avec détection de chevauchement." },
-        { "title": "Carnet agronomique complet", "description": "Consignez cultures, traitements, expériences et opérations annuelles par zone avec une traçabilité totale." },
-        { "title": "Exports prêts pour l'administration", "description": "Générez des rapports compatibles avec les systèmes belges et les workflows de recherche." },
-        { "title": "Chronologie historique", "description": "Remontez les saisons pour comprendre en quelques secondes ce qui s'est passé sur n'importe quel mètre carré." },
-        { "title": "Interface pensée pour la collaboration", "description": "Une interface adaptée aux rôles qui reste fluide sur le terrain comme au bureau." }
+        {
+          "title": "Éditeur de parcelles précis",
+          "description": "Dessinez, scindez et codez par couleur les champs principaux et les sous-parcelles expérimentales avec détection de chevauchement."
+        },
+        {
+          "title": "Carnet agronomique complet",
+          "description": "Consignez cultures, traitements, expériences et opérations annuelles par zone avec une traçabilité totale."
+        },
+        {
+          "title": "Exports prêts pour l'administration",
+          "description": "Générez des rapports compatibles avec les systèmes belges et les workflows de recherche."
+        },
+        {
+          "title": "Chronologie historique",
+          "description": "Remontez les saisons pour comprendre en quelques secondes ce qui s'est passé sur n'importe quel mètre carré."
+        },
+        {
+          "title": "Interface pensée pour la collaboration",
+          "description": "Une interface adaptée aux rôles qui reste fluide sur le terrain comme au bureau."
+        }
       ]
     },
     "cta": {
@@ -125,92 +149,114 @@
       "secondary": "Créer ma première ferme"
     }
   },
-    "wiki": {
-      "title": "Wiki EFMS",
-      "mapTutorial": {
-        "title": "Tutoriel de la carte interactive",
-        "intro": "Suivez ce parcours guidé pour dessiner des parcelles expérimentales, les modifier en toute sécurité et garder vos données organisées.",
-        "cta": {
-          "openMap": "Ouvrir la carte",
-          "restartTour": "Relancer le tutoriel"
-        },
-        "sections": [
-          {
-            "title": "1. Préparer l'espace de travail",
-            "body": "Avant de dessiner, assurez-vous d'être connecté et d'avoir sélectionné la bonne exploitation dans la barre de navigation.",
-            "actions": [
-              "Choisissez une exploitation avec le sélecteur près de votre photo de profil. Les polygones et la palette de couleurs se chargent alors.",
-              "Cliquez sur le lien \"Carte\" dans la navigation pour ouvrir l'éditeur.",
-              "Patientez jusqu'à la fin du chargement de la carte de base (indicateur dans le panneau droit)."
-            ]
-          },
-          {
-            "title": "2. Créer un polygone",
-            "body": "Dessinez des parcelles expérimentales en déposant des sommets sur l'imagerie.",
-            "actions": [
-              "Cliquez sur le bouton \"Ajouter\" dans la barre latérale, puis sélectionnez \"Polygone\".",
-              "Cliquez gauche sur la carte pour poser chaque sommet. Utilisez la molette pour zoomer avec précision.",
-              "Fermez la forme en cliquant sur le premier sommet ou appuyez sur Entrée pour auto-terminer.",
-              "Donnez un nom à la parcelle dans la fenêtre qui s'affiche puis validez pour l'enregistrer."
-            ]
-          },
-          {
-            "title": "3. Modifier un polygone",
-            "body": "Ajustez les formes lorsque les essais évoluent.",
-            "actions": [
-              "Sélectionnez le polygone depuis la liste ou directement sur la carte.",
-              "Utilisez l'action \"Modifier\" de la barre d'outils pour afficher les sommets déplaçables.",
-              "Faites glisser les poignées, double-cliquez pour insérer un sommet, appuyez sur Suppr pour en retirer un.",
-              "Cliquez sur \"Enregistrer\" une fois satisfait ou \"Annuler\" pour revenir à l'état initial."
-            ]
-          },
-          {
-            "title": "4. Gérer visibilité et couleurs",
-            "body": "Gardez une vue lisible en affichant/masquant les polygones et en appliquant des couleurs parlantes.",
-            "actions": [
-              "Ouvrez la liste des polygones à droite et utilisez la case à cocher pour afficher ou masquer une parcelle.",
-              "Cliquez sur le point coloré pour choisir une nouvelle teinte associée à une culture ou un type d'essai.",
-              "Regroupez les sous-parcelles liées en leur attribuant la même palette."
-            ]
-          },
-          {
-            "title": "5. Supprimer",
-            "body": "Nettoyez vos prototypes.",
-            "actions": [
-              "Utilisez le menu d'un polygone pour le supprimer.",
-              "Choisissez \"Supprimer\" pour retirer une parcelle. Une confirmation évite les suppressions accidentelles.",
-              "Lors d'une suppression, EFMS conserve l'historique mais retire la parcelle de la carte active."
-            ]
-          }
-        ],
-        "tips": {
-          "title": "Astuces de terrain",
-          "items": [
-            "Nommez les polygones avec une convention cohérente comme CHAMP-PARCELLE-SOUSPARCELLE (ex : B1-Rouge-2025)."
+  "wiki": {
+    "title": "Wiki EFMS",
+    "mapTutorial": {
+      "title": "Tutoriel de la carte interactive",
+      "intro": "Suivez ce parcours guidé pour dessiner des parcelles expérimentales, les modifier en toute sécurité et garder vos données organisées.",
+      "cta": {
+        "openMap": "Ouvrir la carte",
+        "restartTour": "Relancer le tutoriel"
+      },
+      "sections": [
+        {
+          "title": "1. Préparer l'espace de travail",
+          "body": "Avant de dessiner, assurez-vous d'être connecté et d'avoir sélectionné la bonne exploitation dans la barre de navigation.",
+          "actions": [
+            "Choisissez une exploitation avec le sélecteur près de votre photo de profil. Les polygones et la palette de couleurs se chargent alors.",
+            "Cliquez sur le lien \"Carte\" dans la navigation pour ouvrir l'éditeur.",
+            "Patientez jusqu'à la fin du chargement de la carte de base (indicateur dans le panneau droit)."
           ]
         },
-        "shortcuts": {
-          "title": "Raccourcis clavier",
-          "items": [
-            { "keys": "Échap", "description": "Annule le dessin en cours ou quitte le mode édition." },
-            { "keys": "Entrée", "description": "Termine le dessin et ouvre la fenêtre de nommage." },
-            { "keys": "Ctrl + Z", "description": "Annule le dernier sommet pendant le dessin." },
-            { "keys": "Ctrl + D", "description": "Duplique le polygone sélectionné." }
+        {
+          "title": "2. Créer un polygone",
+          "body": "Dessinez des parcelles expérimentales en déposant des sommets sur l'imagerie.",
+          "actions": [
+            "Cliquez sur le bouton \"Ajouter\" dans la barre latérale, puis sélectionnez \"Polygone\".",
+            "Cliquez gauche sur la carte pour poser chaque sommet. Utilisez la molette pour zoomer avec précision.",
+            "Fermez la forme en cliquant sur le premier sommet ou appuyez sur Entrée pour auto-terminer.",
+            "Donnez un nom à la parcelle dans la fenêtre qui s'affiche puis validez pour l'enregistrer."
+          ]
+        },
+        {
+          "title": "3. Modifier un polygone",
+          "body": "Ajustez les formes lorsque les essais évoluent.",
+          "actions": [
+            "Sélectionnez le polygone depuis la liste ou directement sur la carte.",
+            "Utilisez l'action \"Modifier\" de la barre d'outils pour afficher les sommets déplaçables.",
+            "Faites glisser les poignées, double-cliquez pour insérer un sommet, appuyez sur Suppr pour en retirer un.",
+            "Cliquez sur \"Enregistrer\" une fois satisfait ou \"Annuler\" pour revenir à l'état initial."
+          ]
+        },
+        {
+          "title": "4. Gérer visibilité et couleurs",
+          "body": "Gardez une vue lisible en affichant/masquant les polygones et en appliquant des couleurs parlantes.",
+          "actions": [
+            "Ouvrez la liste des polygones à droite et utilisez la case à cocher pour afficher ou masquer une parcelle.",
+            "Cliquez sur le point coloré pour choisir une nouvelle teinte associée à une culture ou un type d'essai.",
+            "Regroupez les sous-parcelles liées en leur attribuant la même palette."
+          ]
+        },
+        {
+          "title": "5. Supprimer",
+          "body": "Nettoyez vos prototypes.",
+          "actions": [
+            "Utilisez le menu d'un polygone pour le supprimer.",
+            "Choisissez \"Supprimer\" pour retirer une parcelle. Une confirmation évite les suppressions accidentelles.",
+            "Lors d'une suppression, EFMS conserve l'historique mais retire la parcelle de la carte active."
           ]
         }
+      ],
+      "tips": {
+        "title": "Astuces de terrain",
+        "items": [
+          "Nommez les polygones avec une convention cohérente comme CHAMP-PARCELLE-SOUSPARCELLE (ex : B1-Rouge-2025)."
+        ]
+      },
+      "shortcuts": {
+        "title": "Raccourcis clavier",
+        "items": [
+          {
+            "keys": "Échap",
+            "description": "Annule le dessin en cours ou quitte le mode édition."
+          },
+          {
+            "keys": "Entrée",
+            "description": "Termine le dessin et ouvre la fenêtre de nommage."
+          },
+          {
+            "keys": "Ctrl + Z",
+            "description": "Annule le dernier sommet pendant le dessin."
+          },
+          {
+            "keys": "Ctrl + D",
+            "description": "Duplique le polygone sélectionné."
+          }
+        ]
       }
-    },
+    }
+  },
   "common": {
     "cancel": "Annuler",
     "confirm": "Confirmer",
     "save": "Enregistrer",
+    "saving": "Enregistrement…",
     "add": "Ajouter",
     "delete": "Supprimer",
+    "rename": "Renommer",
+    "edit": "Modifier",
     "select": "Sélectionner",
+    "search": "Rechercher",
+    "filters": "Filtres",
+    "clearFilters": "Effacer les filtres",
     "quantity": "Quantité",
+    "previous": "Précédent",
+    "next": "Suivant",
     "loading": "Chargement...",
     "yes": "Oui",
-    "no": "Non"
+    "no": "Non",
+    "success": "Succès",
+    "error": "Erreur"
   },
   "farmSelector": {
     "noFarms": "Aucune exploitation disponible",
@@ -323,6 +369,7 @@
       "copyLink": "Copier le lien",
       "accessUsers": "Utilisateurs ayant accès",
       "periods": "Périodes",
+      "operationTypes": "Types d'opération",
       "tools": "Outils",
       "products": "Produits",
       "any": "Tous",
@@ -344,6 +391,7 @@
       "leave": "Quitter le partage"
     },
     "edit": {
+      "title": "Modifier le partage",
       "subtitle": "Mettez à jour les contraintes, la période, ou révoquez ce partage.",
       "direct": "Utilisateur direct",
       "link": "Par lien",
@@ -436,6 +484,108 @@
     "refreshFarms": "Actualiser les fermes",
     "refreshParcels": "Recharger les parcelles",
     "pinTopRight": "Ouvrir en haut à droite"
+  },
+  "assets": {
+    "title": "Ressources",
+    "heading": "Produits et outils",
+    "subtitle": "Gérez les consommables et équipements disponibles pour l'exploitation sélectionnée.",
+    "refresh": "Actualiser les exploitations",
+    "selectFarm": "Sélectionnez d'abord une exploitation pour gérer ses ressources.",
+    "readOnly": "Vous pouvez consulter les ressources mais vous n'avez pas l'autorisation de modifier cette exploitation.",
+    "pagination": "Page {{page}} sur {{total}}",
+    "errors": {
+      "loadProducts": "Impossible de charger les produits.",
+      "loadTools": "Impossible de charger les outils.",
+      "loadOfficial": "Impossible de charger les produits officiels.",
+      "addProduct": "Impossible d'ajouter le produit.",
+      "addTool": "Impossible d'ajouter l'outil."
+    },
+    "nav": {
+      "products": "Produits",
+      "tools": "Outils",
+      "reference": "Données de référence",
+      "official": "Catalogue officiel"
+    },
+    "products": {
+      "label": "Produits",
+      "title": "Produits de l'exploitation",
+      "addPlaceholder": "Ajouter un produit (ex : semence, engrais)",
+      "typeLabel": "Type de produit",
+      "typePlaceholder": "Aucun type",
+      "unitLabel": "Unité",
+      "unitPlaceholder": "Aucune unité",
+      "defaultOpTypeLabel": "Type d'opération par défaut",
+      "defaultOpTypePlaceholder": "Aucun type d'opération par défaut",
+      "noDefaultOpType": "Aucun type d'opération par défaut",
+      "searchPlaceholder": "Rechercher des produits…",
+      "filterType": "Tous les types",
+      "filterUnit": "Toutes les unités",
+      "filterOpType": "Tous les types d'opération",
+      "empty": "Aucun produit pour l'instant.",
+      "noResults": "Aucun produit ne correspond à votre recherche."
+    },
+    "tools": {
+      "label": "Outils",
+      "title": "Outils de l'exploitation",
+      "addPlaceholder": "Ajouter un outil (ex : pulvérisateur, tracteur)",
+      "categoryLabel": "Catégorie",
+      "categoryPlaceholder": "Aucune catégorie",
+      "searchPlaceholder": "Rechercher des outils…",
+      "filterCategory": "Toutes les catégories",
+      "empty": "Aucun outil pour l'instant.",
+      "noResults": "Aucun outil ne correspond à votre recherche."
+    },
+    "official": {
+      "label": "Catalogue officiel",
+      "title": "Produits PHYTO officiels",
+      "subtitle": "Liste en lecture seule des produits importés depuis le registre PHYTO.",
+      "subtitleAdmin": "Cliquez sur un produit pour consulter et modifier sa fiche.",
+      "searchPlaceholder": "Rechercher par nom ou n° d'autorisation",
+      "empty": "Aucun produit officiel trouvé."
+    },
+    "refdata": {
+      "label": "Données de référence",
+      "title": "Unités, types de produits et types d'opérations",
+      "subtitleAdmin": "Gérez les données de référence globales et promouvez les éléments spécifiques à une ferme au niveau global.",
+      "subtitleFarm": "Créez des données de référence spécifiques à la ferme et configurez les outils par défaut par opération.",
+      "scopeFarm": "Ferme",
+      "addFarm": "Ajouter à la ferme",
+      "addGlobal": "Ajouter globalement",
+      "promote": "↑ Rendre global",
+      "units": {
+        "title": "Unités",
+        "placeholder": "ex : kg, L, graines/m²",
+        "empty": "Aucune unité pour l'instant."
+      },
+      "productTypes": {
+        "title": "Types de produits",
+        "placeholder": "ex : Herbicide",
+        "unitPlaceholder": "Unité par défaut (optionnel)",
+        "noUnit": "Aucune unité par défaut",
+        "empty": "Aucun type de produit pour l'instant."
+      },
+      "opTypes": {
+        "title": "Types d'opérations",
+        "placeholder": "ex : Pulvérisation",
+        "noTool": "Aucun outil par défaut pour cette ferme",
+        "empty": "Aucun type d'opération pour l'instant."
+      },
+      "toolCategories": {
+        "title": "Catégories d'outils",
+        "placeholder": "ex : Pulvérisateur, Tracteur",
+        "empty": "Aucune catégorie d'outil pour l'instant."
+      }
+    }
+  },
+  "products": {
+    "officialLabel": "Officiel : {{name}}{{auth}}",
+    "officialTag": "Officiel",
+    "version": "Version",
+    "decision": "Décision",
+    "validity": "Validité",
+    "userGroup": "Groupe d'utilisateurs",
+    "formulation": "Formulation",
+    "productTypes": "Types de produit"
   },
   "periods": {
     "title": "Gérer les périodes",
@@ -675,7 +825,20 @@
       "requireFarmApprovalDesc": "Les nouvelles exploitations créées par les utilisateurs doivent être approuvées par un administrateur avant d'être pleinement actives et publiques.",
       "saveBtn": "Enregistrer les préférences",
       "savingBtn": "Enregistrement...",
-      "loading": "Chargement des paramètres..."
+      "loading": "Chargement des paramètres...",
+      "phytoTitle": "Import du catalogue PHYTO",
+      "phytoSubtitle": "Importez les produits officiels depuis un fichier JSON PHYTO_DB.",
+      "phytoFileLabel": "Chemin du fichier JSON",
+      "phytoFilePlaceholder": "/chemin/vers/PHYTO_DB/2026_05_01_FULL_1.json",
+      "phytoFileHint": "Utilisez un chemin absolu sur le serveur où EFMS s'exécute.",
+      "phytoVersionLabel": "Tag de version (optionnel)",
+      "phytoVersionPlaceholder": "ex : 2026-05-01 FULL",
+      "phytoPathRequired": "Le chemin du fichier est obligatoire.",
+      "phytoImportError": "Échec de l'import PHYTO.",
+      "phytoImportSuccess": "Import terminé.",
+      "phytoImportSummary": "Total {{total}} · Créés {{created}} · Mis à jour {{updated}} · Ignorés {{skipped}}",
+      "phytoImporting": "Import en cours...",
+      "phytoImportBtn": "Importer le fichier PHYTO"
     },
     "users": {
       "title": "Utilisateurs",
@@ -791,6 +954,80 @@
         "restoreConfirm": "Restaurer l'exploitation \"{{name}}\" et ses enfants supprimés en cascade ?",
         "deleteFailed": "Échec de la suppression de l'exploitation",
         "restoreFailed": "Échec de la restauration de l'exploitation"
+      }
+    },
+    "reference": {
+      "title": "Données de référence",
+      "subtitle": "Gérez les données de référence globales utilisées par toutes les fermes.",
+      "navLabel": "Données de référence",
+      "units": {
+        "title": "Unités",
+        "desc": "Unités de mesure utilisées pour les produits et opérations.",
+        "placeholder": "Nouvelle unité (ex. L, kg)",
+        "empty": "Aucune unité définie."
+      },
+      "productTypes": {
+        "title": "Types de produits",
+        "desc": "Catégories pour classer les produits.",
+        "placeholder": "Nouveau type de produit",
+        "noUnit": "Sans unité",
+        "empty": "Aucun type de produit défini."
+      },
+      "opTypes": {
+        "title": "Types d'opérations",
+        "desc": "Types d'opérations globaux disponibles pour toutes les fermes.",
+        "placeholder": "Nouveau type d'opération",
+        "empty": "Aucun type d'opération global défini."
+      },
+      "toolCategories": {
+        "title": "Catégories d'outils",
+        "desc": "Catégories pour organiser les outils.",
+        "placeholder": "Nouvelle catégorie d'outil",
+        "empty": "Aucune catégorie d'outil définie."
+      }
+    },
+    "officialProducts": {
+      "title": "Catalogue officiel des produits",
+      "subtitle": "Parcourez le catalogue phytosanitaire belge et gérez la synchronisation automatique.",
+      "navLabel": "Produits officiels",
+      "sync": {
+        "title": "Synchronisation du catalogue",
+        "desc": "Se connecte au serveur FTP belge, détecte les nouveaux fichiers du catalogue et les importe directement.",
+        "running": "Synchronisation…",
+        "history": "Historique d'import",
+        "file": "Fichier",
+        "status": "Statut",
+        "created": "Créés",
+        "updated": "Mis à jour",
+        "total": "Total",
+        "processedAt": "Traité le",
+        "btn": "Synchroniser depuis le serveur"
+      },
+      "catalog": {
+        "title": "Produits",
+        "count": "{{count}} produits",
+        "searchPlaceholder": "Rechercher par nom, n° agréation, substance…",
+        "empty": "Aucun produit trouvé.",
+        "page": "Page {{current}} sur {{total}}"
+      },
+      "detail": {
+        "authNumber": "N° d'agréation",
+        "version": "Version",
+        "decision": "Décision",
+        "holder": "Détenteur",
+        "activeSubstances": "Substances actives",
+        "productType": "Type de produit",
+        "formulation": "Formulation",
+        "userGroup": "Groupe d'utilisateurs",
+        "dateFrom": "Agréation dès",
+        "dateTo": "Agréation jusqu'au",
+        "saleTo": "Vente jusqu'au",
+        "useToleratedTo": "Usage toléré jusqu'au"
+      },
+      "filters": {
+        "allDecisions": "Toutes décisions",
+        "allGroups": "Tous groupes d'utilisateurs",
+        "allTypes": "Tous types de produits"
       }
     }
   }

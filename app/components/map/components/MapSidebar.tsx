@@ -44,7 +44,7 @@ const MapSidebar = React.memo((props: MapSidebarProps) => {
     return (
         <div
             style={{
-                width: isListCollapsed ? 'auto' : '320px',
+                width: isListCollapsed ? 'auto' : 'min(320px, calc(100vw - 48px))',
                 pointerEvents: 'auto',
                 transition: 'width 0.25s ease',
             }}

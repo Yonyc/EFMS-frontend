@@ -2,7 +2,7 @@ import { Outlet, NavLink, useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import ProtectedRoute from "../../components/ProtectedRoute";
 import { useAuth } from "../../contexts/AuthContext";
-import { UsersIcon, MapIcon, Cog6ToothIcon } from "@heroicons/react/24/outline";
+import { UsersIcon, MapIcon, Cog6ToothIcon, CircleStackIcon, BeakerIcon } from "@heroicons/react/24/outline";
 import { useEffect } from "react";
 import { buildLocalizedPath } from "../../utils/locale";
 import { useCurrentLocale } from "../../hooks/useCurrentLocale";
@@ -19,55 +19,70 @@ export default function AdminLayout() {
         }
     }, [isAuthenticated, user, navigate, locale]);
 
-    if (!isAuthenticated || !user?.admin) {
-        return null; 
-    }
+    if (!isAuthenticated || !user?.admin) return null;
 
     const navigation = [
         { name: t('admin.users.title', { defaultValue: 'Users' }), href: buildLocalizedPath(locale, '/admin/users'), icon: UsersIcon },
         { name: t('admin.farms.title', { defaultValue: 'Farms' }), href: buildLocalizedPath(locale, '/admin/farms'), icon: MapIcon },
+        { name: t('admin.reference.navLabel', { defaultValue: 'Reference data' }), href: buildLocalizedPath(locale, '/admin/reference'), icon: CircleStackIcon },
+        { name: t('admin.officialProducts.navLabel', { defaultValue: 'Official Products' }), href: buildLocalizedPath(locale, '/admin/official-products'), icon: BeakerIcon },
         { name: t('admin.settings.title', { defaultValue: 'Global Settings' }), href: buildLocalizedPath(locale, '/admin/settings'), icon: Cog6ToothIcon },
     ];
 
+    const navLinkClass = ({ isActive }: { isActive: boolean }) =>
+        `flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+            isActive
+                ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300"
+                : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+        }`;
+
     return (
         <ProtectedRoute>
-            <div className="min-h-screen bg-slate-950 flex font-sans text-slate-200">
-                {/* Sidebar */}
-                <div className="w-64 bg-slate-900 border-r border-slate-800 flex flex-col shadow-2xl">
-                    <div className="h-16 flex items-center px-6 border-b border-slate-800 bg-slate-950/50">
-                        <h1 className="text-lg font-bold text-slate-100 tracking-wide">{t('admin.title', { defaultValue: 'Admin Dashboard' })}</h1>
+            <div className="flex min-h-screen bg-slate-50 font-sans text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+                {/* Desktop sidebar */}
+                <aside className="hidden w-56 shrink-0 flex-col border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900/70 lg:flex">
+                    <div className="border-b border-slate-200 px-5 py-4 dark:border-slate-800">
+                        <h1 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                            {t('admin.title', { defaultValue: 'Admin Dashboard' })}
+                        </h1>
                     </div>
-                    <nav className="flex-1 px-4 py-6 space-y-2">
+                    <nav className="flex-1 space-y-1 px-3 py-4">
+                        {navigation.map((item) => (
+                            <NavLink key={item.name} to={item.href} className={navLinkClass}>
+                                <item.icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                                {item.name}
+                            </NavLink>
+                        ))}
+                    </nav>
+                </aside>
+
+                {/* Mobile tabs */}
+                <div className="fixed top-16 left-0 right-0 z-30 border-b border-slate-200 bg-white px-4 py-2 dark:border-slate-800 dark:bg-slate-900 lg:hidden">
+                    <div className="flex overflow-x-auto gap-1">
                         {navigation.map((item) => (
                             <NavLink
                                 key={item.name}
                                 to={item.href}
                                 className={({ isActive }) =>
-                                    `flex items-center px-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 ${
+                                    `shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
                                         isActive
-                                            ? 'bg-indigo-500/15 text-indigo-300 border border-indigo-500/20 shadow-lg shadow-indigo-500/10'
-                                            : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200 border border-transparent'
+                                            ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300"
+                                            : "text-slate-600 hover:text-slate-900 dark:text-slate-400"
                                     }`
                                 }
                             >
-                                <item.icon className="mr-3 flex-shrink-0 h-5 w-5" aria-hidden="true" />
                                 {item.name}
                             </NavLink>
                         ))}
-                    </nav>
+                    </div>
                 </div>
 
                 {/* Main content */}
-                <div className="flex-1 flex flex-col overflow-hidden relative">
-                    {/* Subtle background glow effect */}
-                    <div className="absolute top-0 left-0 w-full h-96 bg-indigo-500/5 rounded-full blur-3xl -z-10 pointer-events-none"></div>
-                    
-                    <main className="flex-1 overflow-y-auto">
-                        <div className="py-10 px-8 max-w-7xl mx-auto">
-                            <Outlet />
-                        </div>
-                    </main>
-                </div>
+                <main className="flex-1 overflow-y-auto pt-16 lg:pt-0">
+                    <div className="mx-auto max-w-7xl px-6 py-10">
+                        <Outlet />
+                    </div>
+                </main>
             </div>
         </ProtectedRoute>
     );

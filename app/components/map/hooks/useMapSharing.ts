@@ -27,6 +27,7 @@ export function useMapSharing(props: UseMapSharingProps) {
     const [researchShares, setResearchShares] = useState<ResearchZoneShareDto[]>([]);
     const [researchShareUsername, setResearchShareUsername] = useState('');
     const [researchSharePeriodIds, setResearchSharePeriodIds] = useState<string[]>([]);
+    const [researchShareOperationTypeIds, setResearchShareOperationTypeIds] = useState<string[]>([]);
     const [researchShareToolIds, setResearchShareToolIds] = useState<string[]>([]);
     const [researchShareProductIds, setResearchShareProductIds] = useState<string[]>([]);
     const [researchShareFilterStartDate, setResearchShareFilterStartDate] = useState('');
@@ -103,6 +104,7 @@ export function useMapSharing(props: UseMapSharingProps) {
             const basePayload = {
                 zoneWkt,
                 periodIds: researchSharePeriodIds.length ? researchSharePeriodIds.map(Number) : undefined,
+                operationTypeIds: researchShareOperationTypeIds.length ? researchShareOperationTypeIds.map(Number) : undefined,
                 toolIds: researchShareToolIds.length ? researchShareToolIds.map(Number) : undefined,
                 productIds: researchShareProductIds.length ? researchShareProductIds.map(Number) : undefined,
                 filterStartDate: researchShareFilterStartDate || undefined,
@@ -163,7 +165,7 @@ export function useMapSharing(props: UseMapSharingProps) {
         } finally {
             setResearchShareLoading(false);
         }
-    }, [shareParcelId, props.resolvedContextId, props.allPolygons, researchSharePeriodIds, researchShareToolIds, researchShareProductIds, researchShareFilterStartDate, researchShareFilterEndDate, researchShareStartAt, researchShareEndAt, researchShareMode, researchShareUsername, researchShareMaxUsers]);
+    }, [shareParcelId, props.resolvedContextId, props.allPolygons, researchSharePeriodIds, researchShareOperationTypeIds, researchShareToolIds, researchShareProductIds, researchShareFilterStartDate, researchShareFilterEndDate, researchShareStartAt, researchShareEndAt, researchShareMode, researchShareUsername, researchShareMaxUsers]);
 
     const handleRemoveResearchShare = useCallback(async (shareId: number) => {
         if (!props.resolvedContextId) return;
@@ -199,6 +201,7 @@ export function useMapSharing(props: UseMapSharingProps) {
         setResearchShareUsername('');
         setResearchShareMaxUsers('');
         setResearchSharePeriodIds([...props.searchDraft.periodIds]);
+        setResearchShareOperationTypeIds([...props.searchDraft.operationTypeIds]);
         setResearchShareToolIds([...props.searchDraft.toolIds]);
         setResearchShareProductIds([...props.searchDraft.productIds]);
         setResearchShareFilterStartDate(props.searchDraft.startDate || '');
@@ -220,6 +223,7 @@ export function useMapSharing(props: UseMapSharingProps) {
             const basePayload = {
                 zoneWkt: filterShareZoneWkt,
                 periodIds: researchSharePeriodIds.length ? researchSharePeriodIds.map(Number) : undefined,
+                operationTypeIds: researchShareOperationTypeIds.length ? researchShareOperationTypeIds.map(Number) : undefined,
                 toolIds: researchShareToolIds.length ? researchShareToolIds.map(Number) : undefined,
                 productIds: researchShareProductIds.length ? researchShareProductIds.map(Number) : undefined,
                 filterStartDate: researchShareFilterStartDate || undefined,
@@ -278,7 +282,7 @@ export function useMapSharing(props: UseMapSharingProps) {
         } finally {
             setResearchShareLoading(false);
         }
-    }, [props.resolvedContextId, filterShareZoneWkt, researchSharePeriodIds, researchShareToolIds, researchShareProductIds, researchShareFilterStartDate, researchShareFilterEndDate, researchShareStartAt, researchShareEndAt, researchShareMode, researchShareUsername, researchShareMaxUsers]);
+    }, [props.resolvedContextId, filterShareZoneWkt, researchSharePeriodIds, researchShareOperationTypeIds, researchShareToolIds, researchShareProductIds, researchShareFilterStartDate, researchShareFilterEndDate, researchShareStartAt, researchShareEndAt, researchShareMode, researchShareUsername, researchShareMaxUsers]);
 
 
     const loadParcelShares = useCallback(async (parcelId: string) => {
@@ -389,6 +393,8 @@ handleRemoveShare,
         setResearchShareUsername,
         researchSharePeriodIds,
         setResearchSharePeriodIds,
+        researchShareOperationTypeIds,
+        setResearchShareOperationTypeIds,
         researchShareToolIds,
         setResearchShareToolIds,
         researchShareProductIds,

@@ -1,537 +1,622 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import ProtectedRoute from "~/components/ProtectedRoute";
-import { useAuth } from "~/contexts/AuthContext";
 import { useFarm } from "~/contexts/FarmContext";
-import { apiGet, apiPost } from "~/utils/api";
+import { apiGet, apiPost, getPageMeta } from "~/utils/api";
+import AttachmentSection from "~/components/AttachmentSection";
+import type { AttachmentDto } from "~/components/AttachmentSection";
+import { SearchableSelect } from "~/components/map/components/SearchableSelect";
+import type { SelectOption } from "~/components/map/components/SearchableSelect";
 
-interface ParcelSummary {
-  id: number;
-  name: string;
-}
-
-interface OperationTypeDto {
-  id: number;
-  name: string;
-}
-
-interface UnitDto {
-  id: number;
-  value: string;
-}
-
+interface ParcelSummary { id: number; name: string; }
+interface OpTypeDto { id: number; name: string; }
+interface UnitDto { id: number; value: string; }
 interface ProductDto {
-  id: number;
-  name: string;
+  id: number; name: string; official?: boolean;
+  officialAuthNumber?: string; officialSaleTo?: string; officialUseToleratedTo?: string;
+  unitId?: number; defaultOperationTypeId?: number;
 }
-
-interface ToolDto {
-  id: number;
-  name: string;
-}
-
+interface ToolDto { id: number; name: string; }
 interface OperationProductDto {
-  id: number;
-  quantity?: number;
-  productId?: number;
-  productName?: string;
-  unitId?: number;
-  unitValue?: string;
-  toolId?: number;
-  toolName?: string;
+  id: number; quantity?: number; productId?: number; productName?: string;
+  unitId?: number; unitValue?: string; toolId?: number; toolName?: string;
 }
-
 interface ParcelOperationDto {
-  id: number;
-  date?: string;
-  durationSeconds?: number;
-  typeId?: number;
-  typeName?: string;
+  id: number; date?: string; durationSeconds?: number;
+  typeId?: number; typeName?: string;
+  parcelId?: number; parcelName?: string;
   products?: OperationProductDto[];
+  attachments?: AttachmentDto[];
+}
+interface LineState { productId: string; quantity: string; unitId: string; toolId: string; }
+
+const PAGE_SIZE = 20;
+const RES_SIZE = 30;
+
+const nowForInput = () => {
+  const d = new Date(); d.setSeconds(0, 0);
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+};
+
+function formatDuration(s?: number) {
+  if (!s) return null;
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
+  return h > 0 ? `${h}h ${m}min` : `${m}min`;
 }
 
-interface OperationProductInputState {
-  productId: string;
-  quantity: string;
-  unitId: string;
-  toolId: string;
+function formatDate(str?: string) {
+  if (!str) return "";
+  return new Date(str).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
 }
 
-export function meta() {
-  return [
-    { title: "Operations - EFMS" },
-    { name: "description", content: "Manage parcel operations" },
-  ];
+interface AddModalProps {
+  farmId: number;
+  parcels: ParcelSummary[];
+  onSaved: () => void;
+  onClose: () => void;
 }
 
-export default function OperationsPage() {
-  const { isAuthenticated } = useAuth();
-  const { selectedFarm, refreshFarms } = useFarm();
+function AddOperationModal({ farmId, parcels, onSaved, onClose }: AddModalProps) {
   const { t } = useTranslation();
 
-  const [parcels, setParcels] = useState<ParcelSummary[]>([]);
-  const [selectedParcelId, setSelectedParcelId] = useState<number | null>(null);
-  const [operationTypes, setOperationTypes] = useState<OperationTypeDto[]>([]);
-  const [operations, setOperations] = useState<ParcelOperationDto[]>([]);
-  const [units, setUnits] = useState<UnitDto[]>([]);
-  const [products, setProducts] = useState<ProductDto[]>([]);
-  const [tools, setTools] = useState<ToolDto[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [creating, setCreating] = useState(false);
+  const [parcelId, setParcelId] = useState("");
+  const [typeId, setTypeId] = useState("");
+  const [date, setDate] = useState(nowForInput);
+  const [durationMinutes, setDurationMinutes] = useState("");
+  const [lines, setLines] = useState<LineState[]>([{ productId: "", quantity: "", unitId: "", toolId: "" }]);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [currentPage, setCurrentPage] = useState(0);
-  const [totalPages, setTotalPages] = useState(0);
-  const [totalElements, setTotalElements] = useState(0);
-  const pageSize = 10;
+  const [units, setUnits] = useState<UnitDto[]>([]);
+  const [products, setProducts] = useState<ProductDto[]>([]);
+  const [productHasMore, setProductHasMore] = useState(false);
+  const [productLoading, setProductLoading] = useState(false);
+  const productPageRef = useRef(-1);
+  const [tools, setTools] = useState<ToolDto[]>([]);
+  const [toolHasMore, setToolHasMore] = useState(false);
+  const [toolLoading, setToolLoading] = useState(false);
+  const toolPageRef = useRef(-1);
+  const [opTypes, setOpTypes] = useState<OpTypeDto[]>([]);
+  const [opTypeHasMore, setOpTypeHasMore] = useState(false);
+  const [opTypeLoading, setOpTypeLoading] = useState(false);
+  const opTypePageRef = useRef(-1);
 
-  const [typeId, setTypeId] = useState<string>("");
-  const [date, setDate] = useState<string>("");
-  const [durationMinutes, setDurationMinutes] = useState<string>("");
-  const [productLines, setProductLines] = useState<OperationProductInputState[]>([
-    { productId: "", quantity: "", unitId: "", toolId: "" },
-  ]);
-
-  const farmId = selectedFarm?.id;
-
-  const loadParcels = async (farm: string) => {
-    setError(null);
+  const fetchProducts = useCallback(async (page: number) => {
+    setProductLoading(true);
     try {
-      const res = await apiGet(`/farm/${farm}/parcels`);
-      if (!res.ok) throw new Error("failed");
-      const data = await res.json();
-      setParcels(data);
-      if (selectedParcelId && !data.find((p: ParcelSummary) => p.id === selectedParcelId)) {
-        setSelectedParcelId(null);
+      const r = await apiGet(`/farm/${farmId}/products?page=${page}&size=${RES_SIZE}&includeOfficial=true`);
+      if (r.ok) {
+        const data = await r.json(); const pm = getPageMeta(data);
+        setProducts(prev => page === 0 ? (data.content ?? []) : [...prev, ...(data.content ?? [])]);
+        productPageRef.current = pm.number; setProductHasMore(pm.number < pm.totalPages - 1);
       }
-    } catch (e) {
-      console.error(e);
-      setError("Unable to load parcels");
-    }
-  };
+    } finally { setProductLoading(false); }
+  }, [farmId]);
 
-  const loadReferences = async (farm: string) => {
+  const fetchTools = useCallback(async (page: number) => {
+    setToolLoading(true);
     try {
-      const [typesRes, unitsRes, productsRes, toolsRes] = await Promise.all([
-        apiGet(`/operations/types`),
-        apiGet(`/units`),
-        apiGet(`/farm/${farm}/products`),
-        apiGet(`/farm/${farm}/tools`),
-      ]);
-
-      if (typesRes.ok) setOperationTypes(await typesRes.json());
-      if (unitsRes.ok) setUnits(await unitsRes.json());
-      if (productsRes.ok) setProducts(await productsRes.json());
-      if (toolsRes.ok) setTools(await toolsRes.json());
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  const loadOperations = async (farm: string, parcel: number, page: number) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await apiGet(`/farm/${farm}/parcels/${parcel}/operations?page=${page}&size=${pageSize}`);
-      if (!res.ok) throw new Error("failed");
-      const data = await res.json();
-      if (data && data.content) {
-        setOperations(data.content);
-        setTotalPages(data.totalPages || 0);
-        setTotalElements(data.totalElements || 0);
-      } else {
-        setOperations(data || []);
-        setTotalPages(0);
-        setTotalElements(0);
+      const r = await apiGet(`/farm/${farmId}/tools?page=${page}&size=${RES_SIZE}`);
+      if (r.ok) {
+        const data = await r.json(); const pm = getPageMeta(data);
+        setTools(prev => page === 0 ? (data.content ?? []) : [...prev, ...(data.content ?? [])]);
+        toolPageRef.current = pm.number; setToolHasMore(pm.number < pm.totalPages - 1);
       }
-    } catch (e) {
-      console.error(e);
-      setError("Unable to load operations");
-    } finally {
-      setLoading(false);
-    }
-  };
+    } finally { setToolLoading(false); }
+  }, [farmId]);
 
-  useEffect(() => {
-    if (farmId) {
-      loadParcels(farmId);
-      loadReferences(farmId);
-    }
+  const fetchOpTypes = useCallback(async (page: number) => {
+    setOpTypeLoading(true);
+    try {
+      const r = await apiGet(`/operations/types?farmId=${farmId}&page=${page}&size=${RES_SIZE}`);
+      if (r.ok) {
+        const data = await r.json(); const pm = getPageMeta(data);
+        setOpTypes(prev => page === 0 ? (data.content ?? []) : [...prev, ...(data.content ?? [])]);
+        opTypePageRef.current = pm.number; setOpTypeHasMore(pm.number < pm.totalPages - 1);
+      }
+    } finally { setOpTypeLoading(false); }
   }, [farmId]);
 
   useEffect(() => {
-    setCurrentPage(0);
-  }, [selectedParcelId]);
+    apiGet(`/units?farmId=${farmId}`).then(r => { if (r.ok) r.json().then(setUnits); });
+    fetchProducts(0); fetchTools(0); fetchOpTypes(0);
+  }, [farmId, fetchProducts, fetchTools, fetchOpTypes]);
+
+  const updateLine = (i: number, key: keyof LineState, val: string) => {
+    setLines(prev => prev.map((l, idx) => {
+      if (idx !== i) return l;
+      const up = { ...l, [key]: val };
+      if (key === "productId") {
+        const p = val ? products.find(p => String(p.id) === val) : null;
+        up.unitId = p?.unitId ? String(p.unitId) : "";
+      }
+      return up;
+    }));
+    if (key === "productId" && val && !typeId) {
+      const p = products.find(p => String(p.id) === val);
+      if (p?.defaultOperationTypeId) setTypeId(String(p.defaultOperationTypeId));
+    }
+  };
+
+  const handleSave = async () => {
+    if (!parcelId) { setError(t("operations.selectParcel", { defaultValue: "Select a parcel" })); return; }
+    setSaving(true); setError(null);
+    try {
+      const payload = {
+        typeId: typeId ? Number(typeId) : undefined,
+        date: date ? date + ":00" : undefined,
+        durationSeconds: durationMinutes ? Number(durationMinutes) * 60 : undefined,
+        products: lines.filter(l => l.productId).map(l => ({
+          productId: Number(l.productId),
+          quantity: l.quantity ? Number(l.quantity) : undefined,
+          unitId: l.unitId ? Number(l.unitId) : undefined,
+          toolId: l.toolId ? Number(l.toolId) : undefined,
+        })),
+      };
+      const res = await apiPost(`/farm/${farmId}/parcels/${parcelId}/operations`, payload);
+      if (!res.ok) throw new Error("failed");
+      onSaved(); onClose();
+    } catch {
+      setError(t("operations.errorCreate", { defaultValue: "Failed to save operation" }));
+    } finally { setSaving(false); }
+  };
 
   useEffect(() => {
-    if (farmId && selectedParcelId) {
-      loadOperations(farmId, selectedParcelId, currentPage);
-    }
-    if (!selectedParcelId) {
-      setOperations([]);
-      setTotalPages(0);
-      setTotalElements(0);
-    }
-  }, [farmId, selectedParcelId, currentPage]);
+    const fn = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", fn);
+    return () => document.removeEventListener("keydown", fn);
+  }, [onClose]);
 
-  const handleAddLine = () => {
-    setProductLines((prev) => [...prev, { productId: "", quantity: "", unitId: "", toolId: "" }]);
-  };
+  const parcelOpts: SelectOption[] = parcels.map(p => ({ value: String(p.id), label: p.name }));
+  const opTypeOpts: SelectOption[] = opTypes.map(t => ({ value: String(t.id), label: t.name }));
+  const productOpts: SelectOption[] = products.map(p => ({
+    value: String(p.id),
+    label: p.official ? `★ ${p.name}${p.officialAuthNumber ? ` (${p.officialAuthNumber})` : ""}` : p.name,
+  }));
+  const toolOpts: SelectOption[] = tools.map(t => ({ value: String(t.id), label: t.name }));
+  const unitOpts: SelectOption[] = units.map(u => ({ value: String(u.id), label: u.value }));
 
-  const handleRemoveLine = (index: number) => {
-    setProductLines((prev) => prev.filter((_, i) => i !== index));
-  };
+  const inputCls = "w-full rounded-lg border border-white/10 bg-slate-900/60 px-3 py-2 text-sm text-white focus:border-indigo-400 focus:outline-none disabled:opacity-50";
+  const labelCls = "block text-xs font-semibold uppercase tracking-wide text-slate-400";
 
-  const updateLine = (index: number, key: keyof OperationProductInputState, value: string) => {
-    setProductLines((prev) => prev.map((line, i) => (i === index ? { ...line, [key]: value } : line)));
-  };
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      onClick={e => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div className="relative flex max-h-[90vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-white/10 bg-slate-900 shadow-2xl">
+        <div className="flex items-center justify-between border-b border-white/10 px-6 py-4">
+          <h2 className="text-base font-semibold text-white">
+            {t("operations.addModal.title", { defaultValue: "New operation" })}
+          </h2>
+          <button type="button" onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-white/10 hover:text-white">
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
 
-  const handleCreateOperation = async () => {
-    if (!farmId || !selectedParcelId) return;
-    setCreating(true);
-    setError(null);
-    try {
-      const productsPayload = productLines
-        .filter((line) => line.productId)
-        .map((line) => ({
-          productId: Number(line.productId),
-          quantity: line.quantity ? Number(line.quantity) : undefined,
-          unitId: line.unitId ? Number(line.unitId) : undefined,
-          toolId: line.toolId ? Number(line.toolId) : undefined,
-        }));
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+          {error && (
+            <p className="rounded-lg border border-rose-500/30 bg-rose-500/15 px-3 py-2 text-xs text-rose-300">{error}</p>
+          )}
 
-      const payload: any = {
-        typeId: typeId ? Number(typeId) : undefined,
-        date: date ? new Date(date).toISOString() : undefined,
-        durationSeconds: durationMinutes ? Number(durationMinutes) * 60 : undefined,
-        products: productsPayload,
-      };
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className={labelCls}>{t("operations.selectParcel", { defaultValue: "Parcel" })} *</label>
+              <SearchableSelect
+                value={parcelId} onChange={setParcelId} options={parcelOpts}
+                placeholder={t("operations.noParcel", { defaultValue: "Select parcel…" })}
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <label className={labelCls}>{t("operations.selectType", { defaultValue: "Type" })}</label>
+              <SearchableSelect
+                value={typeId} onChange={setTypeId} options={opTypeOpts}
+                placeholder={t("operations.selectTypePlaceholder", { defaultValue: "Select type…" })}
+                className="mt-1"
+                hasMore={opTypeHasMore} loading={opTypeLoading}
+                onLoadMore={() => { if (!opTypeHasMore || opTypeLoading) return; void fetchOpTypes(opTypePageRef.current + 1); }}
+              />
+            </div>
+            <div>
+              <label className={labelCls}>{t("operations.dateLabel", { defaultValue: "Date" })}</label>
+              <input type="datetime-local" value={date} onChange={e => setDate(e.target.value)} className={`mt-1 ${inputCls}`} />
+            </div>
+            <div>
+              <label className={labelCls}>{t("operations.durationLabel", { defaultValue: "Duration (min)" })}</label>
+              <input type="number" min="0" value={durationMinutes} onChange={e => setDurationMinutes(e.target.value)} placeholder="0" className={`mt-1 ${inputCls}`} />
+            </div>
+          </div>
 
-      const res = await apiPost(`/farm/${farmId}/parcels/${selectedParcelId}/operations`, payload);
-      if (!res.ok) throw new Error("failed");
-      setTypeId("");
-      setDate("");
-      setDurationMinutes("");
-      setProductLines([{ productId: "", quantity: "", unitId: "", toolId: "" }]);
-      if (currentPage === 0) {
-        await loadOperations(farmId, selectedParcelId, 0);
-      } else {
-        setCurrentPage(0);
-      }
-    } catch (e) {
-      console.error(e);
-      setError("Failed to create operation");
-    } finally {
-      setCreating(false);
-    }
-  };
+          <div>
+            <div className="mb-2 flex items-center justify-between">
+              <span className={labelCls}>{t("operations.products", { defaultValue: "Products & Tools" })}</span>
+              <button
+                type="button"
+                onClick={() => setLines(prev => [...prev, { productId: "", quantity: "", unitId: "", toolId: "" }])}
+                className="rounded border border-white/10 px-2 py-0.5 text-xs text-slate-400 hover:bg-white/5 hover:text-white"
+              >
+                + {t("operations.addLine", { defaultValue: "Add line" })}
+              </button>
+            </div>
+            <div className="space-y-2">
+              {lines.map((line, idx) => (
+                <div key={idx} className="space-y-2 rounded-lg border border-white/10 bg-white/5 p-3">
+                  <SearchableSelect
+                    value={line.productId} onChange={v => updateLine(idx, "productId", v)}
+                    options={productOpts} placeholder={t("operations.product", { defaultValue: "Product" })}
+                    hasMore={productHasMore} loading={productLoading}
+                    onLoadMore={() => { if (!productHasMore || productLoading) return; void fetchProducts(productPageRef.current + 1); }}
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="number" min="0" value={line.quantity}
+                      onChange={e => updateLine(idx, "quantity", e.target.value)}
+                      placeholder={t("operations.qty", { defaultValue: "Qty" })}
+                      className={inputCls}
+                    />
+                    <SearchableSelect
+                      value={line.unitId} onChange={v => updateLine(idx, "unitId", v)}
+                      options={unitOpts} placeholder={t("operations.unit", { defaultValue: "Unit" })}
+                    />
+                  </div>
+                  <SearchableSelect
+                    value={line.toolId} onChange={v => updateLine(idx, "toolId", v)}
+                    options={toolOpts} placeholder={t("operations.tool", { defaultValue: "Tool" })}
+                    hasMore={toolHasMore} loading={toolLoading}
+                    onLoadMore={() => { if (!toolHasMore || toolLoading) return; void fetchTools(toolPageRef.current + 1); }}
+                  />
+                  {lines.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => setLines(prev => prev.filter((_, i) => i !== idx))}
+                      className="text-xs text-rose-400 hover:text-rose-300"
+                    >
+                      {t("common.remove", { defaultValue: "Remove" })}
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
 
-  const selectedParcel = useMemo(
-    () => parcels.find((p) => p.id === selectedParcelId),
-    [parcels, selectedParcelId]
+        <div className="flex items-center justify-end gap-3 border-t border-white/10 px-6 py-4">
+          <button type="button" onClick={onClose} disabled={saving} className="rounded-lg border border-white/10 px-4 py-2 text-sm text-slate-300 hover:bg-white/5 disabled:opacity-50">
+            {t("common.cancel", { defaultValue: "Cancel" })}
+          </button>
+          <button type="button" onClick={handleSave} disabled={saving} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-60">
+            {saving ? t("common.saving", { defaultValue: "Saving…" }) : t("common.save", { defaultValue: "Save" })}
+          </button>
+        </div>
+      </div>
+    </div>
   );
+}
+
+interface CardProps { op: ParcelOperationDto; farmId: string; }
+
+function OperationCard({ op, farmId }: CardProps) {
+  const { t } = useTranslation();
+  const [expanded, setExpanded] = useState(false);
+  const [attachments, setAttachments] = useState<AttachmentDto[]>(op.attachments ?? []);
+
+  return (
+    <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/5 shadow shadow-black/20">
+      <button
+        type="button"
+        onClick={() => setExpanded(v => !v)}
+        className="flex w-full items-start gap-4 px-5 py-4 text-left transition-colors hover:bg-white/[0.03]"
+      >
+        <div className="min-w-0 flex-1 space-y-1.5">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm font-semibold text-white">
+              {op.typeName ?? t("operations.selectTypePlaceholder", { defaultValue: "No type" })}
+            </span>
+            {op.parcelName && (
+              <span className="rounded-full bg-indigo-500/15 px-2 py-0.5 text-xs font-medium text-indigo-300">
+                {op.parcelName}
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-slate-400">{formatDate(op.date)}</p>
+        </div>
+        <div className="flex shrink-0 items-center gap-2.5">
+          {op.durationSeconds != null && (
+            <span className="rounded-full bg-white/10 px-2.5 py-1 text-xs font-semibold text-slate-300">
+              {formatDuration(op.durationSeconds)}
+            </span>
+          )}
+          {op.products && op.products.length > 0 && (
+            <span className="rounded-full bg-white/5 px-2.5 py-1 text-xs text-slate-500">
+              {op.products.length}×
+            </span>
+          )}
+          <svg
+            className={`h-4 w-4 shrink-0 text-slate-500 transition-transform ${expanded ? "rotate-180" : ""}`}
+            fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </div>
+      </button>
+
+      {expanded && (
+        <div className="space-y-4 border-t border-white/5 px-5 py-4">
+          {op.products && op.products.length > 0 && (
+            <div>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                {t("operations.products", { defaultValue: "Products & Tools" })}
+              </p>
+              <ul className="space-y-1.5">
+                {op.products.map(p => (
+                  <li key={p.id} className="flex items-center justify-between gap-3 rounded-lg border border-white/5 bg-white/5 px-3 py-2 text-xs">
+                    <span className="text-slate-200">
+                      {p.productName}
+                      {p.quantity != null && (
+                        <span className="ml-2 text-slate-400">
+                          {p.quantity}{p.unitValue ? ` ${p.unitValue}` : ""}
+                        </span>
+                      )}
+                    </span>
+                    {p.toolName && (
+                      <span className="shrink-0 rounded-full bg-white/10 px-2 py-0.5 text-slate-300">{p.toolName}</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <div>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+              {t("attachments.title", { defaultValue: "Attachments" })}
+            </p>
+            <AttachmentSection
+              uploadUrl={op.parcelId ? `/farm/${farmId}/parcels/${op.parcelId}/operations/${op.id}/attachments` : ""}
+              deleteUrlPrefix={`/farm/${farmId}/attachments`}
+              attachments={attachments}
+              canEdit={!!op.parcelId}
+              onAdd={att => setAttachments(prev => [...prev, att])}
+              onRemove={id => setAttachments(prev => prev.filter(a => a.id !== id))}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function meta() {
+  return [{ title: "Operations - EFMS" }];
+}
+
+export default function OperationsPage() {
+  const { selectedFarm } = useFarm();
+  const { t } = useTranslation();
+  const farmId = selectedFarm?.id;
+
+  const [parcels, setParcels] = useState<ParcelSummary[]>([]);
+  const [filterOpTypes, setFilterOpTypes] = useState<OpTypeDto[]>([]);
+
+  const [filterParcelId, setFilterParcelId] = useState("");
+  const [filterTypeId, setFilterTypeId] = useState("");
+  const [filterDateFrom, setFilterDateFrom] = useState("");
+  const [filterDateTo, setFilterDateTo] = useState("");
+
+  const [operations, setOperations] = useState<ParcelOperationDto[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const pageRef = useRef(0);
+  const hasMoreRef = useRef(false);
+  const loadingRef = useRef(false);
+  const listRef = useRef<HTMLDivElement>(null);
+
+  const [showAdd, setShowAdd] = useState(false);
+
+  useEffect(() => {
+    if (!farmId) return;
+    apiGet(`/farm/${farmId}/parcels`).then(r => { if (r.ok) r.json().then(setParcels); });
+    apiGet(`/operations/types?farmId=${farmId}`).then(r => { if (r.ok) r.json().then(setFilterOpTypes); });
+  }, [farmId]);
+
+  const fetchOperations = useCallback(async (page: number) => {
+    if (!farmId) return;
+    loadingRef.current = true;
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({ page: String(page), size: String(PAGE_SIZE) });
+      if (filterParcelId) params.set("parcelId", filterParcelId);
+      if (filterTypeId) params.set("typeId", filterTypeId);
+      if (filterDateFrom) params.set("dateFrom", filterDateFrom + ":00");
+      if (filterDateTo) params.set("dateTo", filterDateTo + ":59");
+      const r = await apiGet(`/farm/${farmId}/operations?${params}`);
+      if (!r.ok) return;
+      const data = await r.json();
+      const pm = getPageMeta(data);
+      setOperations(prev => page === 0 ? (data.content ?? []) : [...prev, ...(data.content ?? [])]);
+      pageRef.current = pm.number;
+      const more = pm.number < pm.totalPages - 1;
+      hasMoreRef.current = more;
+      setHasMore(more);
+    } finally {
+      loadingRef.current = false;
+      setLoading(false);
+    }
+  }, [farmId, filterParcelId, filterTypeId, filterDateFrom, filterDateTo]);
+
+  useEffect(() => {
+    pageRef.current = 0;
+    hasMoreRef.current = false;
+    setOperations([]);
+    void fetchOperations(0);
+  }, [fetchOperations]);
+
+  useEffect(() => {
+    const el = listRef.current;
+    if (!el) return;
+    const onScroll = () => {
+      if (!hasMoreRef.current || loadingRef.current) return;
+      if (el.scrollHeight - el.scrollTop - el.clientHeight < 200) {
+        void fetchOperations(pageRef.current + 1);
+      }
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, [fetchOperations]);
+
+  const parcelOpts: SelectOption[] = [
+    { value: "", label: t("common.all", { defaultValue: "All" }) },
+    ...parcels.map(p => ({ value: String(p.id), label: p.name })),
+  ];
+  const opTypeOpts: SelectOption[] = [
+    { value: "", label: t("common.all", { defaultValue: "All" }) },
+    ...filterOpTypes.map(t => ({ value: String(t.id), label: t.name })),
+  ];
+
+  const hasFilters = !!(filterParcelId || filterTypeId || filterDateFrom || filterDateTo);
+  const inputCls = "rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:border-indigo-400 focus:outline-none";
 
   return (
     <ProtectedRoute>
       <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 px-4 py-10 text-slate-50">
         <div className="mx-auto flex max-w-5xl flex-col gap-6">
+
           <header className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-wide text-indigo-300">{t("operations.title")}</p>
+              <p className="text-sm font-semibold uppercase tracking-wide text-indigo-300">
+                {t("operations.title")}
+              </p>
               <h1 className="text-3xl font-semibold text-white">{t("operations.subtitle")}</h1>
             </div>
-            <div className="flex gap-2">
+            {farmId && (
               <button
                 type="button"
-                onClick={() => farmId && loadParcels(farmId)}
-                className="rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10"
+                onClick={() => setShowAdd(true)}
+                className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 transition-colors"
               >
-                {t("operations.refreshParcels")}
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                </svg>
+                {t("operations.addOperation", { defaultValue: "New operation" })}
               </button>
-              <button
-                type="button"
-                onClick={() => refreshFarms()}
-                className="rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10"
-              >
-                {t("operations.refreshFarms")}
-              </button>
-            </div>
+            )}
           </header>
 
-          {error && (
-            <div className="rounded-lg border border-rose-500/30 bg-rose-500/15 p-4 text-sm text-rose-100">{error}</div>
-          )}
-
           {!farmId ? (
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-6 text-slate-100 shadow-xl shadow-black/30">
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-6 text-sm text-slate-300">
               {t("farmSelector.selectFarm")}
             </div>
           ) : (
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-xl shadow-black/30">
-              <div className="grid gap-4 sm:grid-cols-3">
-                <div className="sm:col-span-1">
-                  <label className="block text-sm font-semibold text-slate-100">{t("operations.selectParcel")}</label>
-                  <select
-                    className="mt-2 w-full rounded-lg border border-white/10 bg-slate-900/60 px-3 py-2 text-sm text-white focus:border-indigo-400 focus:outline-none"
-                    value={selectedParcelId ?? ""}
-                    onChange={(e) => setSelectedParcelId(e.target.value ? Number(e.target.value) : null)}
-                  >
-                    <option value="">{t("operations.noParcel")}</option>
-                    {parcels.map((parcel) => (
-                      <option key={parcel.id} value={parcel.id}>
-                        {parcel.name}
-                      </option>
-                    ))}
-                  </select>
+            <>
+              {/* Filter bar */}
+              <div className="flex flex-wrap items-end gap-3 rounded-2xl border border-white/10 bg-white/5 p-4">
+                <div className="flex min-w-[150px] flex-col gap-1">
+                  <label className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                    {t("operations.filterParcel", { defaultValue: "Parcel" })}
+                  </label>
+                  <SearchableSelect
+                    value={filterParcelId} onChange={setFilterParcelId}
+                    options={parcelOpts} placeholder={t("common.all", { defaultValue: "All" })}
+                  />
                 </div>
-                <div>
-                  <label className="block text-sm font-semibold text-slate-100">{t("operations.selectType")}</label>
-                  <select
-                    className="mt-2 w-full rounded-lg border border-white/10 bg-slate-900/60 px-3 py-2 text-sm text-white focus:border-indigo-400 focus:outline-none"
-                    value={typeId}
-                    onChange={(e) => setTypeId(e.target.value)}
-                  >
-                    <option value="">{t("operations.selectTypePlaceholder")}</option>
-                    {operationTypes.map((type) => (
-                      <option key={type.id} value={type.id}>
-                        {type.name}
-                      </option>
-                    ))}
-                  </select>
+                <div className="flex min-w-[150px] flex-col gap-1">
+                  <label className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                    {t("operations.filterType", { defaultValue: "Type" })}
+                  </label>
+                  <SearchableSelect
+                    value={filterTypeId} onChange={setFilterTypeId}
+                    options={opTypeOpts} placeholder={t("common.all", { defaultValue: "All" })}
+                  />
                 </div>
-                <div className="grid gap-3 sm:grid-cols-2 sm:col-span-1">
-                  <div>
-                    <label className="block text-sm font-semibold text-slate-100">{t("operations.dateLabel")}</label>
-                    <input
-                      type="datetime-local"
-                      value={date}
-                      onChange={(e) => setDate(e.target.value)}
-                      className="mt-2 w-full rounded-lg border border-white/10 bg-slate-900/60 px-3 py-2 text-sm text-white focus:border-indigo-400 focus:outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-slate-100">{t("operations.durationLabel")}</label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={durationMinutes}
-                      onChange={(e) => setDurationMinutes(e.target.value)}
-                      className="mt-2 w-full rounded-lg border border-white/10 bg-slate-900/60 px-3 py-2 text-sm text-white focus:border-indigo-400 focus:outline-none"
-                    />
-                  </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                    {t("operations.filterFrom", { defaultValue: "From" })}
+                  </label>
+                  <input
+                    type="datetime-local" value={filterDateFrom}
+                    onChange={e => setFilterDateFrom(e.target.value)}
+                    className={inputCls}
+                  />
                 </div>
-              </div>
-
-              <div className="mt-6 space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-semibold text-white">Products & Tools</h3>
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                    {t("operations.filterTo", { defaultValue: "To" })}
+                  </label>
+                  <input
+                    type="datetime-local" value={filterDateTo}
+                    onChange={e => setFilterDateTo(e.target.value)}
+                    className={inputCls}
+                  />
+                </div>
+                {hasFilters && (
                   <button
                     type="button"
-                    onClick={handleAddLine}
-                    className="rounded-lg border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-white hover:bg-white/10"
+                    onClick={() => { setFilterParcelId(""); setFilterTypeId(""); setFilterDateFrom(""); setFilterDateTo(""); }}
+                    className="self-end rounded-lg border border-white/10 px-3 py-2 text-xs text-slate-400 hover:bg-white/5 hover:text-white transition-colors"
                   >
-                    + Add line
+                    {t("common.clearFilters", { defaultValue: "Clear filters" })}
                   </button>
-                </div>
-                <div className="space-y-3">
-                  {productLines.map((line, index) => (
-                    <div key={index} className="grid gap-2 rounded-xl border border-white/10 bg-slate-900/60 p-3 sm:grid-cols-5">
-                      <select
-                        className="w-full rounded-lg border border-white/10 bg-slate-900 px-3 py-2 text-sm text-white focus:border-indigo-400 focus:outline-none"
-                        value={line.productId}
-                        onChange={(e) => updateLine(index, "productId", e.target.value)}
-                      >
-                        <option value="">Product</option>
-                        {products.map((p) => (
-                          <option key={p.id} value={p.id}>
-                            {p.name}
-                          </option>
-                        ))}
-                      </select>
-                      <input
-                        type="number"
-                        min="0"
-                        placeholder="Qty"
-                        value={line.quantity}
-                        onChange={(e) => updateLine(index, "quantity", e.target.value)}
-                        className="w-full rounded-lg border border-white/10 bg-slate-900 px-3 py-2 text-sm text-white focus:border-indigo-400 focus:outline-none"
-                      />
-                      <select
-                        className="w-full rounded-lg border border-white/10 bg-slate-900 px-3 py-2 text-sm text-white focus:border-indigo-400 focus:outline-none"
-                        value={line.unitId}
-                        onChange={(e) => updateLine(index, "unitId", e.target.value)}
-                      >
-                        <option value="">Unit</option>
-                        {units.map((u) => (
-                          <option key={u.id} value={u.id}>
-                            {u.value}
-                          </option>
-                        ))}
-                      </select>
-                      <select
-                        className="w-full rounded-lg border border-white/10 bg-slate-900 px-3 py-2 text-sm text-white focus:border-indigo-400 focus:outline-none"
-                        value={line.toolId}
-                        onChange={(e) => updateLine(index, "toolId", e.target.value)}
-                      >
-                        <option value="">Tool</option>
-                        {tools.map((tool) => (
-                          <option key={tool.id} value={tool.id}>
-                            {tool.name}
-                          </option>
-                        ))}
-                      </select>
-                      <div className="flex items-center justify-end">
-                        {productLines.length > 1 && (
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveLine(index)}
-                            className="text-xs font-semibold text-rose-200 hover:text-rose-100"
-                          >
-                            Remove
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                )}
               </div>
 
-              <div className="mt-4 flex justify-end">
-                <button
-                  type="button"
-                  onClick={handleCreateOperation}
-                  disabled={!selectedParcel || creating}
-                  className="rounded-lg bg-indigo-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-400 disabled:opacity-50"
-                >
-                  {creating ? t("common.loading") : t("operations.submit")}
-                </button>
-              </div>
-            </div>
-          )}
-
-          {selectedParcel ? (
-            <section className="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-xl shadow-black/30">
-              <header className="mb-4 flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-indigo-300">{t("operations.history")}</p>
-                  <h2 className="text-lg font-semibold text-white">{selectedParcel.name}</h2>
-                </div>
-                {loading && <span className="text-xs text-slate-200">{t("common.loading")}</span>}
-              </header>
-              {!operations.length ? (
-                <p className="text-sm text-slate-200">{t("operations.emptyHistory")}</p>
-              ) : (
-                <ul className="divide-y divide-white/5">
-                  {operations.map((op) => (
-                    <li key={op.id} className="py-3 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm font-semibold text-white">{op.typeName || t("operations.selectTypePlaceholder")}</p>
-                          <p className="text-xs text-slate-300">
-                            {op.date ? new Date(op.date).toLocaleString() : ""}
-                          </p>
-                        </div>
-                        {op.durationSeconds != null && (
-                          <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-slate-100">
-                            {(op.durationSeconds / 60).toFixed(0)} min
-                          </span>
-                        )}
+              {/* Scrollable list */}
+              <div
+                ref={listRef}
+                className="overflow-y-auto pr-1"
+                style={{ maxHeight: "calc(100vh - 280px)" }}
+              >
+              <div className="flex flex-col gap-3">
+                {loading && operations.length === 0 && [0, 1, 2].map(i => (
+                  <div key={i} className="animate-pulse rounded-2xl border border-white/10 bg-white/5 p-5">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="space-y-2">
+                        <div className="h-3.5 w-36 rounded bg-white/10" />
+                        <div className="h-2.5 w-24 rounded bg-white/5" />
                       </div>
-                      {op.products && op.products.length > 0 && (
-                        <div className="rounded-lg border border-white/5 bg-white/5 p-3">
-                          <p className="text-xs font-semibold uppercase tracking-wide text-indigo-200">Products / Tools</p>
-                          <ul className="mt-2 space-y-1 text-sm text-slate-100">
-                            {op.products.map((p) => (
-                              <li key={p.id || `${p.productId}-${p.toolId}` } className="flex items-center justify-between gap-3">
-                                <div>
-                                  <span className="font-semibold">{p.productName || "Product"}</span>
-                                  {p.quantity != null && (
-                                    <span className="ml-2 text-slate-300">
-                                      {p.quantity}
-                                      {p.unitValue ? ` ${p.unitValue}` : ""}
-                                    </span>
-                                  )}
-                                </div>
-                                {p.toolName && (
-                                  <span className="rounded-full bg-white/10 px-2 py-1 text-xs text-indigo-100">{p.toolName}</span>
-                                )}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              )}
+                      <div className="h-6 w-14 rounded-full bg-white/10" />
+                    </div>
+                  </div>
+                ))}
 
-              {/* Pagination Controls */}
-              {totalPages > 1 && (
-                <div className="flex items-center justify-between border-t border-white/5 px-4 py-3 mt-4">
-                  <div className="flex flex-1 justify-between sm:hidden">
-                    <button
-                      onClick={() => setCurrentPage(prev => Math.max(0, prev - 1))}
-                      disabled={currentPage === 0}
-                      className="relative inline-flex items-center rounded-xl border border-white/10 bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                    >
-                      Previous
-                    </button>
-                    <button
-                      onClick={() => setCurrentPage(prev => Math.min(totalPages - 1, prev + 1))}
-                      disabled={currentPage === totalPages - 1}
-                      className="relative ml-3 inline-flex items-center rounded-xl border border-white/10 bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                    >
-                      Next
-                    </button>
+                {!loading && operations.length === 0 && (
+                  <div className="rounded-2xl border border-white/10 bg-white/5 p-10 text-center text-sm text-slate-400">
+                    {t("operations.emptyHistory", { defaultValue: "No operations found." })}
                   </div>
-                  <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
-                    <div>
-                      <p className="text-xs text-slate-400">
-                        Showing page <span className="font-semibold text-slate-200">{currentPage + 1}</span> of <span className="font-semibold text-slate-200">{totalPages}</span>
-                      </p>
-                    </div>
-                    <div>
-                      <nav className="isolate inline-flex -space-x-px rounded-xl shadow-sm" aria-label="Pagination">
-                        <button
-                          onClick={() => setCurrentPage(prev => Math.max(0, prev - 1))}
-                          disabled={currentPage === 0}
-                          className="relative inline-flex items-center rounded-l-xl px-2.5 py-1.5 text-xs text-slate-400 bg-slate-900 border border-white/10 hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                        >
-                          Previous
-                        </button>
-                        {Array.from({ length: totalPages }, (_, i) => i).map((p) => (
-                          <button
-                            key={p}
-                            onClick={() => setCurrentPage(p)}
-                            className={`relative inline-flex items-center px-3 py-1.5 text-xs font-semibold border border-white/10 transition-all ${
-                              p === currentPage
-                                ? "bg-indigo-600 text-white border-indigo-600 z-10"
-                                : "text-slate-400 bg-slate-900 hover:bg-slate-800"
-                            }`}
-                          >
-                            {p + 1}
-                          </button>
-                        ))}
-                        <button
-                          onClick={() => setCurrentPage(prev => Math.min(totalPages - 1, prev + 1))}
-                          disabled={currentPage === totalPages - 1}
-                          className="relative inline-flex items-center rounded-r-xl px-2.5 py-1.5 text-xs text-slate-400 bg-slate-900 border border-white/10 hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                        >
-                          Next
-                        </button>
-                      </nav>
-                    </div>
+                )}
+
+                {operations.map(op => (
+                  <OperationCard key={op.id} op={op} farmId={String(farmId)} />
+                ))}
+
+                {loading && operations.length > 0 && (
+                  <div className="flex justify-center py-4">
+                    <div className="h-5 w-5 animate-spin rounded-full border-2 border-indigo-400 border-t-transparent" />
                   </div>
-                </div>
-              )}
-            </section>
-          ) : (
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-6 text-sm text-slate-200 shadow-xl shadow-black/30">
-              {t("operations.noParcel")}
-            </div>
+                )}
+
+                {!hasMore && operations.length > 0 && (
+                  <p className="py-3 text-center text-xs text-slate-600">
+                    {t("operations.allLoaded", { defaultValue: "All operations loaded" })}
+                  </p>
+                )}
+              </div>
+              </div>
+            </>
           )}
         </div>
       </div>
+
+      {showAdd && farmId && (
+        <AddOperationModal
+          farmId={Number(farmId)}
+          parcels={parcels}
+          onSaved={() => { setOperations([]); void fetchOperations(0); }}
+          onClose={() => setShowAdd(false)}
+        />
+      )}
     </ProtectedRoute>
   );
 }

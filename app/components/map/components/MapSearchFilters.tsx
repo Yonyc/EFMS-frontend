@@ -30,6 +30,14 @@ const MapSearchFilters = React.memo((props: MapSearchFiltersProps) => {
         clearSearchFilters, applySearchFilters, disabled, t
     } = props;
 
+    const productLabel = (product: ProductDto) => {
+        if (product.official) {
+            const auth = product.officialAuthNumber ? ` (${product.officialAuthNumber})` : '';
+            return t('products.officialLabel', { defaultValue: 'Official: {{name}}{{auth}}', name: product.name, auth });
+        }
+        return product.name;
+    };
+
     if (isImportMode || !isSearchOpen) return null;
 
     return (
@@ -44,7 +52,14 @@ const MapSearchFilters = React.memo((props: MapSearchFiltersProps) => {
                         disabled={disabled}
                     />
 
-                
+                <MultiSelectCombobox
+                        label={t('map.searchFilters.typeLabel')}
+                        options={operationTypes.map((type) => ({ value: String(type.id), label: type.name }))}
+                        selectedValues={searchDraft.operationTypeIds}
+                        onChange={(next) => setSearchDraft(prev => ({ ...prev, operationTypeIds: next }))}
+                        placeholder={t('map.searchFilters.anyType')}
+                        disabled={disabled}
+                    />
 
                 <MultiSelectCombobox
                         label={t('map.searchFilters.toolLabel')}
@@ -57,7 +72,7 @@ const MapSearchFilters = React.memo((props: MapSearchFiltersProps) => {
 
                 <MultiSelectCombobox
                         label={t('map.searchFilters.productLabel')}
-                        options={products.map((p) => ({ value: String(p.id), label: p.name }))}
+                    options={products.map((p) => ({ value: String(p.id), label: productLabel(p) }))}
                         selectedValues={searchDraft.productIds}
                         onChange={(next) => setSearchDraft(prev => ({ ...prev, productIds: next }))}
                         placeholder={t('map.searchFilters.anyProduct')}

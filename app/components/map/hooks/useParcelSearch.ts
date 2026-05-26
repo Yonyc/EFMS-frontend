@@ -44,6 +44,7 @@ export function useParcelSearch({
 
     const hasActiveSearchFilters = useMemo(() => (
         (appliedFilters.periodIds && appliedFilters.periodIds.length > 0) ||
+        (appliedFilters.operationTypeIds && appliedFilters.operationTypeIds.length > 0) ||
         (appliedFilters.toolIds && appliedFilters.toolIds.length > 0) ||
         (appliedFilters.productIds && appliedFilters.productIds.length > 0) ||
         Boolean(appliedFilters.startDate) ||
@@ -58,6 +59,7 @@ export function useParcelSearch({
         }
         const params = new URLSearchParams();
         if (appliedFilters.periodIds) appliedFilters.periodIds.forEach(id => params.append('periodId', id));
+        if (appliedFilters.operationTypeIds) appliedFilters.operationTypeIds.forEach(id => params.append('operationTypeId', id));
         if (appliedFilters.toolIds) appliedFilters.toolIds.forEach(id => params.append('toolId', id));
         if (appliedFilters.productIds) appliedFilters.productIds.forEach(id => params.append('productId', id));
         if (appliedFilters.startDate) params.set('startDate', appliedFilters.startDate);

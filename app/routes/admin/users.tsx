@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { apiGet, apiPut, apiPost, apiDelete } from "~/utils/api";
+import { apiGet, apiPut, apiPost, apiDelete, getPageMeta } from "~/utils/api";
+import { PaginationBar } from "~/components/PaginationBar";
 import { useAuth } from "~/contexts/AuthContext";
 import { PencilIcon, TrashIcon, EnvelopeIcon, CheckCircleIcon, XCircleIcon, MagnifyingGlassIcon } from "@heroicons/react/24/outline";
 
@@ -29,9 +30,10 @@ export default function AdminUsers() {
             if (res.ok) {
                 const data = await res.json();
                 if (data && data.content) {
+                    const pm = getPageMeta(data);
                     setUsers(data.content);
-                    setTotalPages(data.totalPages || 0);
-                    setTotalElements(data.totalElements || 0);
+                    setTotalPages(pm.totalPages);
+                    setTotalElements(pm.totalElements);
                 } else {
                     setUsers(data || []);
                     setTotalPages(0);
@@ -220,70 +222,12 @@ export default function AdminUsers() {
                 )}
             </div>
 
-            {/* Pagination Controls */}
-            {totalPages > 1 && (
-                <div className="flex items-center justify-between border-t border-slate-800 px-4 py-3 sm:px-6 mt-6">
-                    <div className="flex flex-1 justify-between sm:hidden">
-                        <button
-                            onClick={() => setCurrentPage(prev => Math.max(0, prev - 1))}
-                            disabled={currentPage === 0}
-                            className="relative inline-flex items-center rounded-xl border border-slate-800 bg-slate-900 px-4 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                        >
-                            {t('admin.users.paginationPrevious', { defaultValue: 'Previous' })}
-                        </button>
-                        <button
-                            onClick={() => setCurrentPage(prev => Math.min(totalPages - 1, prev + 1))}
-                            disabled={currentPage === totalPages - 1}
-                            className="relative ml-3 inline-flex items-center rounded-xl border border-slate-800 bg-slate-900 px-4 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                        >
-                            {t('admin.users.paginationNext', { defaultValue: 'Next' })}
-                        </button>
-                    </div>
-                    <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
-                        <div>
-                            <p className="text-sm text-slate-400">
-                                {t('admin.users.paginationStatus', { 
-                                    defaultValue: 'Showing page {{page}} of {{totalPages}} ({{total}} total elements)',
-                                    page: currentPage + 1,
-                                    totalPages,
-                                    total: totalElements
-                                })}
-                            </p>
-                        </div>
-                        <div>
-                            <nav className="isolate inline-flex -space-x-px rounded-xl shadow-sm" aria-label="Pagination">
-                                <button
-                                    onClick={() => setCurrentPage(prev => Math.max(0, prev - 1))}
-                                    disabled={currentPage === 0}
-                                    className="relative inline-flex items-center rounded-l-xl px-3 py-2 text-slate-400 bg-slate-900 border border-slate-800 hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                                >
-                                    {t('admin.users.paginationPrevious', { defaultValue: 'Previous' })}
-                                </button>
-                                {Array.from({ length: totalPages }, (_, i) => i).map((p) => (
-                                    <button
-                                        key={p}
-                                        onClick={() => setCurrentPage(p)}
-                                        className={`relative inline-flex items-center px-4 py-2 text-sm font-semibold border border-slate-800 transition-all ${
-                                            p === currentPage
-                                                ? "bg-indigo-600 text-white border-indigo-600 z-10"
-                                                : "text-slate-400 bg-slate-900 hover:bg-slate-800"
-                                        }`}
-                                    >
-                                        {p + 1}
-                                    </button>
-                                ))}
-                                <button
-                                    onClick={() => setCurrentPage(prev => Math.min(totalPages - 1, prev + 1))}
-                                    disabled={currentPage === totalPages - 1}
-                                    className="relative inline-flex items-center rounded-r-xl px-3 py-2 text-slate-400 bg-slate-900 border border-slate-800 hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                                >
-                                    {t('admin.users.paginationNext', { defaultValue: 'Next' })}
-                                </button>
-                            </nav>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <PaginationBar
+                page={currentPage}
+                totalPages={totalPages}
+                onPrev={() => setCurrentPage(p => Math.max(0, p - 1))}
+                onNext={() => setCurrentPage(p => Math.min(totalPages - 1, p + 1))}
+            />
 
             {/* Edit Modal */}
             {editingUser && (

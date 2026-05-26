@@ -71,6 +71,7 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
         if (props.initialSharePayload) {
             return {
                 periodIds: props.initialSharePayload.periodIds?.map(String) || [],
+                operationTypeIds: props.initialSharePayload.operationTypeIds?.map(String) || [],
                 toolIds: props.initialSharePayload.toolIds?.map(String) || [],
                 productIds: props.initialSharePayload.productIds?.map(String) || [],
                 startDate: props.initialSharePayload.filterStartDate || '',
@@ -80,7 +81,7 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
             };
         }
         return {
-            periodIds: [], toolIds: [], productIds: [], startDate: '', endDate: '', useMapArea: false, usePolygon: false,
+            periodIds: [], operationTypeIds: [], toolIds: [], productIds: [], startDate: '', endDate: '', useMapArea: false, usePolygon: false,
         };
     }, [props.initialSharePayload]);
 
@@ -160,7 +161,7 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
         previewVisibility, setPreviewVisibility, createHandlerRef, createdLayerRef 
     } = editor;
     const { isSearchOpen, setIsSearchOpen, searchDraft, setSearchDraft, searchAreaCoords, isSearchDrawing, viewportBounds, setViewportBounds, hasActiveSearchFilters, searchEndpoint, applySearchFilters, clearSearchFilters, startSearchPolygon, cancelSearchPolygon, clearSearchPolygon } = search;
-    const { operationTypes, units, products, tools, operationTypeId, setOperationTypeId, operationDate, setOperationDate, operationDurationMinutes, setOperationDurationMinutes, operationLines, handleAddOperationLine, handleRemoveOperationLine, updateOperationLine, operationError, operationLoading, parcelOperations, currentParcelId, setCurrentParcelId, operationPopup, setOperationPopup, operationsPage, setOperationsPage, operationsTotalPages, loadOperationReferences, loadParcelOperations, handleSaveOperation, resetOperationForm, closeOperationPopup } = operations;
+    const { operationTypes, units, products, tools, operationTypeId, setOperationTypeId, operationDate, setOperationDate, operationDurationMinutes, setOperationDurationMinutes, operationLines, handleAddOperationLine, handleRemoveOperationLine, updateOperationLine, operationError, operationLoading, parcelOperations, currentParcelId, setCurrentParcelId, operationPopup, setOperationPopup, loadOperationReferences, loadParcelOperations, handleSaveOperation, resetOperationForm, closeOperationPopup, productHasMore, productLoading, loadMoreProducts, toolHasMore, toolLoading, loadMoreTools, opTypeHasMore, opTypeLoading, loadMoreOpTypes, addOperationAttachment, removeOperationAttachment } = operations;
     const { shareParcelId, setShareParcelId, shareList, shareUsername, setShareUsername, shareRole, setShareRole, shareError, setShareError, shareLoading, openShareModal, closeShareModal, handleUpdateShare, handleRemoveShare } = sharing;
     const { isListCollapsed, setIsListCollapsed, listFilter, setListFilter, showFilterMenu, setShowFilterMenu, searchQuery, setSearchQuery, filterOptions, activeFilterLabel, filteredPolygons } = sidebarControl;
     const { loadPeriods, handleApproveAll, approveSingleParcel, handleRenameConfirm, togglePolygonVisibility, renamePolygonInline } = apiActions;
@@ -372,18 +373,24 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
                     operationPopup={operationPopup} popupCoords={draggable.popupCoords} isMobile={isMobile} startDrag={draggable.startDrag} polygons={polygons} t={t} preferTopRight={preferTopRight} setPreferTopRight={setPreferTopRight} closeOperationPopup={closeOperationPopup} operationError={operationError} operationLoading={operationLoading}
                     canEditPolygon={(id) => (polygons.find(p => p.id === id) || allPolygons.find(p => p.id === id))?.canEdit !== false}
                     currentParcelId={currentParcelId} operationTypeId={operationTypeId} setOperationTypeId={setOperationTypeId} operationTypes={operationTypes} operationDate={operationDate} setOperationDate={setOperationDate} operationDurationMinutes={operationDurationMinutes} setOperationDurationMinutes={setOperationDurationMinutes} handleAddOperationLine={handleAddOperationLine} operationLines={operationLines} handleRemoveOperationLine={handleRemoveOperationLine} updateOperationLine={updateOperationLine} units={units} products={products} tools={tools} handleSaveOperation={handleSaveOperation} resetOperationForm={resetOperationForm} parcelOperations={parcelOperations}
-                    operationsPage={operationsPage} setOperationsPage={setOperationsPage} operationsTotalPages={operationsTotalPages} loadParcelOperations={loadParcelOperations}
+                    hasMore={operations.hasMore} loadMoreOperations={operations.loadMoreOperations}
+                    productHasMore={productHasMore} productLoading={productLoading} loadMoreProducts={loadMoreProducts}
+                    toolHasMore={toolHasMore} toolLoading={toolLoading} loadMoreTools={loadMoreTools}
+                    opTypeHasMore={opTypeHasMore} opTypeLoading={opTypeLoading} loadMoreOpTypes={loadMoreOpTypes}
+                    addOperationAttachment={addOperationAttachment}
+                    removeOperationAttachment={removeOperationAttachment}
+                    farmId={Number(props.farm_id)}
                 />
             )}
 
             <MapModals
                 t={t} renamingId={renamingId} setRenamingId={setRenamingId} renameValue={renameValue} setRenameValue={setRenameValue} renamePeriodId={renamePeriodId} setRenamePeriodId={setRenamePeriodId} handleRenameConfirm={handleRenameConfirm} periods={periods}
                 isAreaModalOpen={modal.open} areaName={areaName} setAreaName={setAreaName} selectedPeriodId={selectedPeriodId} setSelectedPeriodId={setSelectedPeriodId} handleAreaConfirm={confirmCreate} handleAreaCancel={cancelModal}
-                sharing={sharing} allPolygons={allPolygons} tools={tools} products={products}
+                sharing={sharing} allPolygons={allPolygons} tools={tools} products={products} operationTypes={operationTypes}
             />
 
             <div className="flex h-full w-full min-h-0 relative">
-                <div className="absolute top-6 left-6 z-[1000] pointer-events-none flex justify-start w-full gap-4">
+                <div className="absolute top-6 left-6 z-[2500] pointer-events-none flex justify-start w-full gap-4">
                     <MapSidebar
                         isListCollapsed={isListCollapsed} setIsListCollapsed={setIsListCollapsed} listBarRef={listBarRef} t={t} filteredPolygons={filteredPolygons} searchQuery={searchQuery} setSearchQuery={setSearchQuery} showFilterMenu={showFilterMenu} setShowFilterMenu={setShowFilterMenu} activeFilterLabel={activeFilterLabel} filterOptions={filterOptions} listFilter={listFilter} setListFilter={setListFilter}
                         handleApproveAll={handleApproveAll} approveLabel={props.approveLabel} isApproving={isApproving} approveFeedback={approveFeedback}

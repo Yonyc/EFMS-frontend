@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { apiGet } from '~/utils/api';
+import { apiGet, getPageMeta } from '~/utils/api';
 
 interface PublicFarm {
   id: string;
@@ -41,9 +41,10 @@ export default function PublicFarmsPage() {
       }
       const data = await response.json();
       if (data && data.content) {
+        const pm = getPageMeta(data);
         setFarms(data.content);
-        setTotalPages(data.totalPages || 0);
-        setTotalElements(data.totalElements || 0);
+        setTotalPages(pm.totalPages);
+        setTotalElements(pm.totalElements);
       } else {
         setFarms(data || []);
         setTotalPages(0);
