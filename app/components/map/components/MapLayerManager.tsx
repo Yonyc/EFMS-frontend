@@ -11,7 +11,7 @@ import {
 } from "react-leaflet";
 import { EditControl } from "react-leaflet-draw";
 import L from "leaflet";
-import React, { useEffect, useMemo, useRef } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import type { PolygonData, OverlapWarning } from "../types";
 import { clampToRect, getSafeMenuPosition } from "../utils/mapUtils";
 import { isPointInPolygon, intersectPolygon, polygonSignedArea } from "../utils/geometry";
@@ -351,6 +351,28 @@ function MapEvents({ propsRef, viewportDebounceRef, mapInstanceRef }: MapEventsP
     return null;
 }
 
+type BaseLayer = 'osm' | 'satellite' | 'topo';
+
+const TILE_LAYERS: Record<BaseLayer, { url: string; attribution: string; maxNativeZoom: number }> = {
+    osm: {
+        url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+        attribution: '&copy; <a href="https://osm.org/copyright">OpenStreetMap</a> contributors',
+        maxNativeZoom: 19,
+    },
+    satellite: {
+        url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+        attribution: 'Tiles &copy; Esri &mdash; Esri, Maxar, GeoEye, Earthstar Geographics, CNES/Airbus DS, USDA, USGS, AeroGRID, IGN',
+        maxNativeZoom: 19,
+    },
+    topo: {
+        url: "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",
+        attribution: '&copy; <a href="https://openstreetmap.org/copyright">OpenStreetMap</a> contributors, SRTM | &copy; <a href="https://opentopomap.org">OpenTopoMap</a>',
+        maxNativeZoom: 17,
+    },
+};
+
+const LAYER_LABELS: Record<BaseLayer, string> = { osm: 'Map', satellite: 'Satellite', topo: 'Topo' };
+
 function MapLayerManagerImpl({
     center, polygons, editingId, selectedId, setSelectedId, isCreating,
     drawOptions, handleCreated, overlapWarning, showPreview, previewVisibility,
@@ -363,6 +385,8 @@ function MapLayerManagerImpl({
     minLayer = 1, maxLayer = 1, restrictToFamilyId = null,
     highlightLastPoint = false
 }: MapLayerManagerProps) {
+
+    const [baseLayer, setBaseLayer] = useState<BaseLayer>('osm');
 
     // single id→poly map shared by depth, family scope and the render filter
     const polyById = useMemo(() => new Map(polygons.map(p => [String(p.id), p])), [polygons]);
@@ -486,15 +510,24 @@ function MapLayerManagerImpl({
         };
     }, [selectedId, polygonLayersRef, polygons]);
 
+    const tileLayer = TILE_LAYERS[baseLayer];
+
     return (
+        <div style={{ position: 'relative', height: '100%', width: '100%' }}>
         <MapContainer
             style={{ height: "100%", width: "100%" }}
             center={center}
             zoom={15}
-            maxZoom={19}
+            maxZoom={22}
             zoomControl={false}
         >
-            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" maxNativeZoom={20} attribution='&copy; <a href="https://osm.org/copyright">OpenStreetMap</a>' />
+            <TileLayer
+                key={baseLayer}
+                url={tileLayer.url}
+                attribution={tileLayer.attribution}
+                maxNativeZoom={tileLayer.maxNativeZoom}
+                maxZoom={22}
+            />
             <ZoomControl position="bottomright" />
             <MapEvents propsRef={mapEventsPropsRef} viewportDebounceRef={viewportDebounceRef} mapInstanceRef={mapInstanceRef} />
             <ZIndexEnforcer polygons={polygons} polygonLayersRef={polygonLayersRef} editingId={editingId} />
@@ -857,6 +890,44 @@ function MapLayerManagerImpl({
                 )}
             </FeatureGroup>
         </MapContainer>
+
+        {/* Layer switcher — bottom-left, outside MapContainer so it doesn't conflict with Leaflet panes */}
+        <div style={{
+            position: 'absolute',
+            bottom: '2.5rem',
+            left: '1rem',
+            zIndex: 1200,
+            display: 'flex',
+            gap: '0.25rem',
+            background: 'rgba(255,255,255,0.95)',
+            borderRadius: '0.75rem',
+            padding: '0.3rem',
+            boxShadow: '0 4px 16px rgba(15,23,42,0.18)',
+            backdropFilter: 'blur(6px)',
+            pointerEvents: 'auto',
+        }}>
+            {(Object.keys(TILE_LAYERS) as BaseLayer[]).map(layer => (
+                <button
+                    key={layer}
+                    type="button"
+                    onClick={() => setBaseLayer(layer)}
+                    style={{
+                        padding: '0.28rem 0.65rem',
+                        fontSize: '0.76rem',
+                        fontWeight: 600,
+                        borderRadius: '0.5rem',
+                        border: 'none',
+                        cursor: 'pointer',
+                        background: baseLayer === layer ? '#0f172a' : 'transparent',
+                        color: baseLayer === layer ? '#fff' : '#64748b',
+                        transition: 'background 0.15s, color 0.15s',
+                    }}
+                >
+                    {LAYER_LABELS[layer]}
+                </button>
+            ))}
+        </div>
+        </div>
     );
 }
 

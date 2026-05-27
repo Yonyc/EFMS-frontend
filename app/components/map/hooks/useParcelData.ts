@@ -40,7 +40,7 @@ export function useParcelData(props: UseParcelDataProps) {
                 const data = await response.json();
                 if (cancelled) return;
                 const parsed: PolygonData[] = data.map((p: any) => ({
-                    id: String(p.id), name: p.name || t('map.unnamedParcel'), coords: p.geodata ? parseWktCoords(p.geodata) : [],
+                    id: String(p.id), name: p.sourceName || p.name || t('map.unnamedParcel'), coords: p.geodata ? parseWktCoords(p.geodata) : [],
                     visible: true, version: 0, color: p.color || '#3388ff', canEdit: p.canEdit ?? true, canShare: p.canShare ?? false,
                     active: p.active, startValidity: p.startValidity, endValidity: p.endValidity, farmId: p.farmId, periodId: p.periodId ?? null, validationStatus: p.validationStatus, convertedParcelId: p.convertedParcelId ?? null,
                     parentId: normalizeParentId(p.parentParcelId),

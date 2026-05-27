@@ -169,7 +169,7 @@ export default function ImportMapPage() {
                         </div>
                     )}
                 </div>
-                <div style={{ display: "flex", height: "100vh", width: "100%" }}>
+                <div className="flex min-h-0 flex-1 w-full">
                     {MapComponent ? (
                         <MapComponent
                             key={importId}
