@@ -46,7 +46,7 @@ export function usePolygonEditor({
     const commitDrawingPoints = sketch.setPoints;
     const {
         overlapWarning, showPreview, previewVisibility, manualEditContext, pendingManualEditId,
-        flagOverlap, dismissOverlap, clearManualEdit, restoreOverlapFromContext,
+        dismissOverlap, clearManualEdit, restoreOverlapFromContext,
         setOverlapWarning, setShowPreview, setPreviewVisibility, setManualEditContext, setPendingManualEditId,
     } = useOverlapModalState();
 
@@ -487,26 +487,6 @@ export function usePolygonEditor({
                 autoCorrect: autoCorrectEnabledRef.current,
             }) || newCoords);
 
-        if (!autoCorrectEnabledRef.current) {
-            const overlapping = detectOverlaps(editingId, finalCoords, parentId ?? null);
-            if (overlapping.length > 0) {
-                const fixedCoords = updateGhost(newCoords, parentId, ignoreIds, {
-                    edgeSnap: true,
-                    autoCorrect: true,
-                }) || finalCoords;
-                flagOverlap({
-                    polygonId: editingId,
-                    overlappingPolygons: overlapping,
-                    originalCoords: finalCoords,
-                    fixedCoords,
-                    isNewPolygon: false,
-                    areaNameSnapshot: currentPoly?.name || t('map.defaultPolygonName'),
-                    selectedPeriodIdSnapshot: currentPoly?.periodId ? String(currentPoly.periodId) : '',
-                });
-                return;
-            }
-        }
-
         clearGhost();
         const coordsToSave = finalCoords;
         let alreadyUpdated = false;
@@ -586,7 +566,7 @@ export function usePolygonEditor({
         setCloseLoopMidpointEnabled(true);
         cleanupEdit();
         getMap()?.closePopup?.();
-    }, [editingId, polygons, selectedParentId, updateGhost, clearGhost, detectOverlaps, contextType, parcelsEndpoint, manualEditContext, t, updatePolygon, cleanupEdit, getMap, setSelectedParentId, flagOverlap, dismissOverlap, clearManualEdit, setAreaName, setSelectedPeriodId, setModal]);
+    }, [editingId, polygons, selectedParentId, updateGhost, clearGhost, contextType, parcelsEndpoint, manualEditContext, t, updatePolygon, cleanupEdit, getMap, setSelectedParentId, dismissOverlap, clearManualEdit, setAreaName, setSelectedPeriodId, setModal]);
 
     const cancelEdit = useCallback(() => {
         if (!editingId) return;
