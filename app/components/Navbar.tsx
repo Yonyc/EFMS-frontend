@@ -43,7 +43,6 @@ export default function Navbar({ currentLocale }: NavbarProps) {
         i18n.changeLanguage(lang);
         try { localStorage.setItem('preferredLanguage', lang); } catch {}
         if (isAuthenticated) {
-            // fire and forget so the ui doesn't wait on the round-trip
             apiPut('/users/me', { preferredLanguage: lang }).catch((err) => {
                 console.error('Failed to persist language preference', err);
             });
@@ -102,7 +101,6 @@ export default function Navbar({ currentLocale }: NavbarProps) {
                         </div>
                     </div>
                     <div className="absolute inset-y-0 right-0 flex items-center pr-2 gap-2 sm:static sm:inset-auto sm:ml-6 sm:pr-0">
-                        {/* Farm Selector - hidden on mobile, shown in disclosure panel instead */}
                         {isAuthenticated && <div className="hidden sm:block"><FarmSelector /></div>}
 
                         {/* Language Switcher */}
@@ -176,26 +174,40 @@ export default function Navbar({ currentLocale }: NavbarProps) {
                                                     {t('nav.operations')}
                                                 </Link>
                                             </MenuItem>
-                                            <MenuItem>
-                                                <Link
-                                                    to={localizedPath('assets')}
-                                                    className="block px-4 py-2 text-sm text-gray-300 data-focus:bg-white/5 data-focus:outline-hidden"
-                                                >
-                                                    {t('nav.assets')}
-                                                </Link>
-                                            </MenuItem>
+                                            {selectedFarm?.canViewFarm && (
+                                                <>
+                                                    <MenuItem>
+                                                        <Link
+                                                            to={localizedPath('assets')}
+                                                            className="block px-4 py-2 text-sm text-gray-300 data-focus:bg-white/5 data-focus:outline-hidden"
+                                                        >
+                                                            {t('nav.assets')}
+                                                        </Link>
+                                                    </MenuItem>
+                                                    <MenuItem>
+                                                        <Link
+                                                            to={localizedPath('parcels')}
+                                                            className="block px-4 py-2 text-sm text-gray-300 data-focus:bg-white/5 data-focus:outline-hidden"
+                                                        >
+                                                            {t('nav.parcels', { defaultValue: 'Parcels' })}
+                                                        </Link>
+                                                    </MenuItem>
+                                                </>
+                                            )}
+                                            {selectedFarm && (
+                                                <MenuItem>
+                                                    <Link
+                                                        to={localizedPath('farm-shares')}
+                                                        className="block px-4 py-2 text-sm text-gray-300 data-focus:bg-white/5 data-focus:outline-hidden"
+                                                    >
+                                                        {t('nav.farm_shares', { defaultValue: 'Farm shares' })}
+                                                    </Link>
+                                                </MenuItem>
+                                            )}
                                         </>
                                     )}
                                     {selectedFarm?.canManage && (
                                         <>
-                                            <MenuItem>
-                                                <Link
-                                                    to={localizedPath('farm-shares')}
-                                                    className="block px-4 py-2 text-sm text-gray-300 data-focus:bg-white/5 data-focus:outline-hidden"
-                                                >
-                                                    {t('nav.farm_shares', { defaultValue: 'Farm shares' })}
-                                                </Link>
-                                            </MenuItem>
                                             <div className="my-1 h-px bg-white/10" />
                                             <MenuItem>
                                                 <Link
@@ -285,10 +297,24 @@ export default function Navbar({ currentLocale }: NavbarProps) {
                             className="block rounded-md px-3 py-2 text-base font-medium text-gray-300 hover:bg-white/5 hover:text-white">
                             {t('nav.operations')}
                         </DisclosureButton>
-                        <DisclosureButton as={NavLink} to={localizedPath('assets')}
-                            className="block rounded-md px-3 py-2 text-base font-medium text-gray-300 hover:bg-white/5 hover:text-white">
-                            {t('nav.assets')}
-                        </DisclosureButton>
+                        {selectedFarm?.canViewFarm && (
+                            <>
+                                <DisclosureButton as={NavLink} to={localizedPath('assets')}
+                                    className="block rounded-md px-3 py-2 text-base font-medium text-gray-300 hover:bg-white/5 hover:text-white">
+                                    {t('nav.assets')}
+                                </DisclosureButton>
+                                <DisclosureButton as={NavLink} to={localizedPath('parcels')}
+                                    className="block rounded-md px-3 py-2 text-base font-medium text-gray-300 hover:bg-white/5 hover:text-white">
+                                    {t('nav.parcels', { defaultValue: 'Parcels' })}
+                                </DisclosureButton>
+                            </>
+                        )}
+                        {selectedFarm && (
+                            <DisclosureButton as={NavLink} to={localizedPath('farm-shares')}
+                                className="block rounded-md px-3 py-2 text-base font-medium text-gray-300 hover:bg-white/5 hover:text-white">
+                                {t('nav.farm_shares', { defaultValue: 'Farm shares' })}
+                            </DisclosureButton>
+                        )}
                         {selectedFarm?.canManage && (
                             <DisclosureButton as={NavLink} to={localizedPath('imports')}
                                 className="block rounded-md px-3 py-2 text-base font-medium text-gray-300 hover:bg-white/5 hover:text-white">

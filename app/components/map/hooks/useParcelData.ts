@@ -41,11 +41,37 @@ export function useParcelData(props: UseParcelDataProps) {
                 if (cancelled) return;
                 const parsed: PolygonData[] = data.map((p: any) => ({
                     id: String(p.id), name: p.sourceName || p.name || t('map.unnamedParcel'), coords: p.geodata ? parseWktCoords(p.geodata) : [],
-                    visible: true, version: 0, color: p.color || '#3388ff', canEdit: p.canEdit ?? true, canShare: p.canShare ?? false,
-                    active: p.active, startValidity: p.startValidity, endValidity: p.endValidity, farmId: p.farmId, periodId: p.periodId ?? null, validationStatus: p.validationStatus, convertedParcelId: p.convertedParcelId ?? null,
+                    visible: true, version: 0, color: p.color || p.cultureColor || '#3388ff', customColor: p.color ?? null, cultureColor: p.cultureColor ?? null, canEdit: p.canEdit ?? true, canShare: p.canShare ?? false,
+                    active: p.active, startValidity: p.startValidity, endValidity: p.endValidity, farmId: p.farmId, periodId: p.periodId ?? null, periodName: p.periodName ?? null,
+                    parcelPeriods: Array.isArray(p.parcelPeriods) ? p.parcelPeriods.map((pp: any) => ({
+                        id: pp.id, parcelId: String(p.id), periodId: pp.periodId, periodName: pp.periodName ?? null,
+                        active: pp.active ?? true,
+                        startValidity: pp.startValidity ?? null, endValidity: pp.endValidity ?? null,
+                        cultureCode: pp.cultureCode ?? null, cultureLabel: pp.cultureLabel ?? null,
+                        variety: pp.variety ?? null,
+                        declaredAreaHa: pp.declaredAreaHa ?? null, measuredAreaHa: pp.measuredAreaHa ?? null,
+                        targetYieldTha: pp.targetYieldTha ?? null,
+                        sowingDensityKgha: pp.sowingDensityKgha ?? null, rowSpacingCm: pp.rowSpacingCm ?? null,
+                        sowingDate: pp.sowingDate ?? null, harvestDate: pp.harvestDate ?? null,
+                        yieldRealizedTha: pp.yieldRealizedTha ?? null,
+                        campaignYear: pp.campaignYear ?? null,
+                        eligibilityStatus: pp.eligibilityStatus ?? null, comment: pp.comment ?? null,
+                        forcedPeriodId: pp.forcedPeriodId ?? null,
+                        periodNameOverride: pp.periodNameOverride ?? null,
+                        periodStartOverride: pp.periodStartOverride ?? null,
+                        periodEndOverride: pp.periodEndOverride ?? null,
+                    })) : undefined,
+                    status: p.status,
+                    importRecordId: p.importRecordId ?? null,
                     parentId: normalizeParentId(p.parentParcelId),
                 }));
-                setPolygons(parsed);
+                setPolygons(prev => {
+                    const prevById = new Map(prev.map(i => [i.id, i]));
+                    return parsed.map(i => {
+                        const old = prevById.get(i.id);
+                        return old ? { ...i, version: old.version, visible: old.visible } : i;
+                    });
+                });
                 setAllPolygons(prev => {
                     const m = new Map(prev.map(i => [i.id, i]));
                     parsed.forEach(i => m.set(i.id, { ...m.get(i.id), ...i }));
@@ -73,12 +99,32 @@ export function useParcelData(props: UseParcelDataProps) {
                     coords: [],
                     visible: true,
                     version: 0,
-                    color: p.color || '#3388ff',
+                    color: p.color || p.cultureColor || '#3388ff',
+                    customColor: p.color ?? null,
+                    cultureColor: p.cultureColor ?? null,
                     active: p.active,
                     farmId: p.farmId,
                     periodId: p.periodId ?? null,
-                    validationStatus: p.validationStatus,
-                    convertedParcelId: p.convertedParcelId ?? null,
+                    parcelPeriods: Array.isArray(p.parcelPeriods) ? p.parcelPeriods.map((pp: any) => ({
+                        id: pp.id, parcelId: String(p.id), periodId: pp.periodId, periodName: pp.periodName ?? null,
+                        active: pp.active ?? true,
+                        startValidity: pp.startValidity ?? null, endValidity: pp.endValidity ?? null,
+                        cultureCode: pp.cultureCode ?? null, cultureLabel: pp.cultureLabel ?? null,
+                        variety: pp.variety ?? null,
+                        declaredAreaHa: pp.declaredAreaHa ?? null, measuredAreaHa: pp.measuredAreaHa ?? null,
+                        targetYieldTha: pp.targetYieldTha ?? null,
+                        sowingDensityKgha: pp.sowingDensityKgha ?? null, rowSpacingCm: pp.rowSpacingCm ?? null,
+                        sowingDate: pp.sowingDate ?? null, harvestDate: pp.harvestDate ?? null,
+                        yieldRealizedTha: pp.yieldRealizedTha ?? null,
+                        campaignYear: pp.campaignYear ?? null,
+                        eligibilityStatus: pp.eligibilityStatus ?? null, comment: pp.comment ?? null,
+                        forcedPeriodId: pp.forcedPeriodId ?? null,
+                        periodNameOverride: pp.periodNameOverride ?? null,
+                        periodStartOverride: pp.periodStartOverride ?? null,
+                        periodEndOverride: pp.periodEndOverride ?? null,
+                    })) : undefined,
+                    status: p.status,
+                    importRecordId: p.importRecordId ?? null,
                     parentId: normalizeParentId(p.parentParcelId),
                 }));
                 // viewport rows have coords so keep them and only fill missing parcels

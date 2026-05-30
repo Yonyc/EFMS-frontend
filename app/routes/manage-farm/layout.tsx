@@ -2,7 +2,7 @@ import { Outlet, NavLink } from "react-router";
 import { useTranslation } from "react-i18next";
 import ProtectedRoute from "../../components/ProtectedRoute";
 import { useFarm } from "../../contexts/FarmContext";
-import { Cog6ToothIcon, UsersIcon, ExclamationTriangleIcon, PlusCircleIcon, CalendarDaysIcon } from "@heroicons/react/24/outline";
+import { Cog6ToothIcon, UsersIcon, ExclamationTriangleIcon, PlusCircleIcon } from "@heroicons/react/24/outline";
 import { buildLocalizedPath } from "../../utils/locale";
 import { useCurrentLocale } from "../../hooks/useCurrentLocale";
 
@@ -18,11 +18,8 @@ export default function ManageFarmLayout() {
         { name: t('manageFarms.navigation.danger', { defaultValue: 'Danger Zone' }), href: buildLocalizedPath(locale, "/manage-farm/danger"), icon: ExclamationTriangleIcon },
     ];
 
-    const resourcesNav = [
-        { name: t('manageFarms.navigation.periods', { defaultValue: 'Periods' }), href: buildLocalizedPath(locale, "/manage-farm/periods"), icon: CalendarDaysIcon },
-    ];
-
-    const allNav = [...mainNav, ...resourcesNav];
+    // Periods now live exclusively in the Resources (Assets) tab — see /assets#periods.
+    const allNav = [...mainNav];
 
     const navLinkClass = (isActive: boolean, disabled: boolean) =>
         `flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
@@ -61,25 +58,6 @@ export default function ManageFarmLayout() {
                                 </NavLink>
                             );
                         })}
-
-                        <div className="pt-3">
-                            <p className="px-3 pb-1 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-                                {t('manageFarms.navigation.resourcesGroup', { defaultValue: 'Resources' })}
-                            </p>
-                            {resourcesNav.map((item) => {
-                                const disabled = !selectedFarm;
-                                return (
-                                    <NavLink
-                                        key={item.name}
-                                        to={item.href}
-                                        className={({ isActive }) => navLinkClass(isActive, disabled)}
-                                    >
-                                        <item.icon className="h-4 w-4 shrink-0" />
-                                        {item.name}
-                                    </NavLink>
-                                );
-                            })}
-                        </div>
                     </nav>
                 </aside>
 

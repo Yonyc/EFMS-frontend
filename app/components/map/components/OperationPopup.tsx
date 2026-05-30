@@ -1,7 +1,10 @@
 import React, { useRef, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
+import { Link } from "react-router";
 import { SearchableSelect } from "./SearchableSelect";
 import { useDateTimeFormatter } from "~/utils/datetime";
+import { buildLocalizedPath } from "~/utils/locale";
+import { useCurrentLocale } from "~/hooks/useCurrentLocale";
 import type {
     PolygonData,
     OperationTypeDto,
@@ -12,6 +15,8 @@ import type {
     OperationProductInputState,
     AttachmentDto
 } from "../types";
+import type { PeriodDto } from "../types";
+import { PeriodPicker } from "./PeriodPicker";
 
 interface OperationPopupProps {
     operationPopup: { x: number; y: number; polygonId: string };
@@ -34,6 +39,9 @@ interface OperationPopupProps {
     setOperationDate: (val: string) => void;
     operationDurationMinutes: string;
     setOperationDurationMinutes: (val: string) => void;
+    operationPeriodId: string;
+    setOperationPeriodId: (val: string) => void;
+    availablePeriods: PeriodDto[];
     handleAddOperationLine: () => void;
     operationLines: OperationProductInputState[];
     handleRemoveOperationLine: (index: number) => void;
@@ -58,17 +66,23 @@ interface OperationPopupProps {
     addOperationAttachment: (operationId: number, att: AttachmentDto) => void;
     removeOperationAttachment: (operationId: number, attachmentId: number) => void;
     farmId: number;
+    allPolygons: PolygonData[];
+    extraParcelIds: string[];
+    setExtraParcelIds: (ids: string[]) => void;
+    setOperationError: (msg: string | null) => void;
 }
 
 const OperationPopup = React.memo((props: OperationPopupProps) => {
     const { formatDateTime } = useDateTimeFormatter();
+    const locale = useCurrentLocale();
     const {
         operationPopup, popupCoords, isMobile, startDrag, polygons, t,
         preferTopRight, setPreferTopRight, closeOperationPopup,
         operationError, operationLoading, canEditPolygon, currentParcelId,
         operationTypeId, setOperationTypeId, operationTypes,
         operationDate, setOperationDate, operationDurationMinutes,
-        setOperationDurationMinutes, handleAddOperationLine,
+        setOperationDurationMinutes, operationPeriodId, setOperationPeriodId, availablePeriods,
+        handleAddOperationLine,
         operationLines, handleRemoveOperationLine, updateOperationLine,
         units, products, tools, handleSaveOperation, resetOperationForm,
         parcelOperations, hasMore, loadMoreOperations,
@@ -76,7 +90,53 @@ const OperationPopup = React.memo((props: OperationPopupProps) => {
         toolHasMore, toolLoading, loadMoreTools,
         opTypeHasMore, opTypeLoading, loadMoreOpTypes,
         addOperationAttachment, removeOperationAttachment, farmId,
+        allPolygons, extraParcelIds, setExtraParcelIds, setOperationError,
     } = props;
+
+    // Multi-parcel targeting
+    const anchorParcelId = currentParcelId ?? operationPopup.polygonId;
+    const parcelById = useMemo(() => {
+        const m = new Map<string, PolygonData>();
+        for (const p of polygons) m.set(p.id, p);
+        for (const p of allPolygons) if (!m.has(p.id)) m.set(p.id, p);
+        return m;
+    }, [polygons, allPolygons]);
+    const targetParcelIds = useMemo(
+        () => Array.from(new Set([anchorParcelId, ...extraParcelIds])),
+        [anchorParcelId, extraParcelIds]
+    );
+    const parcelName = (id: string) => parcelById.get(id)?.name || t('map.unnamedParcel');
+    const addParcelOptions = useMemo(() => {
+        const seen = new Set(targetParcelIds);
+        return Array.from(parcelById.values())
+            .filter(p => !seen.has(p.id) && p.canEdit !== false)
+            .map(p => ({ value: p.id, label: p.name || t('map.unnamedParcel') }));
+    }, [parcelById, targetParcelIds, t]);
+
+    /** Names of targeted parcels that are NOT active during the selected period. */
+    const inactiveParcelNames = useMemo(() => {
+        if (!operationPeriodId) return [] as string[]; // backend resolves/validates when blank
+        const bad: string[] = [];
+        for (const id of targetParcelIds) {
+            const poly = parcelById.get(id);
+            const pps = poly?.parcelPeriods ?? [];
+            if (pps.length === 0) continue; // no period info loaded, let backend decide
+            const ok = pps.some(pp => String(pp.periodId) === operationPeriodId && pp.active !== false);
+            if (!ok) bad.push(parcelName(id));
+        }
+        return bad;
+    }, [targetParcelIds, parcelById, operationPeriodId]);
+
+    const onSaveClick = () => {
+        if (inactiveParcelNames.length > 0) {
+            setOperationError(t('operations.inactiveParcels', {
+                defaultValue: 'These parcels are not active during the selected period: {{names}}',
+                names: inactiveParcelNames.join(', '),
+            }));
+            return;
+        }
+        void handleSaveOperation();
+    };
 
     const historyRef = useRef<HTMLDivElement>(null);
     const hasMoreRef = useRef(hasMore);
@@ -145,13 +205,22 @@ const OperationPopup = React.memo((props: OperationPopupProps) => {
         >
             {/* Header */}
             <div className="mb-3 flex items-start justify-between gap-3">
-                <div className="cursor-move" onMouseDown={startDrag}>
+                <div className="cursor-move min-w-0 flex-1" onMouseDown={startDrag}>
                     <p className="text-xs font-semibold uppercase tracking-[0.14em] text-indigo-200">
                         {t('operations.title', { defaultValue: 'Parcel operations' })}
                     </p>
                     <h3 className="text-lg font-semibold text-white">
                         {polygons.find(p => p.id === operationPopup.polygonId)?.name || t('map.unnamedParcel')}
                     </h3>
+                    {(currentParcelId || operationPopup.polygonId) && (
+                        <Link
+                            to={buildLocalizedPath(locale, `/parcels/${currentParcelId || operationPopup.polygonId}`)}
+                            className="text-xs text-indigo-300 hover:text-indigo-100 underline-offset-2 hover:underline"
+                            onMouseDown={(e) => e.stopPropagation()}
+                        >
+                            {t('parcels.viewDetails', { defaultValue: 'View parcel details' })}
+                        </Link>
+                    )}
                 </div>
                 <div className="flex items-center gap-2">
                     <label className="flex items-center gap-1 text-xs font-semibold text-slate-200">
@@ -180,9 +249,43 @@ const OperationPopup = React.memo((props: OperationPopupProps) => {
             )}
 
             <div className="space-y-3">
-                {/* New operation form — only for editors */}
+                {/* New operation form */}
                 {canEditPolygon(currentParcelId ?? operationPopup.polygonId) && (
                     <>
+                        {/* Target parcels */}
+                        <div className="space-y-1.5">
+                            <span className="text-xs font-semibold text-slate-200">
+                                {t('operations.targetParcels', { defaultValue: 'Target parcels' })}
+                            </span>
+                            <div className="flex flex-wrap gap-1.5">
+                                {targetParcelIds.map(id => {
+                                    const isAnchor = id === anchorParcelId;
+                                    return (
+                                        <span key={id} className="inline-flex items-center gap-1 rounded-full border border-indigo-400/30 bg-indigo-500/15 px-2.5 py-1 text-xs font-medium text-indigo-200">
+                                            {parcelName(id)}
+                                            {!isAnchor && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setExtraParcelIds(extraParcelIds.filter(x => x !== id))}
+                                                    className="text-indigo-300 hover:text-white"
+                                                    aria-label={t('common.remove', { defaultValue: 'Remove' })}
+                                                >
+                                                    ×
+                                                </button>
+                                            )}
+                                        </span>
+                                    );
+                                })}
+                            </div>
+                            <SearchableSelect
+                                value=""
+                                onChange={(val) => { if (val && !targetParcelIds.includes(val)) setExtraParcelIds([...extraParcelIds, val]); }}
+                                options={addParcelOptions}
+                                placeholder={t('operations.addParcel', { defaultValue: 'Add a parcel…' })}
+                                noResultsText={noResults}
+                            />
+                        </div>
+
                         <SearchableSelect
                             value={operationTypeId}
                             onChange={setOperationTypeId}
@@ -210,6 +313,22 @@ const OperationPopup = React.memo((props: OperationPopupProps) => {
                                 className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-indigo-300"
                             />
                         </div>
+
+                        {availablePeriods.length > 0 && (
+                            <div className="flex items-center gap-2 text-xs text-slate-200">
+                                <span>{t('operations.periodLabel', { defaultValue: 'Period' })}</span>
+                                <PeriodPicker
+                                    periods={availablePeriods}
+                                    value={operationPeriodId}
+                                    onChange={setOperationPeriodId}
+                                    includeAll
+                                    size="compact"
+                                />
+                                <span className="text-[10px] text-slate-400">
+                                    {t('operations.periodHint', { defaultValue: 'Defaults to your farm preference. Leave blank to auto-resolve from the date.' })}
+                                </span>
+                            </div>
+                        )}
 
                         <div className="flex items-center justify-between text-sm text-slate-100">
                             <span>{t('operations.productsTools', { defaultValue: 'Products & Tools' })}</span>
@@ -300,7 +419,7 @@ const OperationPopup = React.memo((props: OperationPopupProps) => {
                             </button>
                             <button
                                 type="button"
-                                onClick={handleSaveOperation}
+                                onClick={onSaveClick}
                                 disabled={!currentParcelId || operationLoading || (currentParcelId ? !canEditPolygon(currentParcelId) : false)}
                                 className="rounded-xl border border-indigo-400/70 bg-gradient-to-r from-indigo-500 to-indigo-600 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-indigo-500/25 transition hover:from-indigo-500 hover:to-indigo-500 disabled:opacity-60"
                             >

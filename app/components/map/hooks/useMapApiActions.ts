@@ -79,13 +79,13 @@ export function useMapApiActions({
             return;
         }
         try {
-            const response = await apiRequest(`/imported-parcels/${id}/validate`, {
-                method: 'PATCH',
-                body: JSON.stringify({ validationStatus: 'APPROVED', farmId: Number(selectedFarmId) }),
+            const response = await apiRequest(`/imports/parcels/${id}/promote`, {
+                method: 'POST',
+                body: JSON.stringify({ farmId: Number(selectedFarmId) }),
             });
             if (!response.ok) throw new Error(`Approve failed: ${response.status}`);
             const updated = await response.json();
-            setPolygons(prev => prev.map(p => p.id === String(id) ? { ...p, validationStatus: updated?.validationStatus || 'APPROVED', convertedParcelId: updated?.convertedParcelId ?? p.convertedParcelId } : p));
+            setPolygons(prev => prev.map(p => p.id === String(id) ? { ...p, status: updated?.status || 'LIVE' } : p));
             setApproveFeedback({ type: 'success', message: t('imports.map.approveOneSuccess', { defaultValue: 'Parcel approved' }) });
         } catch (err) {
             console.error('Failed to approve parcel', err);
@@ -148,7 +148,61 @@ export function useMapApiActions({
         setAllPolygons(prev => prev.map(p => p.id === id ? { ...p, name } : p));
     }, [canEditPolygon, setPolygons, setAllPolygons]);
 
+    /**
+     * Persist the parcel name to the server. Used by the inline "apply" button in the parcel
+     * list (the rename modal was removed). Sends only the name so periods/color are untouched.
+     * Import-mode parcels have no name field on their DTO, so we keep those local-only.
+     */
+    const commitPolygonName = useCallback(async (id: string, name: string) => {
+        if (!canEditPolygon(id) || id.startsWith('poly-')) return;
+        const resolved = (name || t('map.defaultPolygonName')).trim() || t('map.defaultPolygonName');
+        setPolygons(prev => prev.map(p => p.id === id ? { ...p, name: resolved, version: (p.version || 0) + 1 } : p));
+        setAllPolygons(prev => prev.map(p => p.id === id ? { ...p, name: resolved, version: (p.version || 0) + 1 } : p));
+        if (contextType === 'import') return; // staged parcels can't persist a name via their DTO
+        try {
+            const response = await apiPut(`${parcelsEndpoint}/${id}`, { name: resolved });
+            if (!response.ok) console.error("Failed to rename parcel on server:", response.statusText);
+        } catch (err) {
+            console.error("Failed to update parcel name:", err);
+        }
+    }, [canEditPolygon, t, setPolygons, setAllPolygons, contextType, parcelsEndpoint]);
+
+    const togglePeriodActive = useCallback(async (polygonId: string, parcelPeriodId: number) => {
+        if (!canEditPolygon(polygonId)) return;
+        // Determine new state from current map state (optimistic update).
+        let nextActive = true;
+        const apply = (list: PolygonData[]) => list.map(p => {
+            if (p.id !== polygonId || !p.parcelPeriods) return p;
+            return {
+                ...p,
+                parcelPeriods: p.parcelPeriods.map(pp => {
+                    if (pp.id !== parcelPeriodId) return pp;
+                    nextActive = !pp.active;
+                    return { ...pp, active: nextActive };
+                }),
+            };
+        });
+        setPolygons(prev => apply(prev));
+        setAllPolygons(prev => apply(prev));
+        try {
+            const res = await apiPatch(`/parcels/${polygonId}/periods/${parcelPeriodId}/active`, { active: nextActive });
+            if (!res.ok) throw new Error('Failed to toggle period');
+        } catch (err) {
+            // Revert optimistic update on failure
+            const revert = (list: PolygonData[]) => list.map(p => {
+                if (p.id !== polygonId || !p.parcelPeriods) return p;
+                return {
+                    ...p,
+                    parcelPeriods: p.parcelPeriods.map(pp => pp.id === parcelPeriodId ? { ...pp, active: !nextActive } : pp),
+                };
+            });
+            setPolygons(prev => revert(prev));
+            setAllPolygons(prev => revert(prev));
+            console.error('togglePeriodActive failed', err);
+        }
+    }, [canEditPolygon, setPolygons, setAllPolygons]);
+
     return {
-        loadPeriods, handleApproveAll, approveSingleParcel, handleRenameConfirm, togglePolygonVisibility, renamePolygonInline
+        loadPeriods, handleApproveAll, approveSingleParcel, handleRenameConfirm, togglePolygonVisibility, renamePolygonInline, commitPolygonName, togglePeriodActive
     };
 }

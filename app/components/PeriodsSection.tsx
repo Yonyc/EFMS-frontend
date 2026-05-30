@@ -1,19 +1,20 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useFarm } from "~/contexts/FarmContext";
 import { apiGet, apiPost, apiPut } from "~/utils/api";
 
 interface PeriodDto { id: number; name?: string; startDate?: string; endDate?: string; }
 
-export default function PeriodsPage() {
+/**
+ * Manage periods (campaigns) for a given farm. Used as a section inside the Assets page
+ * and as a standalone page until the route is removed. The {@code farmId} prop is the only
+ * required input; if it is null the section renders an inline empty-state.
+ */
+export default function PeriodsSection({ farmId }: { farmId: string | number | null | undefined }) {
     const { t } = useTranslation();
-    const { selectedFarm } = useFarm();
     const [periods, setPeriods] = useState<PeriodDto[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [draft, setDraft] = useState({ name: "", startDate: "", endDate: "" });
-
-    const farmId = selectedFarm?.id;
 
     const loadPeriods = useCallback(async () => {
         if (!farmId) return;
@@ -33,14 +34,16 @@ export default function PeriodsPage() {
 
     useEffect(() => { loadPeriods(); }, [loadPeriods]);
 
+    const dateForApi = (s: string): string | null => s ? `${s}T00:00:00` : null;
+
     const handleCreate = useCallback(async () => {
         if (!farmId) return;
         setError(null);
         try {
             const payload = {
                 name: draft.name || undefined,
-                startDate: draft.startDate ? new Date(draft.startDate).toISOString() : null,
-                endDate: draft.endDate ? new Date(draft.endDate).toISOString() : null,
+                startDate: dateForApi(draft.startDate),
+                endDate: dateForApi(draft.endDate),
             };
             const res = await apiPost(`/farm/${farmId}/periods`, payload);
             if (!res.ok) throw new Error("failed");
@@ -56,10 +59,12 @@ export default function PeriodsPage() {
         if (!farmId) return;
         setError(null);
         try {
+            const startInput = next.startDate ? next.startDate.slice(0, 10) : "";
+            const endInput = next.endDate ? next.endDate.slice(0, 10) : "";
             const payload = {
                 name: next.name || undefined,
-                startDate: next.startDate ? new Date(next.startDate).toISOString() : null,
-                endDate: next.endDate ? new Date(next.endDate).toISOString() : null,
+                startDate: dateForApi(startInput),
+                endDate: dateForApi(endInput),
             };
             const res = await apiPut(`/farm/${farmId}/periods/${periodId}`, payload);
             if (!res.ok) throw new Error("failed");
@@ -85,7 +90,7 @@ export default function PeriodsPage() {
     return (
         <div className="space-y-6">
             <div>
-                <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">{t('periods.title', { defaultValue: 'Manage periods' })}</h1>
+                <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">{t('periods.title', { defaultValue: 'Manage periods' })}</h2>
                 <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{t('periods.subtitle', { defaultValue: 'Create and update yearly parcel periods for the selected farm.' })}</p>
             </div>
 
@@ -96,7 +101,7 @@ export default function PeriodsPage() {
             )}
 
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
-                <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">{t('periods.createTitle', { defaultValue: 'New period' })}</h2>
+                <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">{t('periods.createTitle', { defaultValue: 'New period' })}</h3>
                 <div className="mt-4 grid gap-4 md:grid-cols-3">
                     <input
                         value={draft.name}
@@ -129,7 +134,7 @@ export default function PeriodsPage() {
             </div>
 
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
-                <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">{t('periods.listTitle', { defaultValue: 'Existing periods' })}</h2>
+                <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">{t('periods.listTitle', { defaultValue: 'Existing periods' })}</h3>
                 {loading && <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">{t('common.loading')}</p>}
                 {!loading && !sortedPeriods.length && (
                     <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">{t('periods.empty', { defaultValue: 'No periods created yet.' })}</p>

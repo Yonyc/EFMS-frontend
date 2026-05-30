@@ -24,14 +24,18 @@ export default function Login() {
   const location = useLocation();
   const locale = useCurrentLocale();
   const { t } = useTranslation();
-  const notice = (location.state as { notice?: string } | null)?.notice;
+  const locationState = location.state as { notice?: string; redirectTo?: string } | null;
+  const notice = locationState?.notice;
+  
+  const redirectTo = locationState?.redirectTo;
+  const postAuthTarget = redirectTo && redirectTo.startsWith('/') ? redirectTo : buildLocalizedPath(locale, '/');
 
-  // Redirect to home if already authenticated
+  // Redirect to the target if already authenticated
   useEffect(() => {
     if (isAuthenticated) {
-      navigate(buildLocalizedPath(locale, '/'));
+      navigate(postAuthTarget);
     }
-  }, [isAuthenticated, locale, navigate]);
+  }, [isAuthenticated, navigate, postAuthTarget]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -40,10 +44,10 @@ export default function Login() {
 
     try {
       await login(username, password);
-      navigate(buildLocalizedPath(locale, '/'));
+      navigate(postAuthTarget);
     } catch (err: any) {
       if (err.message === 'NOT_VERIFIED') {
-          navigate(buildLocalizedPath(locale, '/verify'));
+          navigate(buildLocalizedPath(locale, '/verify'), { state: { redirectTo } });
       } else {
           setError(t('auth.login.errors.invalidCredentials'));
       }
@@ -124,7 +128,7 @@ export default function Login() {
           <div className="text-center">
             <p className="text-sm text-gray-600">
               {t('auth.login.registerPrompt')}{' '}
-              <Link to={buildLocalizedPath(locale, '/register')} className="font-medium text-indigo-600 hover:text-indigo-500">
+              <Link to={buildLocalizedPath(locale, '/register')} state={redirectTo ? { redirectTo } : undefined} className="font-medium text-indigo-600 hover:text-indigo-500">
                 {t('auth.login.registerLink')}
               </Link>
             </p>

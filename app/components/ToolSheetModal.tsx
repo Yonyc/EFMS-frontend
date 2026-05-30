@@ -64,7 +64,6 @@ export default function ToolSheetModal({
   const handleSave = async () => {
     setSaving(true);
     try {
-      // Base: if no pending file, use the stored server URL (not the local DataURL preview)
       let finalPictureUrl: string | null = pendingPictureFile ? (tool.pictureUrl ?? null) : pictureUrl;
 
       if (pendingPictureFile && tool.farmId) {
@@ -108,7 +107,7 @@ export default function ToolSheetModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      className="fixed inset-0 z-[10060] flex items-center justify-center bg-black/50 p-4"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div className="relative flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-slate-900">

@@ -11,24 +11,16 @@ interface PolygonContextMenuProps {
     canEditPolygon: (id: string) => boolean;
     polygons: PolygonData[];
     closePolygonContextMenu: () => void;
-    setRenamingId: (id: string | null) => void;
-    setRenameValue: (val: string) => void;
-    setRenamePeriodId: (val: string) => void;
     contextType: string;
     setSelectedId: (id: string | null) => void;
     setCurrentParcelId: (id: string | null) => void;
     loadParcelOperations: (id: string) => Promise<void>;
     setOperationPopup: (val: { x: number; y: number; polygonId: string } | null) => void;
     isImportMode: boolean;
-    canSharePolygon: (id: string) => boolean;
-    openShareModal: (id: string) => void;
     startEdit: (id: string) => void;
     approveSingleParcel: (id: string) => Promise<void>;
-    showColorPicker: boolean;
-    setShowColorPicker: (val: boolean) => void;
-    handleColorSelect: (color: string) => Promise<void>;
-    handleColorHover: (color: string) => void;
-    handleColorLeave: () => void;
+    
+    onManageParcel: (id: string) => void;
     t: any;
     pendingDeleteId: string | null;
     setPendingDeleteId: (id: string | null) => void;
@@ -40,12 +32,9 @@ interface PolygonContextMenuProps {
 const PolygonContextMenu = React.memo((props: PolygonContextMenuProps) => {
     const {
         polygonContextMenu, canEditPolygon, polygons, closePolygonContextMenu,
-        setRenamingId, setRenameValue, setRenamePeriodId,
         contextType, setSelectedId, setCurrentParcelId, loadParcelOperations, setOperationPopup,
-        isImportMode, canSharePolygon, openShareModal,
-        startEdit, approveSingleParcel,
-        showColorPicker, setShowColorPicker,
-        handleColorSelect, handleColorHover, handleColorLeave,
+        isImportMode,
+        startEdit, approveSingleParcel, onManageParcel,
         t, pendingDeleteId, setPendingDeleteId, deletePolygon, addChild, selectParent
     } = props;
 
@@ -62,6 +51,25 @@ const PolygonContextMenu = React.memo((props: PolygonContextMenuProps) => {
         window.addEventListener('resize', handler);
         return () => window.removeEventListener('resize', handler);
     }, []);
+
+    
+    
+    
+    useEffect(() => {
+        const onDown = (e: MouseEvent) => {
+            if (menuRef.current && !menuRef.current.contains(e.target as Node)) closePolygonContextMenu();
+        };
+        const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') closePolygonContextMenu(); };
+        const id = window.setTimeout(() => {
+            document.addEventListener('mousedown', onDown);
+            document.addEventListener('keydown', onKey);
+        }, 0);
+        return () => {
+            window.clearTimeout(id);
+            document.removeEventListener('mousedown', onDown);
+            document.removeEventListener('keydown', onKey);
+        };
+    }, [closePolygonContextMenu]);
 
     useLayoutEffect(() => {
         const menuEl = menuRef.current;
@@ -84,29 +92,12 @@ const PolygonContextMenu = React.memo((props: PolygonContextMenuProps) => {
         const nextTop = Math.max(mapRect.top + MENU_PADDING, Math.min(polygonContextMenu.y, maxTop));
 
         setMenuPos(prev => (prev.left === nextLeft && prev.top === nextTop ? prev : { left: nextLeft, top: nextTop }));
-    }, [polygonContextMenu, showColorPicker]);
+    }, [polygonContextMenu]);
 
     const btn = "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition hover:bg-slate-50 active:scale-95";
 
     const menuItems = (
         <>
-            {canEditPolygon(polygonContextMenu.polygonId) && (
-                <button
-                    type="button"
-                    onClick={() => {
-                        const poly = polygons.find(p => p.id === polygonContextMenu.polygonId);
-                        closePolygonContextMenu();
-                        setRenamingId(polygonContextMenu.polygonId);
-                        setRenameValue(poly?.name || "");
-                        setRenamePeriodId(poly?.periodId ? String(poly.periodId) : "");
-                    }}
-                    className={`${btn} text-slate-800`}
-                >
-                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-50 text-base text-indigo-600">✏️</span>
-                    {t('map.polygonMenu.rename')}
-                </button>
-            )}
-
             {canEditPolygon(polygonContextMenu.polygonId) && (
                 <button
                     type="button"
@@ -118,45 +109,16 @@ const PolygonContextMenu = React.memo((props: PolygonContextMenuProps) => {
                 </button>
             )}
 
-            {canEditPolygon(polygonContextMenu.polygonId) && (!showColorPicker ? (
+            {contextType === 'farm' && !isImportMode && canEditPolygon(polygonContextMenu.polygonId) && (
                 <button
                     type="button"
-                    onClick={() => setShowColorPicker(true)}
+                    onClick={() => { closePolygonContextMenu(); onManageParcel(polygonContextMenu.polygonId); }}
                     className={`${btn} text-slate-800`}
                 >
-                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-50 text-base text-indigo-600">🎨</span>
-                    {t('map.polygonMenu.color')}
+                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-50 text-base text-indigo-600">🗂️</span>
+                    {t('map.parcelManager.open', { defaultValue: 'Manage parcel' })}
                 </button>
-            ) : (
-                <div className="rounded-2xl bg-slate-50/80 p-3">
-                    <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                        {t('map.polygonMenu.color')}
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                        {['#3388ff', '#ff6b6b', '#4ecdc4', '#ffe66d', '#a8e6cf', '#ff8b94', '#b4a7d6', '#ffa07a'].map(color => {
-                            const isCurrent = polygons.find(p => p.id === polygonContextMenu.polygonId)?.color === color;
-                            return (
-                                <button
-                                    key={color}
-                                    type="button"
-                                    onClick={() => handleColorSelect(color)}
-                                    onMouseEnter={() => handleColorHover(color)}
-                                    onMouseLeave={() => handleColorLeave()}
-                                    className={`h-7 w-7 rounded-full border-2 border-white shadow-md transition hover:scale-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-200 ${isCurrent ? 'ring-2 ring-indigo-400' : ''}`}
-                                    style={{ background: color }}
-                                />
-                            );
-                        })}
-                    </div>
-                    <button
-                        type="button"
-                        onClick={() => setShowColorPicker(false)}
-                        className="mt-3 w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500 transition hover:bg-white"
-                    >
-                        {t('common.cancel', { defaultValue: 'Cancel' })}
-                    </button>
-                </div>
-            ))}
+            )}
 
             {contextType === 'farm' && (
                 <button
@@ -202,16 +164,6 @@ const PolygonContextMenu = React.memo((props: PolygonContextMenuProps) => {
                 );
             })()}
 
-            {contextType === 'farm' && !isImportMode && canSharePolygon(polygonContextMenu.polygonId) && (
-                <button
-                    type="button"
-                    onClick={() => { closePolygonContextMenu(); openShareModal(polygonContextMenu.polygonId); }}
-                    className={`${btn} text-slate-800`}
-                >
-                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-50 text-base text-indigo-600">🤝</span>
-                    {t('map.sharing.open', { defaultValue: 'Share parcel' })}
-                </button>
-            )}
 
             {isImportMode && (
                 <button

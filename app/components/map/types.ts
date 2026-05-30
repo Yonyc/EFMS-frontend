@@ -99,6 +99,19 @@ export interface ParcelSearchFilters {
     endDate: string;
     useMapArea: boolean;
     usePolygon: boolean;
+    selectedShareId?: string;
+}
+
+export interface ShareFilterOption { id: number; label: string }
+export interface ShareFilterOptions {
+    shareId: number;
+    label: string;
+    periods: ShareFilterOption[];
+    operationTypes: ShareFilterOption[];
+    tools: ShareFilterOption[];
+    products: ShareFilterOption[];
+    filterStartDate?: string | null;
+    filterEndDate?: string | null;
 }
 
 export type MapContextType = 'farm' | 'import';
@@ -110,9 +123,42 @@ export interface MapWithPolygonsProps {
     allowCreate?: boolean;
     onApproveAll?: () => Promise<void>;
     approveLabel?: string;
-    importMode?: boolean; 
+    importMode?: boolean;
     initialSharePayload?: any;
+    filterPeriodNames?: string[];
+    pickMode?: 'child' | 'parent' | null;
+    onParcelPicked?: (id: string, name: string) => void;
 }
+
+export interface ParcelPeriodInfo {
+    id: number;
+    parcelId: string;
+    periodId: number;
+    periodName: string | null;
+    active: boolean;
+    startValidity?: string | null;
+    endValidity?: string | null;
+    cultureCode?: string | null;
+    cultureLabel?: string | null;
+    variety?: string | null;
+    declaredAreaHa?: number | null;
+    measuredAreaHa?: number | null;
+    targetYieldTha?: number | null;
+    sowingDensityKgha?: number | null;
+    rowSpacingCm?: number | null;
+    sowingDate?: string | null;
+    harvestDate?: string | null;
+    yieldRealizedTha?: number | null;
+    campaignYear?: number | null;
+    eligibilityStatus?: string | null;
+    comment?: string | null;
+    forcedPeriodId?: number | null;
+    periodNameOverride?: string | null;
+    periodStartOverride?: string | null;
+    periodEndOverride?: string | null;
+}
+
+export type ParcelStatus = 'STAGED' | 'LIVE' | 'REJECTED';
 
 export interface PolygonData {
     id: string;
@@ -120,16 +166,20 @@ export interface PolygonData {
     coords: [number, number][];
     visible: boolean;
     color?: string;
+    customColor?: string | null;
+    cultureColor?: string | null;
     version?: number;
     active?: boolean;
     startValidity?: string;
     endValidity?: string;
     farmId?: number;
     periodId?: number | null;
+    periodName?: string | null;
+    parcelPeriods?: ParcelPeriodInfo[];
     canEdit?: boolean;
     canShare?: boolean;
-    validationStatus?: string;
-    convertedParcelId?: number | null;
+    status?: ParcelStatus;
+    importRecordId?: number | null;
     parentId?: string | null;
 }
 

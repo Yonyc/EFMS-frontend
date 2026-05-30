@@ -13,9 +13,10 @@ interface Props {
     onLoadMore?: () => void;
     hasMore?: boolean;
     loading?: boolean;
+    disabled?: boolean;
 }
 
-export function SearchableSelect({ value, onChange, options, placeholder, noResultsText = "No results", className, onLoadMore, hasMore, loading }: Props) {
+export function SearchableSelect({ value, onChange, options, placeholder, noResultsText = "No results", className, onLoadMore, hasMore, loading, disabled }: Props) {
     const [open, setOpen] = useState(false);
     const [query, setQuery] = useState("");
     const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number; width: number } | null>(null);
@@ -98,7 +99,8 @@ export function SearchableSelect({ value, onChange, options, placeholder, noResu
                 <button
                     type="button"
                     onClick={handleOpen}
-                    className="w-full rounded-md border border-white/10 bg-white/5 px-2 py-2 text-sm text-left outline-none transition-colors hover:border-white/20 hover:bg-white/8"
+                    disabled={disabled}
+                    className="w-full rounded-md border border-white/10 bg-white/5 px-2 py-2 text-sm text-left outline-none transition-colors hover:border-white/20 hover:bg-white/8 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-white/10 disabled:hover:bg-white/5"
                 >
                     {value && selectedLabel
                         ? <span className="text-white">{selectedLabel}</span>

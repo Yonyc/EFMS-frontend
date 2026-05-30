@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { useAuth } from './AuthContext';
 import { apiGet } from '../utils/api';
 
-interface Farm {
+export interface Farm {
   id: string;
   name: string;
   location?: string;
@@ -14,10 +14,14 @@ interface Farm {
   showLocation?: boolean;
   canEdit?: boolean;
   canManage?: boolean;
+  
+  canViewFarm?: boolean;
   enableMemberAlerts?: boolean;
   enableParcelAlerts?: boolean;
   enableOperationAlerts?: boolean;
   alertRecipientEmail?: string;
+  
+  defaultPeriodId?: number | null;
 }
 
 interface FarmContextType {
@@ -101,17 +105,15 @@ export function FarmProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      setFarms([...data]); // Ensure state gets the updated array including any fetched overrides
+      setFarms([...data])
 
       if (preferredFarm) {
         setAndPersistSelectedFarm(preferredFarm);
       } else if (!selectedFarm) {
-        // fall to defaultFarmId because localStorage was already tried via the preferred arg 
         const defaultId = user?.defaultFarmId;
         const fromDefault = defaultId ? data.find((f: Farm) => f.id === defaultId) : null;
         if (fromDefault) setAndPersistSelectedFarm(fromDefault);
       } else {
-        // current selection got revoked or deleted on the server
         const stillExists = data.find((f: Farm) => f.id === selectedFarm.id);
         if (!stillExists) {
           const defaultId = user?.defaultFarmId;
@@ -132,7 +134,6 @@ export function FarmProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // prefer last-used farm, then user default
   useEffect(() => {
     if (isAuthenticated && token) {
       const stored = typeof window !== 'undefined' ? localStorage.getItem('selectedFarmId') : null;

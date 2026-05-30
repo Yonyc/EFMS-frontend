@@ -664,12 +664,12 @@ function MapLayerManagerImpl({
                                         }}>
                                             {poly.name}
                                         </span>
-                                        {isImportMode && poly.validationStatus && (
+                                        {isImportMode && poly.status && (
                                             <span style={{
                                                 display: 'inline-block', padding: '2px 6px', fontSize: '0.7rem', fontWeight: 600,
                                                 color: '#0f172a', background: 'rgba(255,255,255,0.85)', borderRadius: '999px', boxShadow: '0 1px 2px rgba(0,0,0,0.2)'
                                             }}>
-                                                {poly.validationStatus}
+                                                {poly.status}
                                             </span>
                                         )}
                                     </div>

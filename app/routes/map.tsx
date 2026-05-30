@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router";
 import { useTranslation } from "react-i18next";
 import { useFarm } from "../contexts/FarmContext";
@@ -12,7 +12,7 @@ import { apiGet } from "~/utils/api";
 
 export default function MapPage() {
     const [MapComponent, setMapComponent] = useState<React.ComponentType<any> | null>(null);
-    const { farms, selectedFarm, selectFarm, isLoading: farmsLoading } = useFarm();
+    const { farms, selectedFarm, selectFarm, refreshFarms, isLoading: farmsLoading } = useFarm();
     const { isAuthenticated, user, updateTutorialState } = useAuth();
     const locale = useCurrentLocale();
     const { t } = useTranslation();
@@ -91,12 +91,16 @@ export default function MapPage() {
         return () => window.clearTimeout(timer);
     }, [MapComponent, isAuthenticated, selectedFarm, tutorialState, updateTutorialState]);
 
+    const resolvedTokenRef = useRef<string | null>(null);
     useEffect(() => {
         if (!isAuthenticated || !researchShareToken) {
             setResolvedShareFarmId(null);
             setShareResolveError(null);
+            resolvedTokenRef.current = null;
             return;
         }
+        if (resolvedTokenRef.current === researchShareToken) return;
+        resolvedTokenRef.current = researchShareToken;
 
         let isMounted = true;
         const resolveShare = async () => {
@@ -113,16 +117,18 @@ export default function MapPage() {
                 const farmId = payload?.farmId != null ? String(payload.farmId) : null;
                 setResolvedShareFarmId(farmId);
                 setShareResolveError(null);
-                if (farmId && farms.length > 0) {
-                    const matched = farms.find((farm) => farm.id === farmId);
-                    if (matched) {
-                        selectFarm(farmId);
+                if (farmId) {
+                    try {
+                        await refreshFarms(farmId);
+                    } catch (_) {
+                        // Non-fatal: the shared view still renders from resolvedShareFarmId below.
                     }
                 }
             } catch (err) {
                 if (!isMounted) return;
                 console.error("Failed to resolve research share token", err);
                 setResolvedShareFarmId(null);
+                resolvedTokenRef.current = null;
                 setShareResolveError(t("map.sharing.errors.loadFailed", { defaultValue: "Unable to open the shared research zone" }));
             }
         };
@@ -131,7 +137,7 @@ export default function MapPage() {
         return () => {
             isMounted = false;
         };
-    }, [farms, isAuthenticated, researchShareToken, selectFarm, t]);
+    }, [isAuthenticated, researchShareToken, refreshFarms, t]);
 
     const closeTour = useCallback((finalState: TutorialState = "COMPLETED") => {
         updateTutorialState(finalState).catch((err) => console.error("Failed to persist tutorial state", err));
@@ -160,7 +166,7 @@ export default function MapPage() {
         );
     } else if (resolvedShareFarmId) {
         content = (
-            <div className="relative flex flex-1 w-full min-h-0">
+            <div className="relative flex h-[calc(100vh-4rem)] w-full">
                 {MapComponent ? (
                     <MapComponent contextId={resolvedShareFarmId} contextType="farm" allowCreate={false} initialSharePayload={resolvedSharePayload} key={`shared-${resolvedShareFarmId}`} />
                 ) : (
@@ -190,8 +196,7 @@ export default function MapPage() {
         );
     } else {
         content = (
-            // Use flex-1 so the map area fills remaining viewport height (navbar + content = 100vh)
-            <div className="relative flex flex-1 w-full min-h-0">
+            <div className="relative flex h-[calc(100vh-4rem)] w-full">
                 {MapComponent ? (
                     <>
                         <MapComponent farm_id={selectedFarm.id} allowCreate={selectedFarm.canEdit !== false} key={selectedFarm.id} />

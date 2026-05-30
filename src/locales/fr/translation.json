@@ -49,6 +49,7 @@
       "noSelectionTitle": "Sélectionnez un lot d'importation",
       "noSelectionDescription": "Choisissez un lot dans la liste des importations pour commencer la validation.",
       "returnToList": "Retour aux importations",
+      "openReview": "Voir en liste",
       "approveButton": "Approuver la liste d'importation",
       "approvedLabel": "Cette liste a été approuvée.",
       "approveOne": "Approuver",
@@ -259,7 +260,10 @@
     "no": "Non",
     "success": "Succès",
     "error": "Erreur",
-    "close": "Fermer"
+    "close": "Fermer",
+    "all": "Tout",
+    "clear": "Effacer",
+    "remove": "Retirer"
   },
   "farmSelector": {
     "noFarms": "Aucune exploitation disponible",
@@ -409,7 +413,8 @@
     },
     "common": {
       "noEntries": "Aucune entrée"
-    }
+    },
+    "sharedUserNotice": "Vous pouvez consulter et gérer ci-dessous les partages auxquels vous avez accès."
   },
   "publicFarms": {
     "title": "Exploitations publiques",
@@ -469,6 +474,8 @@
     "selectTypePlaceholder": "Sélectionner un type (optionnel)",
     "dateLabel": "Date",
     "durationLabel": "Durée (minutes)",
+    "periodLabel": "Période",
+    "periodHint": "Par défaut, votre préférence pour l'exploitation. Laissez vide pour résoudre depuis la date.",
     "productsTools": "Produits et outils",
     "unit": "Unité",
     "tool": "Outil",
@@ -482,12 +489,19 @@
     "emptyHistory": "Aucune opération enregistrée pour cette parcelle.",
     "noParcel": "Sélectionnez une parcelle pour voir ou ajouter des opérations.",
     "readOnly": "Vous pouvez consulter les opérations mais vous ne pouvez pas en ajouter pour cette parcelle.",
-    "errorLoad": "Impossible de charger les opérations",
+    "errorLoad": "Échec du chargement des opérations",
     "errorCreate": "Impossible d'enregistrer l'opération",
     "errorSave": "Vous n'êtes pas autorisé à modifier cette parcelle",
     "refreshFarms": "Actualiser les fermes",
     "refreshParcels": "Recharger les parcelles",
-    "pinTopRight": "Ouvrir en haut à droite"
+    "pinTopRight": "Ouvrir en haut à droite",
+    "targetParcels": "Parcelles ciblées",
+    "addParcel": "Ajouter une parcelle…",
+    "selectParcels": "Parcelles",
+    "inactiveParcels": "Ces parcelles ne sont pas actives durant la période sélectionnée : {{names}}",
+    "matchingTitle": "Opérations correspondant au filtre",
+    "matchingCount": "{{count}} opération(s)",
+    "matchingEmpty": "Aucune opération ne correspond au filtre actuel."
   },
   "assets": {
     "title": "Ressources",
@@ -507,8 +521,10 @@
     "nav": {
       "products": "Produits",
       "tools": "Outils",
+      "periods": "Périodes",
       "reference": "Données de référence",
-      "official": "Catalogue officiel"
+      "official": "Catalogue officiel",
+      "cultures": "Cultures"
     },
     "products": {
       "label": "Produits",
@@ -639,6 +655,8 @@
     "defaultFarm": "Exploitation par défaut",
     "defaultFarmHint": "Sélectionnée automatiquement après une nouvelle connexion. Un rafraîchissement conserve la dernière exploitation utilisée.",
     "defaultFarmNone": "Pas de défaut (afficher le sélecteur)",
+    "defaultPeriod": "Période par défaut par exploitation",
+    "defaultPeriodHint": "La carte s'ouvre avec cette période filtrée par défaut. Laissez vide pour utiliser la période la plus récente.",
     "emailNotifications": "Notifications par email",
     "emailNotificationsHint": "Interrupteur principal pour partages, imports et alertes de parcelles.",
     "save": "Enregistrer",
@@ -716,7 +734,67 @@
         "approved": "Approuvées",
         "unapproved": "Non approuvées",
         "selected": "{{count}} sélectionnées"
-      }
+      },
+      "culture": "Culture",
+      "variety": "Variété",
+      "areaHa": "Surface (ha)",
+      "sowing": "Semis",
+      "harvest": "Récolte",
+      "managePeriods": "Gérer les périodes",
+      "rightClickOptions": "Clic droit pour les options",
+      "mapActions": "Carte",
+      "visibleShort": "Affichée",
+      "hiddenShort": "Masquée",
+      "centerShort": "Centrer"
+    },
+    "parcelManager": {
+      "title": "Gérer la parcelle",
+      "open": "Gérer la parcelle",
+      "settingsTitle": "Paramètres de la parcelle",
+      "nameLabel": "Nom",
+      "applyName": "Appliquer",
+      "defaultColor": "Défaut (culture)",
+      "defaultColorHint": "Utiliser la couleur du type de culture",
+      "defaultColorNone": "Aucune couleur de type de culture définie",
+      "shareTitle": "Partage",
+      "shareHint": "Partagez cette parcelle avec un autre utilisateur ou via un lien de recherche."
+    },
+    "periodPicker": {
+      "label": "Période",
+      "showAll": "Toutes les périodes",
+      "selectForParcel": "Afficher la période…"
+    },
+    "periodManager": {
+      "title": "Gérer les périodes",
+      "close": "Fermer",
+      "done": "Terminé",
+      "existingTitle": "Périodes actuelles",
+      "empty": "Aucune période rattachée à cette parcelle.",
+      "addTitle": "Ajouter une période",
+      "addAction": "Rattacher la période",
+      "pickPeriod": "Période",
+      "pickPlaceholder": "Choisir une période…",
+      "active": "Active",
+      "edit": "Modifier",
+      "save": "Enregistrer",
+      "cancel": "Annuler",
+      "delete": "Retirer",
+      "confirmDelete": "Retirer cette période de la parcelle ?",
+      "cultureCode": "Code culture",
+      "cultureLabel": "Libellé culture",
+      "variety": "Variété",
+      "declaredAreaHa": "Surface déclarée (ha)",
+      "measuredAreaHa": "Surface mesurée (ha)",
+      "targetYieldTha": "Rendement cible (t/ha)",
+      "sowingDate": "Date de semis",
+      "harvestDate": "Date de récolte",
+      "yieldRealizedTha": "Rendement réalisé (t/ha)",
+      "comment": "Commentaire"
+    },
+    "status": {
+      "staged": "Mise en attente",
+      "live": "Active",
+      "rejected": "Rejetée"
     },
     "searchFilters": {
       "title": "Recherche de parcelles",
@@ -744,7 +822,11 @@
       "usePolygon": "Limiter la recherche à cette parcelle",
       "usePolygonHint": "Utilise le contour que vous venez de dessiner.",
       "apply": "Appliquer les filtres",
-      "clear": "Effacer"
+      "clear": "Effacer",
+      "listOperations": "Lister les opérations correspondantes",
+      "shareScope": "Zone partagée",
+      "shareScopeHint": "Choisissez une zone à laquelle vous avez accès, puis filtrez à l'intérieur.",
+      "shareScopePlaceholder": "Sélectionnez une zone partagée…"
     },
     "periods": {
       "title": "Gérer les périodes",
@@ -1067,5 +1149,37 @@
         "allTypes": "Tous types de produits"
       }
     }
+  },
+  "cultureTypes": {
+    "title": "Codes cultures PAC / SIGEC belges",
+    "subtitle": "Types de culture",
+    "description": "Codes cultures de référence utilisés dans les déclarations PAC. Les codes globaux suivent la liste de référence SIGEC belge ; les codes spécifiques à l'exploitation la complètent.",
+    "tabGlobal": "Référence globale",
+    "tabFarm": "Spécifique à l'exploitation",
+    "empty": "Aucun type de culture.",
+    "add": "Ajouter un type de culture",
+    "addTitle": "Ajouter un type de culture",
+    "selectCategory": "— Sélectionner —",
+    "noColor": "Aucune par défaut",
+    "promote": "Promouvoir",
+    "promoteConfirm": "Promouvoir en type de culture global ?",
+    "deleteConfirm": "Supprimer ce type de culture ?",
+    "fieldRequired": "Le code et le nom sont requis.",
+    "scope": "Portée :",
+    "scopeFarm": "Spécifique à l'exploitation",
+    "scopeGlobal": "Global (toutes les exploitations)",
+    "col": {
+      "code": "Code",
+      "nameFr": "Nom (FR)",
+      "nameNl": "Nom (NL)",
+      "category": "Catégorie",
+      "color": "Couleur",
+      "actions": "Actions"
+    }
+  },
+  "productSheet": {
+    "cultureType": "Culture semée",
+    "noCultureType": "Aucune culture",
+    "cultureTypeHint": "Appliquée à la période d'une parcelle lorsqu'une opération utilise cette semence et que la période n'a pas encore de culture."
   }
 }

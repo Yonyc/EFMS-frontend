@@ -1,5 +1,5 @@
 import React from "react";
-import type { OperationTypeDto, ProductDto, ToolDto, ParcelSearchFilters } from "../types";
+import type { OperationTypeDto, ProductDto, ToolDto, ParcelSearchFilters, ShareFilterOptions } from "../types";
 import MultiSelectCombobox from "../../MultiSelectCombobox";
 
 interface MapSearchFiltersProps {
@@ -12,6 +12,8 @@ interface MapSearchFiltersProps {
     products: ProductDto[];
     periods: any[];
     operationTypes: OperationTypeDto[];
+    
+    shareFilterOptions?: ShareFilterOptions[];
     searchAreaCoords: [number, number][];
     isSearchDrawing: boolean;
     startSearchPolygon: () => void;
@@ -20,6 +22,9 @@ interface MapSearchFiltersProps {
     clearSearchFilters: () => void;
     applySearchFilters: () => void;
     hasActiveSearchFilters: boolean;
+    onShareFilter?: () => void;
+    shareFilterFeedback?: string;
+    onListOperations?: () => void;
     disabled?: boolean;
     t: any;
 }
@@ -28,9 +33,10 @@ const MapSearchFilters = React.memo((props: MapSearchFiltersProps) => {
     const {
         isImportMode, isSearchOpen, onClose,
         searchDraft, setSearchDraft,
-        tools, products, periods, operationTypes, searchAreaCoords, isSearchDrawing,
+        tools, products, periods, operationTypes, shareFilterOptions, searchAreaCoords, isSearchDrawing,
         startSearchPolygon, cancelSearchPolygon, clearSearchPolygon,
         clearSearchFilters, applySearchFilters,
+        onShareFilter, shareFilterFeedback, onListOperations,
         disabled, t
     } = props;
 
@@ -42,10 +48,36 @@ const MapSearchFilters = React.memo((props: MapSearchFiltersProps) => {
         return product.name;
     };
 
+    const shareScoped = !!(shareFilterOptions && shareFilterOptions.length > 0);
+    const activeShare = shareScoped
+        ? shareFilterOptions!.find(s => String(s.shareId) === searchDraft.selectedShareId)
+        : undefined;
+
+    const periodOptions = (shareScoped && activeShare)
+        ? activeShare.periods.map(o => ({ value: String(o.id), label: o.label }))
+        : periods.map((p) => ({ value: String(p.id), label: p.name || `${p.startDate || ''} - ${p.endDate || ''}` }));
+    const typeOptions = (shareScoped && activeShare)
+        ? activeShare.operationTypes.map(o => ({ value: String(o.id), label: o.label }))
+        : operationTypes.map((type) => ({ value: String(type.id), label: type.name }));
+    const toolOptions = (shareScoped && activeShare)
+        ? activeShare.tools.map(o => ({ value: String(o.id), label: o.label }))
+        : tools.map((tl) => ({ value: String(tl.id), label: tl.name }));
+    const productOptions = (shareScoped && activeShare)
+        ? activeShare.products.map(o => ({ value: String(o.id), label: o.label }))
+        : products.map((p) => ({ value: String(p.id), label: productLabel(p) }));
+
+    const selectShare = (shareId: string) => {
+        setSearchDraft(prev => ({
+            ...prev,
+            selectedShareId: shareId,
+            periodIds: [], operationTypeIds: [], toolIds: [], productIds: [],
+        }));
+    };
+
     if (isImportMode || !isSearchOpen) return null;
 
     const header = (
-        <div className="flex items-center gap-2 border-b border-slate-200 px-4 py-2">
+        <div className="flex shrink-0 items-center gap-2 border-b border-slate-200 px-4 py-2">
             <span className="text-sm font-semibold text-slate-800">
                 {t('map.searchFilters.title')}
             </span>
@@ -62,44 +94,66 @@ const MapSearchFilters = React.memo((props: MapSearchFiltersProps) => {
     );
 
     return (
-        <div className={`pointer-events-auto w-[320px] max-w-[90vw] overflow-hidden rounded-2xl border border-slate-200 bg-white/95 shadow-2xl shadow-slate-900/15 backdrop-blur-md ${disabled ? 'opacity-60' : ''}`}>
+        <div className={`pointer-events-auto flex max-h-[calc(100vh-6rem)] w-[320px] max-w-[90vw] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white/95 shadow-2xl shadow-slate-900/15 backdrop-blur-md ${disabled ? 'opacity-60' : ''}`}>
             {header}
-            <div className="p-4">
+            <div className="flex-1 overflow-y-auto p-4">
                     <div className="flex flex-col gap-4">
+                        {shareScoped && (
+                            <div className="rounded-2xl border border-indigo-200 bg-indigo-50/70 p-3">
+                                <label className="block text-xs font-semibold uppercase tracking-wide text-indigo-600">
+                                    {t('map.searchFilters.shareScope', { defaultValue: 'Shared zone' })}
+                                </label>
+                                <p className="mt-0.5 text-xs text-slate-500">
+                                    {t('map.searchFilters.shareScopeHint', { defaultValue: 'Pick a zone you have access to, then filter within it.' })}
+                                </p>
+                                <select
+                                    value={searchDraft.selectedShareId ?? ''}
+                                    onChange={(e) => selectShare(e.target.value)}
+                                    disabled={disabled}
+                                    className="mt-2 w-full rounded-xl border border-indigo-200 bg-white px-3 py-2 text-sm text-slate-700 focus:border-indigo-300 focus:outline-none"
+                                >
+                                    <option value="">{t('map.searchFilters.shareScopePlaceholder', { defaultValue: 'Select a shared zone…' })}</option>
+                                    {shareFilterOptions!.map((s) => (
+                                        <option key={s.shareId} value={String(s.shareId)}>{s.label}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
+
                         <MultiSelectCombobox
                             label={t('map.searchFilters.periodLabel')}
-                            options={periods.map((p) => ({ value: String(p.id), label: p.name || `${p.startDate || ''} - ${p.endDate || ''}` }))}
+                            options={periodOptions}
                             selectedValues={searchDraft.periodIds}
                             onChange={(next) => setSearchDraft(prev => ({ ...prev, periodIds: next }))}
                             placeholder={t('map.searchFilters.anyPeriod')}
-                            disabled={disabled}
+                            disabled={disabled || (shareScoped && !activeShare)}
                         />
 
                         <MultiSelectCombobox
                             label={t('map.searchFilters.typeLabel')}
-                            options={operationTypes.map((type) => ({ value: String(type.id), label: type.name }))}
+                            options={typeOptions}
                             selectedValues={searchDraft.operationTypeIds}
                             onChange={(next) => setSearchDraft(prev => ({ ...prev, operationTypeIds: next }))}
                             placeholder={t('map.searchFilters.anyType')}
-                            disabled={disabled}
+                            disabled={disabled || (shareScoped && !activeShare)}
                         />
 
                         <MultiSelectCombobox
                             label={t('map.searchFilters.toolLabel')}
-                            options={tools.map((t) => ({ value: String(t.id), label: t.name }))}
+                            options={toolOptions}
                             selectedValues={searchDraft.toolIds}
                             onChange={(next) => setSearchDraft(prev => ({ ...prev, toolIds: next }))}
                             placeholder={t('map.searchFilters.anyTool')}
-                            disabled={disabled}
+                            disabled={disabled || (shareScoped && !activeShare)}
                         />
 
                         <MultiSelectCombobox
                             label={t('map.searchFilters.productLabel')}
-                            options={products.map((p) => ({ value: String(p.id), label: productLabel(p) }))}
+                            options={productOptions}
                             selectedValues={searchDraft.productIds}
                             onChange={(next) => setSearchDraft(prev => ({ ...prev, productIds: next }))}
                             placeholder={t('map.searchFilters.anyProduct')}
-                            disabled={disabled}
+                            disabled={disabled || (shareScoped && !activeShare)}
                         />
 
                         <div className="grid grid-cols-2 gap-3">
@@ -185,24 +239,55 @@ const MapSearchFilters = React.memo((props: MapSearchFiltersProps) => {
                         </div>
                     </div>
 
-                    <div className="mt-4 flex items-center justify-between gap-2">
-                        <button
-                            type="button"
-                            onClick={clearSearchFilters}
-                            disabled={disabled}
-                            className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"
-                        >
-                            {t('map.searchFilters.clear')}
-                        </button>
-                        <button
-                            type="button"
-                            onClick={applySearchFilters}
-                            disabled={disabled}
-                            className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-indigo-500/20 hover:bg-indigo-500"
-                        >
-                            {t('map.searchFilters.apply')}
-                        </button>
-                    </div>
+                    {onListOperations && (
+                        <div className="mt-4 border-t border-slate-200 pt-3">
+                            <button
+                                type="button"
+                                onClick={onListOperations}
+                                disabled={disabled}
+                                className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-100 disabled:opacity-50"
+                            >
+                                <span aria-hidden>📋</span>
+                                {t('map.searchFilters.listOperations', { defaultValue: 'List matching operations' })}
+                            </button>
+                        </div>
+                    )}
+
+                    {onShareFilter && (
+                        <div className="mt-3 border-t border-slate-200 pt-3">
+                            <button
+                                type="button"
+                                onClick={onShareFilter}
+                                disabled={disabled}
+                                className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm font-semibold text-indigo-700 transition hover:border-indigo-300 hover:bg-indigo-100 disabled:opacity-50"
+                            >
+                                <span aria-hidden>🔗</span>
+                                {t('map.searchFilters.shareFilter', { defaultValue: 'Share current filter' })}
+                            </button>
+                            {shareFilterFeedback && (
+                                <p className="mt-1.5 text-xs text-slate-500">{shareFilterFeedback}</p>
+                            )}
+                        </div>
+                    )}
+
+            </div>
+            <div className="flex items-center justify-between gap-2 border-t border-slate-200 p-4">
+                <button
+                    type="button"
+                    onClick={clearSearchFilters}
+                    disabled={disabled}
+                    className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+                >
+                    {t('map.searchFilters.clear')}
+                </button>
+                <button
+                    type="button"
+                    onClick={applySearchFilters}
+                    disabled={disabled}
+                    className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-indigo-500/20 hover:bg-indigo-500"
+                >
+                    {t('map.searchFilters.apply')}
+                </button>
             </div>
         </div>
     );

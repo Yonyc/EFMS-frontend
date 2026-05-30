@@ -4,6 +4,7 @@ import { Link } from "react-router";
 import { useTranslation } from "react-i18next";
 import ProtectedRoute from "~/components/ProtectedRoute";
 import { apiGet, apiRequest } from "~/utils/api";
+import { apiUrl } from "~/config";
 import { useCurrentLocale } from "~/hooks/useCurrentLocale";
 import { buildLocalizedPath } from "~/utils/locale";
 import { useDateTimeFormatter } from "~/utils/datetime";
@@ -19,6 +20,12 @@ interface ImportGroup {
     sourceName?: string;
 }
 
+interface UploadProgress {
+    current: number;
+    total: number;
+    message: string;
+}
+
 export default function ImportsPage() {
     const { t } = useTranslation();
     const locale = useCurrentLocale();
@@ -27,6 +34,7 @@ export default function ImportsPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [isUploading, setIsUploading] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null);
     const [uploadFeedback, setUploadFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [actionFeedback, setActionFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -60,28 +68,77 @@ export default function ImportsPage() {
     };
 
     const handleFileChange = useCallback(async (event: ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (!file) return;
+        const fileList = event.target.files;
+        if (!fileList || fileList.length === 0) return;
         setIsUploading(true);
+        setUploadProgress({ current: 0, total: 1, message: t('imports.upload.uploading', { defaultValue: 'Uploading…' }) });
         setUploadFeedback(null);
         setActionFeedback(null);
+
         try {
             const formData = new FormData();
-            formData.append('file', file);
-            const response = await apiRequest('/imports/upload', {
+            for (let i = 0; i < fileList.length; i++) {
+                formData.append('files', fileList[i]);
+            }
+            const token = typeof localStorage !== 'undefined' ? localStorage.getItem('authToken') : null;
+            const headers: Record<string, string> = {};
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+
+            const response = await fetch(`${apiUrl}/imports/upload/stream`, {
                 method: 'POST',
+                headers,
                 body: formData,
             });
-            if (!response.ok) {
+
+            if (!response.ok || !response.body) {
                 throw new Error('Upload failed');
             }
-            setUploadFeedback({ type: 'success', message: t('imports.upload.success', { defaultValue: 'Upload complete. Processing import…' }) });
-            await loadImports();
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                buffer += decoder.decode(value, { stream: true });
+
+                // Parse SSE lines: "data: {...}\n\n"
+                const parts = buffer.split('\n\n');
+                buffer = parts.pop() ?? '';
+
+                for (const part of parts) {
+                    for (const line of part.split('\n')) {
+                        if (!line.startsWith('data:')) continue;
+                        try {
+                            const payload = JSON.parse(line.slice(5).trim());
+                            if (payload.type === 'progress') {
+                                setUploadProgress({ current: payload.current, total: payload.total, message: payload.message });
+                            } else if (payload.type === 'done') {
+                                const count = payload.count ?? 0;
+                                setUploadFeedback({
+                                    type: 'success',
+                                    message: t('imports.upload.successCount', {
+                                        count,
+                                        defaultValue: 'Import complete — {{count}} parcel(s) imported.',
+                                    }),
+                                });
+                                await loadImports();
+                            } else if (payload.type === 'error') {
+                                throw new Error(payload.message || 'Import failed');
+                            }
+                        } catch (parseErr) {
+                            // ignore malformed SSE line
+                        }
+                    }
+                }
+            }
         } catch (err) {
             console.error(err);
             setUploadFeedback({ type: 'error', message: t('imports.upload.error', { defaultValue: 'Upload failed. Please try again.' }) });
         } finally {
             setIsUploading(false);
+            setUploadProgress(null);
             event.target.value = '';
         }
     }, [loadImports, t]);
@@ -192,10 +249,10 @@ export default function ImportsPage() {
                         </dl>
                         <div className="mt-6 space-y-2">
                             <Link
-                                to={buildLocalizedPath(locale, `/imports/map?list=${group.id}`)}
-                                className="inline-flex w-full items-center justify-center rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-md transition hover:bg-indigo-500"
+                                to={buildLocalizedPath(locale, `/imports/${group.id}/review`)}
+                                className="inline-flex w-full items-center justify-center rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-md transition hover:bg-emerald-500"
                             >
-                                {t('imports.list.open', { defaultValue: 'Open for validation' })}
+                                {t('imports.list.review', { defaultValue: 'Review & import' })}
                             </Link>
                             <div className="flex gap-2 text-sm">
                                 <button
@@ -229,28 +286,57 @@ export default function ImportsPage() {
                     <p className="text-sm uppercase tracking-wide text-indigo-600">{t('imports.title', { defaultValue: 'Import lists' })}</p>
                     <h1 className="text-3xl font-bold text-slate-900">{t('imports.subtitle', { defaultValue: 'Validate your upcoming imports' })}</h1>
                     <p className="mt-2 text-slate-500">{t('imports.description', { defaultValue: 'Select a batch to review its polygons before applying it to your farm.' })}</p>
-                    <div className="mt-4 flex flex-wrap items-center gap-3">
-                        <button
-                            type="button"
-                            onClick={handleUploadClick}
-                            disabled={isUploading}
-                            className={`rounded-xl px-4 py-2 text-sm font-semibold text-white shadow transition ${isUploading ? 'bg-slate-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-500'}`}
-                        >
-                            {isUploading ? t('imports.upload.uploading', { defaultValue: 'Uploading…' }) : t('imports.upload.button', { defaultValue: 'Upload ZIP' })}
-                        </button>
-                        <span className="text-sm text-slate-500">
-                            {t('imports.upload.helper', { defaultValue: 'Upload a ZIP export to create a new import list.' })}
-                        </span>
-                        {(uploadFeedback || actionFeedback) && (
-                            <span className={`text-sm font-medium ${((uploadFeedback || actionFeedback)?.type === 'success') ? 'text-emerald-600' : 'text-red-600'}`}>
-                                {(uploadFeedback || actionFeedback)?.message}
+                    <div className="mt-4 flex flex-col gap-3">
+                        <div className="flex flex-wrap items-center gap-3">
+                            <button
+                                type="button"
+                                onClick={handleUploadClick}
+                                disabled={isUploading}
+                                className={`rounded-xl px-4 py-2 text-sm font-semibold text-white shadow transition ${isUploading ? 'bg-slate-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-500'}`}
+                            >
+                                {isUploading
+                                    ? t('imports.upload.importing', { defaultValue: 'Importing…' })
+                                    : t('imports.upload.button', { defaultValue: 'Upload ZIP(s)' })}
+                            </button>
+                            <span className="text-sm text-slate-500">
+                                {t('imports.upload.helper', { defaultValue: 'Supports Geofolia SHP exports and Geofolia JSON exports (Field.Json / Action.Json).' })}
                             </span>
+                            {!isUploading && (uploadFeedback || actionFeedback) && (
+                                <span className={`text-sm font-medium ${((uploadFeedback || actionFeedback)?.type === 'success') ? 'text-emerald-600' : 'text-red-600'}`}>
+                                    {(uploadFeedback || actionFeedback)?.message}
+                                </span>
+                            )}
+                        </div>
+
+                        {/* Live progress bar */}
+                        {isUploading && uploadProgress && (
+                            <div className="max-w-lg rounded-xl border border-indigo-200 bg-indigo-50 p-4 space-y-2">
+                                <div className="flex items-center justify-between text-xs font-semibold text-indigo-700">
+                                    <span>{uploadProgress.message}</span>
+                                    {uploadProgress.total > 1 && (
+                                        <span>{uploadProgress.current}/{uploadProgress.total}</span>
+                                    )}
+                                </div>
+                                {uploadProgress.total > 1 ? (
+                                    <div className="h-2 w-full overflow-hidden rounded-full bg-indigo-200">
+                                        <div
+                                            className="h-2 rounded-full bg-indigo-500 transition-all duration-200"
+                                            style={{ width: `${Math.round((uploadProgress.current / uploadProgress.total) * 100)}%` }}
+                                        />
+                                    </div>
+                                ) : (
+                                    <div className="h-2 w-full overflow-hidden rounded-full bg-indigo-200">
+                                        <div className="h-2 w-1/3 rounded-full bg-indigo-400 animate-pulse" />
+                                    </div>
+                                )}
+                            </div>
                         )}
                     </div>
                     <input
                         ref={fileInputRef}
                         type="file"
                         accept=".zip"
+                        multiple
                         className="hidden"
                         onChange={handleFileChange}
                     />

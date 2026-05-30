@@ -34,12 +34,16 @@ export function useParcelOperations({
     const [operationTypeId, setOperationTypeId] = useState<string>("");
     const [operationDate, setOperationDate] = useState<string>(nowForInput);
     const [operationDurationMinutes, setOperationDurationMinutes] = useState<string>("");
+    
+    const [operationPeriodId, setOperationPeriodId] = useState<string>("");
     const [operationLines, setOperationLines] = useState<OperationProductInputState[]>([{ productId: "", quantity: "", unitId: "", toolId: "" }]);
     const [operationError, setOperationError] = useState<string | null>(null);
     const [operationLoading, setOperationLoading] = useState(false);
     const [parcelOperations, setParcelOperations] = useState<ParcelOperationDto[]>([]);
     const [hasMore, setHasMore] = useState(false);
     const [currentParcelId, setCurrentParcelId] = useState<string | null>(null);
+    
+    const [operationExtraParcelIds, setOperationExtraParcelIds] = useState<string[]>([]);
     const [operationPopup, setOperationPopup] = useState<{ x: number; y: number; polygonId: string } | null>(null);
 
     // Paginated resource state
@@ -58,9 +62,11 @@ export function useParcelOperations({
 
     const resetOperationForm = useCallback(() => {
         setOperationTypeId("");
+        setOperationPeriodId("");
         setOperationDate(nowForInput());
         setOperationDurationMinutes("");
         setOperationLines([{ productId: "", quantity: "", unitId: "", toolId: "" }]);
+        setOperationExtraParcelIds([]);
         setOperationError(null);
     }, []);
 
@@ -242,6 +248,23 @@ export function useParcelOperations({
                     toolId: line.toolId ? Number(line.toolId) : undefined,
                 }));
 
+            let parcelPeriodId: number | undefined;
+            if (operationPeriodId) {
+                try {
+                    const parcelRes = await apiGet(`/parcels/${currentParcelId}`);
+                    if (parcelRes.ok) {
+                        const parcelDto = await parcelRes.json();
+                        const match = (parcelDto?.parcelPeriods ?? []).find(
+                            (pp: any) => String(pp.periodId) === operationPeriodId
+                        );
+                        if (match?.id) parcelPeriodId = Number(match.id);
+                    }
+                } catch (_) {}
+            }
+
+            // The popup's parcel anchors the URL; the full set (incl. extras) goes in the body.
+            const targetIds = Array.from(new Set([currentParcelId, ...operationExtraParcelIds]));
+
             const payload: any = {
                 typeId: operationTypeId ? Number(operationTypeId) : undefined,
                 // Send as naive local datetime — backend uses LocalDateTime (no tz).
@@ -249,21 +272,28 @@ export function useParcelOperations({
                 date: operationDate ? operationDate + ":00" : undefined,
                 durationSeconds: operationDurationMinutes ? Number(operationDurationMinutes) * 60 : undefined,
                 products: productsPayload,
+                parcelIds: targetIds.map(Number),
+                parcelPeriodId,
             };
 
             const res = await apiPost(`/farm/${farmId}/parcels/${currentParcelId}/operations`, payload);
-            if (!res.ok) throw new Error("failed");
+            if (!res.ok) {
+                // Surface the backend reason (e.g. a parcel inactive during the period) when present.
+                const body = await res.text().catch(() => "");
+                throw new Error(body || "failed");
+            }
 
             resetOperationForm();
             // Reload from page 0 to show the new operation at top
             await loadParcelOperations(currentParcelId, 0);
-        } catch (err) {
+        } catch (err: any) {
             console.error(err);
-            setOperationError(t('operations.errorCreate', { defaultValue: 'Failed to save operation' }));
+            const msg = err?.message && err.message !== "failed" ? err.message : null;
+            setOperationError(msg || t('operations.errorCreate', { defaultValue: 'Failed to save operation' }));
         } finally {
             setOperationLoading(false);
         }
-    }, [currentParcelId, operationLines, operationTypeId, operationDate, operationDurationMinutes, farmId, loadParcelOperations, resetOperationForm, t, canEditPolygon]);
+    }, [currentParcelId, operationExtraParcelIds, operationLines, operationTypeId, operationDate, operationDurationMinutes, operationPeriodId, farmId, loadParcelOperations, resetOperationForm, t, canEditPolygon]);
 
     const addOperationAttachment = useCallback((operationId: number, att: AttachmentDto) => {
         setParcelOperations(prev => prev.map(op =>
@@ -286,6 +316,7 @@ export function useParcelOperations({
         operationTypeId, setOperationTypeId,
         operationDate, setOperationDate,
         operationDurationMinutes, setOperationDurationMinutes,
+        operationPeriodId, setOperationPeriodId,
         operationLines, handleAddOperationLine, handleRemoveOperationLine, updateOperationLine,
         operationError, operationLoading, parcelOperations,
         hasMore, loadMoreOperations,
@@ -294,6 +325,7 @@ export function useParcelOperations({
         opTypeHasMore, opTypeLoading, loadMoreOpTypes,
         addOperationAttachment, removeOperationAttachment,
         currentParcelId, setCurrentParcelId,
+        operationExtraParcelIds, setOperationExtraParcelIds, setOperationError,
         operationPopup, setOperationPopup,
         loadOperationReferences, loadParcelOperations, handleSaveOperation, resetOperationForm, closeOperationPopup
     };

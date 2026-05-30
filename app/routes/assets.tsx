@@ -10,6 +10,8 @@ import { useCurrentLocale } from "~/hooks/useCurrentLocale";
 import { apiDelete, apiGet, apiPost, apiPut, getPageMeta } from "~/utils/api";
 import { PaginationBar } from "~/components/PaginationBar";
 import { buildLocalizedPath } from "~/utils/locale";
+import PeriodsSection from "~/components/PeriodsSection";
+import { CultureTypesManager } from "~/routes/culture-types";
 
 interface ProductDto {
   id: number;
@@ -39,6 +41,9 @@ interface ProductDto {
   officialProductTypeCodes?: string | null;
   officialProductTypeEn?: string | null;
   officialImportedAt?: string | null;
+  cultureTypeId?: number | null;
+  cultureTypeName?: string | null;
+  cultureTypeColor?: string | null;
 }
 
 interface ToolDto {
@@ -56,7 +61,10 @@ interface ProductTypeDto {
   name: string;
   unitId?: number | null;
   farmId?: number | null;
+  seedType?: boolean;
 }
+
+interface CultureTypeRef { id: number; code: string; name: string; color?: string | null; }
 
 interface LabeledValue { value: string; label: string; }
 interface OfficialFilterMeta { decisionCodes: LabeledValue[]; userGroups: LabeledValue[]; productTypes: LabeledValue[]; }
@@ -126,7 +134,7 @@ export function meta() {
   ];
 }
 
-type SectionId = "products" | "tools" | "reference" | "official";
+type SectionId = "products" | "tools" | "periods" | "cultures" | "reference" | "official";
 
 export default function AssetsPage() {
   const { isAuthenticated, user } = useAuth();
@@ -139,6 +147,7 @@ export default function AssetsPage() {
   const [tools, setTools] = useState<ToolDto[]>([]);
   const [allTools, setAllTools] = useState<ToolDto[]>([]);
   const [productTypes, setProductTypes] = useState<ProductTypeDto[]>([]);
+  const [cultureTypes, setCultureTypes] = useState<CultureTypeRef[]>([]);
   const [toolCategories, setToolCategories] = useState<ToolCategoryDto[]>([]);
   const [units, setUnits] = useState<UnitDto[]>([]);
   const [operationTypes, setOperationTypes] = useState<OperationTypeDto[]>([]);
@@ -180,7 +189,19 @@ export default function AssetsPage() {
   const [editingCategoryName, setEditingCategoryName] = useState("");
   const [savingRefData, setSavingRefData] = useState(false);
 
-  const [activeSection, setActiveSection] = useState<SectionId>("products");
+  const [activeSection, setActiveSection] = useState<SectionId>(() => {
+    if (typeof window === 'undefined') return "products";
+    const hash = window.location.hash.replace(/^#/, '');
+    const valid: SectionId[] = ["products", "tools", "periods", "cultures", "reference", "official"];
+    return (valid as string[]).includes(hash) ? (hash as SectionId) : "products";
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (window.location.hash.replace(/^#/, '') !== activeSection) {
+      window.history.replaceState(null, '', `#${activeSection}`);
+    }
+  }, [activeSection]);
   const [selectedProduct, setSelectedProduct] = useState<ProductDto | null>(null);
   const [selectedTool, setSelectedTool] = useState<ToolDto | null>(null);
 
@@ -213,16 +234,18 @@ export default function AssetsPage() {
     setLoadingRefs(true);
     try {
       const farmParam = targetFarmId ? `?farmId=${targetFarmId}` : "";
-      const [productTypesRes, toolCategoriesRes, unitsRes, opTypesRes] = await Promise.all([
+      const [productTypesRes, toolCategoriesRes, unitsRes, opTypesRes, cultureTypesRes] = await Promise.all([
         apiGet(`/product-types${farmParam}`),
         apiGet("/tool-categories"),
         apiGet(`/units${farmParam}`),
         apiGet(`/operations/types${farmParam}`),
+        apiGet(`/culture-types${farmParam}`),
       ]);
       if (productTypesRes.ok) setProductTypes(await productTypesRes.json());
       if (toolCategoriesRes.ok) setToolCategories(await toolCategoriesRes.json());
       if (unitsRes.ok) setUnits(await unitsRes.json());
       if (opTypesRes.ok) setOperationTypes(await opTypesRes.json());
+      if (cultureTypesRes.ok) setCultureTypes(await cultureTypesRes.json());
     } catch (e) {
       console.error(e);
     } finally {
@@ -573,6 +596,8 @@ export default function AssetsPage() {
   const navItems: { id: SectionId; label: string }[] = [
     { id: "products", label: t("assets.nav.products") },
     { id: "tools", label: t("assets.nav.tools") },
+    { id: "periods", label: t("assets.nav.periods", { defaultValue: "Periods" }) },
+    { id: "cultures", label: t("assets.nav.cultures", { defaultValue: "Cultures" }) },
     ...((canManage || user?.admin) ? [{ id: "reference" as SectionId, label: t("assets.nav.reference") }] : []),
     { id: "official", label: t("assets.nav.official") },
   ];
@@ -954,6 +979,20 @@ export default function AssetsPage() {
                       <PaginationBar page={toolPage} totalPages={toolTotalPages}
                         onPrev={() => setToolPage((p) => Math.max(0, p - 1))}
                         onNext={() => setToolPage((p) => Math.min(toolTotalPages - 1, p + 1))} />
+                    </section>
+                  )}
+
+                  {/* ── Periods (campaigns) ── */}
+                  {activeSection === "periods" && (
+                    <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
+                      <PeriodsSection farmId={farmId} />
+                    </section>
+                  )}
+
+                  {/* ── Cultures (culture types: code, labels, default colour) ── */}
+                  {activeSection === "cultures" && (
+                    <section className="rounded-2xl bg-gradient-to-b from-slate-900 to-slate-950 p-6 text-slate-50 shadow-sm">
+                      <CultureTypesManager />
                     </section>
                   )}
 
@@ -1399,6 +1438,8 @@ export default function AssetsPage() {
           isAdmin={user?.admin}
           canEdit={selectedProduct.official ? Boolean(user?.admin) : canManage}
           productTypes={productTypes.map((pt) => ({ id: pt.id, label: pt.unitId ? `${pt.name} (${unitLookup.get(pt.unitId)?.value ?? ""})` : pt.name }))}
+          seedTypeIds={productTypes.filter((pt) => pt.seedType).map((pt) => pt.id)}
+          cultureTypes={cultureTypes.map((ct) => ({ id: ct.id, label: `${ct.code} — ${ct.name}` }))}
           units={units.map((u) => ({ id: u.id, label: u.value }))}
           operationTypes={operationTypes.map((ot) => ({ id: ot.id, label: ot.name }))}
           tools={allTools.map((t) => ({ id: t.id, label: t.name }))}

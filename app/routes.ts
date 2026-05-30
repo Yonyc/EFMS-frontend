@@ -13,7 +13,6 @@ export default [
 		route("members", "routes/manage-farm/members.tsx"),
 		route("danger", "routes/manage-farm/danger.tsx"),
 		route("create", "routes/manage-farm/create.tsx"),
-		route("periods", "routes/periods.tsx"),
 	]),
 	route(":locale/public-farms", "routes/public-farms.tsx"),
 	route(":locale/map", "routes/map.tsx"),
@@ -24,6 +23,10 @@ export default [
 	route(":locale/wiki", "routes/wiki.tsx"),
 	route(":locale/imports", "routes/imports.tsx"),
 	route(":locale/imports/map", "routes/imports.map.tsx"),
+	route(":locale/imports/:importId/review", "routes/imports.review.tsx"),
+	route(":locale/culture-types", "routes/culture-types.tsx"),
+	route(":locale/parcels", "routes/parcels.tsx"),
+	route(":locale/parcels/:parcelId", "routes/parcel-detail.tsx"),
 	route(":locale/protected-example", "routes/protected-example.tsx"),
 	route(":locale/admin", "routes/admin/layout.tsx", [
 		index("routes/admin/index.tsx"),

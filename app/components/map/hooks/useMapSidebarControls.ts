@@ -49,8 +49,8 @@ export function useMapSidebarControls({ polygons, allPolygons, isImportMode }: U
 
         if (statusFilters.length === 1) {
             next = next.filter(p => {
-                const status = (p.validationStatus || '').toUpperCase();
-                const isApproved = status === 'APPROVED' || status === 'CONVERTED';
+                const status = (p.status || '').toUpperCase();
+                const isApproved = status === 'LIVE';
                 return statusFilters[0] === 'approved' ? isApproved : !isApproved;
             });
         }

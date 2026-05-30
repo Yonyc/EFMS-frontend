@@ -5,7 +5,10 @@ import { useAuth, type TimeFormat, type DateFormat } from "~/contexts/AuthContex
 import { useFarm } from "~/contexts/FarmContext";
 import { useCurrentLocale } from "~/hooks/useCurrentLocale";
 import { buildLocalizedPath, buildLocalizedUrl, SUPPORTED_LOCALES, isSupportedLocale, type Locale } from "~/utils/locale";
-import { apiPut, apiRequest, resolveUploadUrl } from "~/utils/api";
+import { apiGet, apiPut, apiRequest, resolveUploadUrl } from "~/utils/api";
+import { SearchableSelect } from "~/components/map/components/SearchableSelect";
+import type { SelectOption } from "~/components/map/components/SearchableSelect";
+import type { PeriodDto } from "~/components/map/types";
 import { applyPostHydrationLanguage } from "~/i18n";
 import { Link, useLocation, useNavigate } from "react-router";
 import Cropper, { type Area } from "react-easy-crop";
@@ -23,7 +26,47 @@ export default function ProfilePage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, refreshUser } = useAuth();
-  const { farms } = useFarm();
+  const { farms, refreshFarms } = useFarm();
+
+  // Per-farm default-period preferences
+  const [farmPeriods, setFarmPeriods] = useState<Record<string, PeriodDto[]>>({});
+  const [farmDefaults, setFarmDefaults] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      const next: Record<string, PeriodDto[]> = {};
+      await Promise.all(farms.map(async (farm) => {
+        try {
+          const r = await apiGet(`/farm/${farm.id}/periods`);
+          if (r.ok) next[String(farm.id)] = await r.json();
+        } catch (_) {}
+      }));
+      if (active) setFarmPeriods(next);
+    })();
+    return () => { active = false; };
+  }, [farms]);
+
+  useEffect(() => {
+    setFarmDefaults(prev => {
+      const next: Record<string, string> = { ...prev };
+      for (const farm of farms) {
+        const key = String(farm.id);
+        if (!(key in next)) {
+          next[key] = farm.defaultPeriodId != null ? String(farm.defaultPeriodId) : '';
+        }
+      }
+      return next;
+    });
+  }, [farms]);
+
+  const handleFarmDefaultPeriodChange = useCallback(async (farmId: string, periodId: string) => {
+    setFarmDefaults(prev => ({ ...prev, [farmId]: periodId }));
+    try {
+      await apiPut(`/farm/${farmId}/preferences`, { defaultPeriodId: periodId ? Number(periodId) : null });
+      await refreshFarms();
+    } catch (_) {}
+  }, [refreshFarms]);
 
   const [email, setEmail] = useState("");
   const [preferTopRight, setPreferTopRight] = useState(false);
@@ -346,47 +389,85 @@ export default function ProfilePage() {
               <label className="flex flex-col gap-1 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-100">
                 <span className="font-semibold">{t("profile.dateFormat", { defaultValue: "Date format" })}</span>
                 <span className="text-xs text-slate-300">{t("profile.dateFormatHint", { defaultValue: "Auto matches your language; pick a fixed format to override." })}</span>
-                <select
+                <SearchableSelect
+                  className="mt-2"
                   value={dateFormat}
-                  onChange={(e) => setDateFormat(e.target.value as DateFormat)}
-                  className="mt-2 rounded-lg border border-white/10 bg-slate-900/60 px-3 py-2 text-sm text-white focus:border-indigo-400 focus:outline-none"
-                >
-                  <option value="auto">{t("profile.dateFormatOptions.auto", { defaultValue: "Auto (from language)" })}</option>
-                  <option value="DD-MM-YYYY">DD/MM/YYYY</option>
-                  <option value="MM-DD-YYYY">MM/DD/YYYY</option>
-                  <option value="YYYY-MM-DD">YYYY-MM-DD</option>
-                </select>
+                  onChange={(v) => setDateFormat(v as DateFormat)}
+                  options={[
+                    { value: "auto", label: t("profile.dateFormatOptions.auto", { defaultValue: "Auto (from language)" }) },
+                    { value: "DD-MM-YYYY", label: "DD/MM/YYYY" },
+                    { value: "MM-DD-YYYY", label: "MM/DD/YYYY" },
+                    { value: "YYYY-MM-DD", label: "YYYY-MM-DD" },
+                  ]}
+                  placeholder={t("profile.dateFormat", { defaultValue: "Date format" })}
+                />
               </label>
 
               <label className="flex flex-col gap-1 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-100">
                 <span className="font-semibold">{t("profile.preferredLanguage", { defaultValue: "Language" })}</span>
                 <span className="text-xs text-slate-300">{t("profile.preferredLanguageHint", { defaultValue: "Overrides your browser language." })}</span>
-                <select
+                <SearchableSelect
+                  className="mt-2"
                   value={preferredLanguage}
-                  onChange={(e) => setPreferredLanguage(e.target.value)}
-                  className="mt-2 rounded-lg border border-white/10 bg-slate-900/60 px-3 py-2 text-sm text-white focus:border-indigo-400 focus:outline-none"
-                >
-                  <option value="auto">{t("profile.preferredLanguageOptions.auto", { defaultValue: "Auto (browser language)" })}</option>
-                  {SUPPORTED_LOCALES.map((loc) => (
-                    <option key={loc} value={loc}>{t(`profile.preferredLanguageOptions.${loc}`, { defaultValue: loc.toUpperCase() })}</option>
-                  ))}
-                </select>
+                  onChange={setPreferredLanguage}
+                  options={[
+                    { value: "auto", label: t("profile.preferredLanguageOptions.auto", { defaultValue: "Auto (browser language)" }) },
+                    ...SUPPORTED_LOCALES.map((loc) => ({ value: loc, label: t(`profile.preferredLanguageOptions.${loc}`, { defaultValue: loc.toUpperCase() }) })),
+                  ]}
+                  placeholder={t("profile.preferredLanguage", { defaultValue: "Language" })}
+                />
               </label>
 
               <label className="flex flex-col gap-1 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-100">
                 <span className="font-semibold">{t("profile.defaultFarm", { defaultValue: "Default farm" })}</span>
                 <span className="text-xs text-slate-300">{t("profile.defaultFarmHint", { defaultValue: "Auto-selected after fresh login. Refresh keeps whatever farm you last used." })}</span>
-                <select
+                <SearchableSelect
+                  className="mt-2"
                   value={defaultFarmId}
-                  onChange={(e) => setDefaultFarmId(e.target.value)}
-                  className="mt-2 rounded-lg border border-white/10 bg-slate-900/60 px-3 py-2 text-sm text-white focus:border-indigo-400 focus:outline-none"
-                >
-                  <option value="">{t("profile.defaultFarmNone", { defaultValue: "No default (show picker)" })}</option>
-                  {farms.map((farm) => (
-                    <option key={farm.id} value={farm.id}>{farm.name}</option>
-                  ))}
-                </select>
+                  onChange={setDefaultFarmId}
+                  options={[
+                    { value: "", label: t("profile.defaultFarmNone", { defaultValue: "No default (show picker)" }) },
+                    ...farms.map((farm) => ({ value: String(farm.id), label: farm.name })),
+                  ]}
+                  placeholder={t("profile.defaultFarmNone", { defaultValue: "No default (show picker)" })}
+                />
               </label>
+
+              {farms.length > 0 && (
+                <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-100">
+                  <div className="font-semibold">{t("profile.defaultPeriod", { defaultValue: "Default period per farm" })}</div>
+                  <div className="text-xs text-slate-300">{t("profile.defaultPeriodHint", { defaultValue: "The map opens with this period filtered by default. Leave blank to default to the most recent period." })}</div>
+                  <div className="mt-3 flex flex-col gap-2">
+                    {farms.map((farm) => {
+                      const farmKey = String(farm.id);
+                      const periods = farmPeriods[farmKey] ?? [];
+                      const value = farmDefaults[farmKey] ?? '';
+                      const sorted = [...periods].sort((a, b) => {
+                        const da = a.startDate ? new Date(a.startDate).getTime() : 0;
+                        const db = b.startDate ? new Date(b.startDate).getTime() : 0;
+                        return db - da;
+                      });
+                      const periodOpts: SelectOption[] = [
+                        { value: '', label: t('map.periodPicker.showAll', { defaultValue: 'All periods' }) },
+                        ...sorted.map((p) => ({ value: String(p.id), label: p.name || `#${p.id}` })),
+                      ];
+                      return (
+                        <div key={farm.id} className="flex items-center justify-between gap-3">
+                          <span className="text-slate-200">{farm.name}</span>
+                          <SearchableSelect
+                            className="w-44"
+                            options={periodOpts}
+                            value={value}
+                            onChange={(next) => handleFarmDefaultPeriodChange(farmKey, next)}
+                            placeholder={t('map.periodPicker.showAll', { defaultValue: 'All periods' })}
+                            disabled={periods.length === 0}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               <label className="flex items-start gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-100">
                 <input

@@ -49,6 +49,7 @@
       "noSelectionTitle": "Select an import batch",
       "noSelectionDescription": "Choose a batch from the imports list to start validating parcels.",
       "returnToList": "Back to imports",
+      "openReview": "Open list view",
       "approveButton": "Approve import list",
       "approvedLabel": "This import list has been approved.",
       "approveOne": "Approve",
@@ -259,7 +260,10 @@
     "no": "No",
     "success": "Success",
     "error": "Error",
-    "close": "Close"
+    "close": "Close",
+    "all": "All",
+    "clear": "Clear",
+    "remove": "Remove"
   },
   "farmSelector": {
     "noFarms": "No farms available",
@@ -409,7 +413,8 @@
     },
     "common": {
       "noEntries": "No entries"
-    }
+    },
+    "sharedUserNotice": "You can review and manage the shares you have access to below."
   },
   "publicFarms": {
     "title": "Public farms",
@@ -469,6 +474,8 @@
     "selectTypePlaceholder": "Select a type (optional)",
     "dateLabel": "Date",
     "durationLabel": "Duration (minutes)",
+    "periodLabel": "Period",
+    "periodHint": "Defaults to your farm preference. Leave blank to auto-resolve from the date.",
     "productsTools": "Products & tools",
     "unit": "Unit",
     "tool": "Tool",
@@ -482,12 +489,19 @@
     "emptyHistory": "No operations recorded for this parcel yet.",
     "noParcel": "Select a parcel to view or add operations.",
     "readOnly": "You can view operations but cannot add new ones for this parcel.",
-    "errorLoad": "Unable to load operations",
+    "errorLoad": "Failed to load operations",
     "errorCreate": "Failed to save operation",
     "errorSave": "Not allowed to edit this parcel",
     "refreshFarms": "Refresh farms",
     "refreshParcels": "Reload parcels",
-    "pinTopRight": "Open top-right"
+    "pinTopRight": "Open top-right",
+    "targetParcels": "Target parcels",
+    "addParcel": "Add a parcel…",
+    "selectParcels": "Parcels",
+    "inactiveParcels": "These parcels are not active during the selected period: {{names}}",
+    "matchingTitle": "Operations matching the filter",
+    "matchingCount": "{{count}} operation(s)",
+    "matchingEmpty": "No operations match the current filter."
   },
   "assets": {
     "title": "Assets",
@@ -507,8 +521,10 @@
     "nav": {
       "products": "Products",
       "tools": "Tools",
+      "periods": "Periods",
       "reference": "Reference data",
-      "official": "Official catalog"
+      "official": "Official catalog",
+      "cultures": "Cultures"
     },
     "products": {
       "label": "Products",
@@ -639,6 +655,8 @@
     "defaultFarm": "Default farm",
     "defaultFarmHint": "Auto-selected after fresh login. A refresh keeps whatever farm you last used.",
     "defaultFarmNone": "No default (show picker)",
+    "defaultPeriod": "Default period per farm",
+    "defaultPeriodHint": "The map opens with this period filtered by default. Leave blank to default to the most recent period.",
     "emailNotifications": "Email notifications",
     "emailNotificationsHint": "Master switch for shares, imports and parcel alerts.",
     "save": "Save changes",
@@ -716,7 +734,67 @@
         "approved": "Approved",
         "unapproved": "Unapproved",
         "selected": "{{count}} selected"
-      }
+      },
+      "culture": "Culture",
+      "variety": "Variety",
+      "areaHa": "Area (ha)",
+      "sowing": "Sown",
+      "harvest": "Harvest",
+      "managePeriods": "Manage periods",
+      "rightClickOptions": "Right-click for options",
+      "mapActions": "Map",
+      "visibleShort": "Shown",
+      "hiddenShort": "Hidden",
+      "centerShort": "Center"
+    },
+    "parcelManager": {
+      "title": "Manage parcel",
+      "open": "Manage parcel",
+      "settingsTitle": "Parcel settings",
+      "nameLabel": "Name",
+      "applyName": "Apply",
+      "defaultColor": "Default (culture)",
+      "defaultColorHint": "Use the culture type colour",
+      "defaultColorNone": "No culture-type colour defined yet",
+      "shareTitle": "Sharing",
+      "shareHint": "Share this parcel with another user or via a research link."
+    },
+    "periodPicker": {
+      "label": "Period",
+      "showAll": "All periods",
+      "selectForParcel": "Show period…"
+    },
+    "periodManager": {
+      "title": "Manage periods",
+      "close": "Close",
+      "done": "Done",
+      "existingTitle": "Current periods",
+      "empty": "No periods attached to this parcel yet.",
+      "addTitle": "Add a period",
+      "addAction": "Attach period",
+      "pickPeriod": "Period",
+      "pickPlaceholder": "Choose a period…",
+      "active": "Active",
+      "edit": "Edit",
+      "save": "Save",
+      "cancel": "Cancel",
+      "delete": "Remove",
+      "confirmDelete": "Remove this period from the parcel?",
+      "cultureCode": "Culture code",
+      "cultureLabel": "Culture label",
+      "variety": "Variety",
+      "declaredAreaHa": "Declared area (ha)",
+      "measuredAreaHa": "Measured area (ha)",
+      "targetYieldTha": "Target yield (t/ha)",
+      "sowingDate": "Sowing date",
+      "harvestDate": "Harvest date",
+      "yieldRealizedTha": "Realized yield (t/ha)",
+      "comment": "Comment"
+    },
+    "status": {
+      "staged": "Staged",
+      "live": "Live",
+      "rejected": "Rejected"
     },
     "searchFilters": {
       "title": "Parcel search",
@@ -744,7 +822,11 @@
       "usePolygon": "Restrict search to this parcel",
       "usePolygonHint": "Uses the parcel boundary you just drew.",
       "apply": "Apply filters",
-      "clear": "Clear"
+      "clear": "Clear",
+      "listOperations": "List matching operations",
+      "shareScope": "Shared zone",
+      "shareScopeHint": "Pick a zone you have access to, then filter within it.",
+      "shareScopePlaceholder": "Select a shared zone…"
     },
     "periods": {
       "title": "Manage periods",
@@ -848,6 +930,9 @@
       "continueEditing": "Continue editing",
       "allowOverlap": "Allow overlap",
       "applyShrink": "Apply shrink"
+    },
+    "searchFiltrs": {
+      "listOperations": "List matching operations"
     }
   },
   "admin": {
@@ -1067,5 +1152,37 @@
         "allTypes": "All product types"
       }
     }
+  },
+  "cultureTypes": {
+    "title": "Belgian PAC / SIGEC crop codes",
+    "subtitle": "Culture Types",
+    "description": "Reference crop codes used in PAC declarations. Global codes follow the Belgian SIGEC reference list; farm-specific codes extend it for your farm.",
+    "tabGlobal": "Global reference",
+    "tabFarm": "Farm-specific",
+    "empty": "No culture types.",
+    "add": "Add culture type",
+    "addTitle": "Add a culture type",
+    "selectCategory": "— Select —",
+    "noColor": "No default",
+    "promote": "Promote",
+    "promoteConfirm": "Promote this to a global culture type?",
+    "deleteConfirm": "Delete this culture type?",
+    "fieldRequired": "Code and name are required.",
+    "scope": "Scope:",
+    "scopeFarm": "Farm-specific",
+    "scopeGlobal": "Global (all farms)",
+    "col": {
+      "code": "Code",
+      "nameFr": "Name (FR)",
+      "nameNl": "Name (NL)",
+      "category": "Category",
+      "color": "Colour",
+      "actions": "Actions"
+    }
+  },
+  "productSheet": {
+    "cultureType": "Seeded culture",
+    "noCultureType": "No culture",
+    "cultureTypeHint": "Applied to a parcel's period when an operation uses this seed and the period has no culture yet."
   }
 }

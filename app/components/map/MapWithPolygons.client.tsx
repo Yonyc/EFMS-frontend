@@ -27,14 +27,17 @@ if (typeof window !== "undefined" && !(window as any).__leafletPatched) {
 
 import { useFarm } from "~/contexts/FarmContext";
 import { useAuth } from "~/contexts/AuthContext";
-import { apiPut, apiPatch } from "~/utils/api";
+import { apiGet, apiPut, apiPatch } from "~/utils/api";
+import { parseWktCoords } from "./utils/mapUtils";
 
 // components
 import MapLayerManager from "./components/MapLayerManager";
 import MapToolbar from "./components/MapToolbar";
 import MapSidebar from "./components/MapSidebar";
 import MapModals from "./components/MapModals";
+import ParcelPeriodManager from "./components/ParcelPeriodManager";
 import OperationPopup from "./components/OperationPopup";
+import FilteredOperationsModal from "./components/FilteredOperationsModal";
 import PolygonContextMenu from "./components/PolygonContextMenu";
 import MapSearchFilters from "./components/MapSearchFilters";
 
@@ -84,6 +87,7 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
 
     const resolvedContextId = props.contextId ?? props.farm_id;
     if (!resolvedContextId) throw new Error("MapWithPolygons requires contextId or farm_id");
+    const numericFarmId = Number(resolvedContextId);
 
     const contextType: MapContextType = props.contextType ?? 'farm';
     const allowCreate = props.allowCreate ?? true;
@@ -102,6 +106,7 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
                 endDate: props.initialSharePayload.filterEndDate || '',
                 useMapArea: false,
                 usePolygon: !!props.initialSharePayload.zoneWkt,
+                selectedShareId: props.initialSharePayload.id != null ? String(props.initialSharePayload.id) : undefined,
             };
         }
         return {
@@ -128,7 +133,19 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
         mapRect?: { left: number; top: number; right: number; bottom: number };
     } | null>(null);
     const [showColorPicker, setShowColorPicker] = useState(false);
+    const [managingParcelId, setManagingParcelId] = useState<string | null>(null);
     const [periods, setPeriods] = useState<PeriodDto[]>([]);
+    const [shareFilterOptions, setShareFilterOptions] = useState<import("./types").ShareFilterOptions[]>([]);
+    const defaultPeriodId = useMemo(() => {
+        const preferred = selectedFarm?.defaultPeriodId != null ? String(selectedFarm.defaultPeriodId) : null;
+        if (preferred && periods.some(p => String(p.id) === preferred)) return preferred;
+        const mostRecent = [...periods].sort((a, b) => {
+            const da = a.startDate ? new Date(a.startDate).getTime() : 0;
+            const db = b.startDate ? new Date(b.startDate).getTime() : 0;
+            return db - da;
+        })[0];
+        return mostRecent ? String(mostRecent.id) : "";
+    }, [selectedFarm?.defaultPeriodId, periods]);
     const [isApproving, setIsApproving] = useState(false);
     const [approveFeedback, setApproveFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
     const [selectedParentId, setSelectedParentId] = useState<string | null>(null);
@@ -161,8 +178,15 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
         polygons, setPolygons, setAllPolygons, parcelsEndpoint, contextType, getMap, t, areaName, setAreaName, setModal, setRenamingId, setSelectedPeriodId, setRenameValue, setRenamePeriodId,
         selectedParentId, setSelectedParentId, updateGhost, clearGhost, setSnapPreview
     });
-    const search = useParcelSearch({ parcelsEndpoint, contextType, isImportMode, getMap, defaultSearchFilters, initialSharePayload: props.initialSharePayload });
-    const operations = useParcelOperations({ farmId: Number(props.farm_id), resolvedContextId, contextType, canEditPolygon: (id: string) => (polygons.find(p => p.id === id) || allPolygons.find(p => p.id === id))?.canEdit !== false, t });
+    const search = useParcelSearch({ parcelsEndpoint, contextType, isImportMode, getMap, defaultSearchFilters, initialSharePayload: props.initialSharePayload, defaultPeriodId });
+    // Single period filter, derived from the search hook's applied filters (union of selected ids).
+    const displayPeriodIds = search.appliedFilters.periodIds ?? [];
+    const displayPeriodId = displayPeriodIds[0] ?? "";
+    const displayPeriodSig = displayPeriodIds.join(',');
+    // The on-map quick selector is single-select; writing it sets the shared period filter.
+    const setDisplayPeriodId = useCallback((val: string) => search.setPeriodFilter(val ? [val] : []), [search.setPeriodFilter]);
+    const [filteredOpsOpen, setFilteredOpsOpen] = useState(false);
+    const operations = useParcelOperations({ farmId: numericFarmId, resolvedContextId, contextType, canEditPolygon: (id: string) => (polygons.find(p => p.id === id) || allPolygons.find(p => p.id === id))?.canEdit !== false, t });
     const sharing = useMapSharing({ resolvedContextId, contextType, allPolygons, searchDraft: search.searchDraft, searchAreaCoords: search.searchAreaCoords, viewportBounds: search.viewportBounds });
     const draggable = useDraggablePopup({ getMap, preferTopRight, POPUP_WIDTH, POPUP_HEIGHT, POPUP_PADDING, isMobile, activePopup: operations.operationPopup });
     const sidebarControl = useMapSidebarControls({ polygons, allPolygons, isImportMode });
@@ -188,10 +212,35 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
         previewVisibility, setPreviewVisibility, createHandlerRef, createdLayerRef
     } = editor;
     const { isSearchOpen, setIsSearchOpen, searchDraft, setSearchDraft, searchAreaCoords, isSearchDrawing, viewportBounds, setViewportBounds, hasActiveSearchFilters, searchEndpoint, viewportEndpoint, applySearchFilters, clearSearchFilters, startSearchPolygon, cancelSearchPolygon, clearSearchPolygon, handleSearchCreated } = search;
-    const { operationTypes, units, products, tools, operationTypeId, setOperationTypeId, operationDate, setOperationDate, operationDurationMinutes, setOperationDurationMinutes, operationLines, handleAddOperationLine, handleRemoveOperationLine, updateOperationLine, operationError, operationLoading, parcelOperations, currentParcelId, setCurrentParcelId, operationPopup, setOperationPopup, loadOperationReferences, loadParcelOperations, handleSaveOperation, resetOperationForm, closeOperationPopup, productHasMore, productLoading, loadMoreProducts, toolHasMore, toolLoading, loadMoreTools, opTypeHasMore, opTypeLoading, loadMoreOpTypes, addOperationAttachment, removeOperationAttachment } = operations;
-    const { shareParcelId, setShareParcelId, shareList, shareError, shareLoading, openShareModal, closeShareModal, handleUpdateShare, handleRemoveShare } = sharing;
+    const { operationTypes, units, products, tools, operationTypeId, setOperationTypeId, operationDate, setOperationDate, operationDurationMinutes, setOperationDurationMinutes, operationPeriodId, setOperationPeriodId, operationLines, handleAddOperationLine, handleRemoveOperationLine, updateOperationLine, operationError, operationLoading, parcelOperations, currentParcelId, setCurrentParcelId, operationPopup, setOperationPopup, loadOperationReferences, loadParcelOperations, handleSaveOperation, resetOperationForm, closeOperationPopup, productHasMore, productLoading, loadMoreProducts, toolHasMore, toolLoading, loadMoreTools, opTypeHasMore, opTypeLoading, loadMoreOpTypes, addOperationAttachment, removeOperationAttachment } = operations;
+
+    // When the user opens the operation popup, seed the operation's period to the farm's default
+    const seededPeriodForParcelRef = useRef<string | null>(null);
+    useEffect(() => {
+        if (!operationPopup) return;
+        const parcelKey = String(operationPopup.polygonId);
+        if (seededPeriodForParcelRef.current === parcelKey) return;
+        if (operationPeriodId) { seededPeriodForParcelRef.current = parcelKey; return; }
+        if (periods.length === 0) return;
+        const preferred = selectedFarm?.defaultPeriodId != null
+            ? String(selectedFarm.defaultPeriodId)
+            : null;
+        const isValid = preferred && periods.some(p => String(p.id) === preferred);
+        let pickedId: string | null = isValid ? preferred : null;
+        if (!pickedId) {
+            const mostRecent = [...periods].sort((a, b) => {
+                const da = a.startDate ? new Date(a.startDate).getTime() : 0;
+                const db = b.startDate ? new Date(b.startDate).getTime() : 0;
+                return db - da;
+            })[0];
+            if (mostRecent) pickedId = String(mostRecent.id);
+        }
+        if (pickedId) setOperationPeriodId(pickedId);
+        seededPeriodForParcelRef.current = parcelKey;
+    }, [operationPopup, operationPeriodId, periods, selectedFarm?.defaultPeriodId, setOperationPeriodId]);
+    const { shareParcelId, setShareParcelId, shareList, shareError, shareLoading, openShareModal, closeShareModal, handleAddShare, handleUpdateShare, handleRemoveShare } = sharing;
     const { isListCollapsed, setIsListCollapsed, listFilter, setListFilter, showFilterMenu, setShowFilterMenu, searchQuery, setSearchQuery, filterOptions, activeFilterLabel, filteredPolygons } = sidebarControl;
-    const { loadPeriods, handleApproveAll, approveSingleParcel, handleRenameConfirm, togglePolygonVisibility, renamePolygonInline } = apiActions;
+    const { loadPeriods, handleApproveAll, approveSingleParcel, togglePolygonVisibility, commitPolygonName } = apiActions;
     const { confirmCreate, handleCreated } = coordination;
 
     // route the search-area polygon ourselves so it doesn't open the naming modal
@@ -229,6 +278,30 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
         setSelectedParentId(null);
     }, [getMap, createdLayerRef, setSelectedParentId]);
 
+    // Resolve the user's preferred period for this farm: the per-farm default, else the most recent.
+    const preferredPeriodId = useCallback((): string => {
+        const preferred = selectedFarm?.defaultPeriodId != null ? String(selectedFarm.defaultPeriodId) : null;
+        if (preferred && periods.some(p => String(p.id) === preferred)) return preferred;
+        const mostRecent = [...periods].sort((a, b) => {
+            const da = a.startDate ? new Date(a.startDate).getTime() : 0;
+            const db = b.startDate ? new Date(b.startDate).getTime() : 0;
+            return db - da;
+        })[0];
+        return mostRecent ? String(mostRecent.id) : "";
+    }, [selectedFarm?.defaultPeriodId, periods]);
+
+    // When the create-parcel modal opens, default its period to the user's preference
+    useEffect(() => {
+        if (!modal.open || isImportMode) return;
+        if (selectedPeriodId) return;
+        const seed = displayPeriodId || preferredPeriodId();
+        if (seed) setSelectedPeriodId(seed);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [modal.open]);
+
+    // (The period filter is seeded to the user's default period inside the search hook, keyed per
+    // farm, so there's no separate on-map seeding effect anymore.)
+
     const onDeleteLastVertex = useCallback(() => {
         editor.removeLastSketchPoint();
     }, [editor]);
@@ -237,13 +310,37 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
         const map = getMap();
         if (!map) return;
         const polygon = polygons.find(p => p.id === id) || allPolygons.find(p => p.id === id);
-        if (!polygon || !polygon.coords.length) return;
+        if (!polygon) return;
+
+        // Off-screen parcels are loaded via the lightweight viewport/summary routes WITHOUT
+        // geometry (coords: []), so we can't fly to them. Fetch the geometry on demand and cache
+        // it back into state so Focus works and the polygon can render once it's in view.
+        let coords = polygon.coords;
+        if (!coords.length) {
+            try {
+                const res = await apiGet(`/parcels/${id}`);
+                if (res.ok) {
+                    const dto = await res.json();
+                    if (dto?.geodata) {
+                        coords = parseWktCoords(dto.geodata);
+                        if (coords.length) {
+                            setPolygons(prev => prev.map(p => p.id === id ? { ...p, coords } : p));
+                            setAllPolygons(prev => prev.map(p => p.id === id ? { ...p, coords } : p));
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error('Failed to fetch parcel geometry for focus', err);
+            }
+        }
+        if (!coords.length) return;
+
         setPolygons(prev => prev.map(p => p.id === id ? { ...p, visible: true } : p));
         setSelectedId(id);
-        const bounds = L.latLngBounds(polygon.coords.map(([lat, lng]) => [lat, lng] as [number, number]));
+        const bounds = L.latLngBounds(coords.map(([lat, lng]) => [lat, lng] as [number, number]));
         if (bounds.isValid()) map.flyToBounds(bounds, { maxZoom: 18, padding: [80, 80] });
-        else map.flyTo(polygon.coords[0], 17);
-    }, [allPolygons, polygons, getMap]);
+        else map.flyTo(coords[0], 17);
+    }, [allPolygons, polygons, getMap, setPolygons, setAllPolygons]);
 
     const deletePolygonSimple = useCallback(async (id: string) => {
         const canEdit = (polygons.find(p => p.id === id) || allPolygons.find(p => p.id === id))?.canEdit !== false;
@@ -280,6 +377,40 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
 
     const canSharePolygon = useCallback((id: string) => (polygons.find(p => p.id === id) || allPolygons.find(p => p.id === id))?.canShare === true, [allPolygons, polygons]);
 
+    useEffect(() => {
+        if (managingParcelId && !isImportMode && canSharePolygon(managingParcelId)) {
+            openShareModal(managingParcelId);
+        } else {
+            closeShareModal();
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [managingParcelId]);
+
+    const applyParcelColor = useCallback(async (pid: string, c: string) => {
+        const target = polygons.find(p => p.id === pid) || allPolygons.find(p => p.id === pid);
+        if (!target || target.canEdit === false) return;
+        const isDefault = c === '';
+        const customColor = isDefault ? null : c;
+        const effective = customColor || target.cultureColor || '#3388ff';
+        const apply = (p: PolygonData) => p.id === pid
+            ? { ...p, color: effective, customColor, version: (p.version || 0) + 1 }
+            : p;
+        setPolygons(prev => prev.map(apply));
+        setAllPolygons(prev => prev.map(apply));
+        if (pid.startsWith('poly-')) return;
+        try {
+            let res;
+            if (isImportMode) {
+                res = await apiPatch(`/imports/parcels/${pid}`, { color: c });
+            } else {
+                res = await apiPut(`${parcelsEndpoint}/${pid}`, { color: c });
+            }
+            if (!res.ok) console.error("Failed to update parcel color on server:", res.status, res.statusText);
+        } catch (err) {
+            console.error("Failed to update parcel color:", err);
+        }
+    }, [polygons, allPolygons, setPolygons, setAllPolygons, isImportMode, parcelsEndpoint]);
+
     useParcelData({
         contextType, isImportMode, resolvedContextId,
         hasActiveSearchFilters, viewportEndpoint, searchEndpoint,
@@ -293,6 +424,87 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
     });
 
     useEffect(() => { loadOperationReferences(); loadPeriods(); }, [loadOperationReferences, loadPeriods]);
+
+    useEffect(() => {
+        if (contextType !== 'farm' || isImportMode || !resolvedContextId) return;
+        let cancelled = false;
+        (async () => {
+            try {
+                const token = props.initialSharePayload?.shareToken;
+                const qs = token ? `?shareToken=${encodeURIComponent(token)}` : '';
+                const res = await apiGet(`/farm/${resolvedContextId}/research-shares/filter-options${qs}`);
+                if (!cancelled && res.ok) setShareFilterOptions(await res.json());
+            } catch (err) {
+                if (!cancelled) console.error('Failed to load share filter options', err);
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [contextType, isImportMode, resolvedContextId, props.initialSharePayload]);
+
+    const polyIdSig = polygons.map(p => p.id).join('|');
+    const allPolyIdSig = allPolygons.map(p => p.id).join('|');
+    useEffect(() => {
+        const filter = props.filterPeriodNames;
+        const periodIds = (!isImportMode && displayPeriodIds.length > 0) ? displayPeriodIds : null;
+        const matchesFilter = (poly: PolygonData): boolean => {
+            // Import map: filter by period NAME (no resolved ids pre-approval).
+            if (filter) {
+                const names = (poly.parcelPeriods ?? [])
+                    .map(pp => pp.periodName)
+                    .filter((n): n is string => !!n);
+                if (names.length === 0 && !poly.periodName) return true;
+                if (poly.periodName && filter.includes(poly.periodName)) return true;
+                return names.some(n => filter.includes(n));
+            }
+            // Farm map: filter by selected period ids (union). Parcels with no period info stay visible.
+            if (periodIds) {
+                const pps = poly.parcelPeriods ?? [];
+                if (pps.length === 0) return true;
+                return pps.some(pp => periodIds.includes(String(pp.periodId)));
+            }
+            return true;
+        };
+        setPolygons(prev => prev.map(p => ({ ...p, visible: matchesFilter(p) })));
+        setAllPolygons(prev => prev.map(p => ({ ...p, visible: matchesFilter(p) })));
+    }, [props.filterPeriodNames, displayPeriodSig, isImportMode, polyIdSig, allPolyIdSig]);
+
+    useEffect(() => {
+        if (isImportMode) return;
+        if (!hasActiveSearchFilters && displayPeriodIds.length === 0) return;
+        const byId = new Map(polygons.map(p => [p.id, p]));
+        const depthOf = (p: PolygonData): number => {
+            let d = 1; let cur: PolygonData | undefined = p; const seen = new Set<string>();
+            while (cur?.parentId && !seen.has(String(cur.id))) {
+                seen.add(String(cur.id));
+                cur = byId.get(String(cur.parentId));
+                d++;
+            }
+            return d;
+        };
+        const visible = polygons.filter(p => p.visible !== false);
+        if (visible.length === 0) return;
+        let lo = Infinity, hi = -Infinity;
+        for (const p of visible) { const d = depthOf(p); if (d < lo) lo = d; if (d > hi) hi = d; }
+        if (lo === Infinity) return;
+        if (lo < minLayer) setMinLayer(lo);
+        if (hi > maxLayer) setMaxLayer(hi);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [hasActiveSearchFilters, displayPeriodSig, isImportMode, polyIdSig]);
+
+    // Pick mode: clear selection when entering pick mode so first click is always fresh
+    useEffect(() => {
+        if (props.pickMode) setSelectedId(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [props.pickMode]);
+
+    // Pick mode: fire onParcelPicked when a polygon is selected while pick mode is active
+    useEffect(() => {
+        if (!props.pickMode || !props.onParcelPicked || !selectedId) return;
+        const polygon = polygons.find(p => p.id === selectedId) || allPolygons.find(p => p.id === selectedId);
+        props.onParcelPicked(selectedId, polygon?.name || selectedId);
+    // polygons/allPolygons intentionally omitted — only need name lookup, not re-trigger
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedId, props.pickMode, props.onParcelPicked]);
 
     useEffect(() => {
         if (!isCreating) return;
@@ -341,38 +553,11 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
 
             {polygonContextMenu && (
                 <PolygonContextMenu
-                    polygonContextMenu={polygonContextMenu} polygons={polygons} t={t} isImportMode={isImportMode} showColorPicker={showColorPicker} setShowColorPicker={setShowColorPicker}
+                    polygonContextMenu={polygonContextMenu} polygons={polygons} t={t} isImportMode={isImportMode}
                     canEditPolygon={(id) => (polygons.find(p => p.id === id) || allPolygons.find(p => p.id === id))?.canEdit !== false}
-                    closePolygonContextMenu={closePolygonContextMenu} setRenamingId={setRenamingId} setRenameValue={setRenameValue} setRenamePeriodId={setRenamePeriodId} contextType={contextType} setSelectedId={setSelectedId} setCurrentParcelId={setCurrentParcelId} loadParcelOperations={loadParcelOperations} setOperationPopup={setOperationPopup} canSharePolygon={canSharePolygon} openShareModal={openShareModal} startEdit={startEditSimple} approveSingleParcel={approveSingleParcel}
-                    handleColorSelect={async (c) => {
-                        const pid = polygonContextMenu.polygonId;
-                        const target = polygons.find(p => p.id === pid) || allPolygons.find(p => p.id === pid);
-                        if (!target || target.canEdit === false) return;
-                        setPolygons(prev => prev.map(p => p.id === pid ? { ...p, color: c, version: (p.version || 0) + 1 } : p));
-                        setAllPolygons(prev => prev.map(p => p.id === pid ? { ...p, color: c, version: (p.version || 0) + 1 } : p));
-                        if (pid.startsWith('poly-')) return;
-                        try {
-                            let res;
-                            if (isImportMode) {
-                                res = await apiPatch(`/imports/parcels/${pid}`, { color: c });
-                            } else {
-                                const periodIdNum = target.periodId ? Number(target.periodId) : null;
-                                const payload: any = {
-                                    color: c,
-                                    name: (target.name || t('map.defaultPolygonName')).trim() || t('map.defaultPolygonName'),
-                                    periodId: (periodIdNum && periodIdNum > 0) ? periodIdNum : null,
-                                    active: true,
-                                    startValidity: new Date().toISOString(),
-                                    endValidity: null,
-                                };
-                                if (contextType === 'farm') payload.farmId = Number(resolvedContextId);
-                                res = await apiPut(`${parcelsEndpoint}/${pid}`, payload);
-                            }
-                            if (!res.ok) console.error("Failed to update parcel color on server:", res.status, res.statusText);
-                        } catch (err) {
-                            console.error("Failed to update parcel color:", err);
-                        }
-                    }} handleColorHover={() => { }} handleColorLeave={() => { }} pendingDeleteId={pendingDeleteId} setPendingDeleteId={setPendingDeleteId} deletePolygon={deletePolygonSimple}
+                    closePolygonContextMenu={closePolygonContextMenu} contextType={contextType} setSelectedId={setSelectedId} setCurrentParcelId={setCurrentParcelId} loadParcelOperations={loadParcelOperations} setOperationPopup={setOperationPopup} startEdit={startEditSimple} approveSingleParcel={approveSingleParcel}
+                    onManageParcel={(id) => { closePolygonContextMenu(); setManagingParcelId(id); }}
+                    pendingDeleteId={pendingDeleteId} setPendingDeleteId={setPendingDeleteId} deletePolygon={deletePolygonSimple}
                     addChild={(parentId) => handleStartCreate(parentId)}
                     selectParent={(childId) => {
                         const child = polygons.find(p => String(p.id) === String(childId));
@@ -429,33 +614,73 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
                 );
             })()}
 
+            {filteredOpsOpen && (
+                <FilteredOperationsModal
+                    farmId={numericFarmId}
+                    filters={search.appliedFilters}
+                    matchingParcelIds={polygons.filter(p => p.visible !== false).map(p => p.id)}
+                    onClose={() => setFilteredOpsOpen(false)}
+                    t={t}
+                />
+            )}
+
             {operationPopup && (
                 <OperationPopup
                     operationPopup={operationPopup} popupCoords={draggable.popupCoords} isMobile={isMobile} startDrag={draggable.startDrag} polygons={polygons} t={t} preferTopRight={preferTopRight} setPreferTopRight={setPreferTopRight} closeOperationPopup={closeOperationPopup} operationError={operationError} operationLoading={operationLoading}
                     canEditPolygon={(id) => (polygons.find(p => p.id === id) || allPolygons.find(p => p.id === id))?.canEdit !== false}
-                    currentParcelId={currentParcelId} operationTypeId={operationTypeId} setOperationTypeId={setOperationTypeId} operationTypes={operationTypes} operationDate={operationDate} setOperationDate={setOperationDate} operationDurationMinutes={operationDurationMinutes} setOperationDurationMinutes={setOperationDurationMinutes} handleAddOperationLine={handleAddOperationLine} operationLines={operationLines} handleRemoveOperationLine={handleRemoveOperationLine} updateOperationLine={updateOperationLine} units={units} products={products} tools={tools} handleSaveOperation={handleSaveOperation} resetOperationForm={resetOperationForm} parcelOperations={parcelOperations}
+                    currentParcelId={currentParcelId} operationTypeId={operationTypeId} setOperationTypeId={setOperationTypeId} operationTypes={operationTypes} operationDate={operationDate} setOperationDate={setOperationDate} operationDurationMinutes={operationDurationMinutes} setOperationDurationMinutes={setOperationDurationMinutes} operationPeriodId={operationPeriodId} setOperationPeriodId={setOperationPeriodId} availablePeriods={periods} handleAddOperationLine={handleAddOperationLine} operationLines={operationLines} handleRemoveOperationLine={handleRemoveOperationLine} updateOperationLine={updateOperationLine} units={units} products={products} tools={tools} handleSaveOperation={handleSaveOperation} resetOperationForm={resetOperationForm} parcelOperations={parcelOperations}
                     hasMore={operations.hasMore} loadMoreOperations={operations.loadMoreOperations}
                     productHasMore={productHasMore} productLoading={productLoading} loadMoreProducts={loadMoreProducts}
                     toolHasMore={toolHasMore} toolLoading={toolLoading} loadMoreTools={loadMoreTools}
                     opTypeHasMore={opTypeHasMore} opTypeLoading={opTypeLoading} loadMoreOpTypes={loadMoreOpTypes}
                     addOperationAttachment={addOperationAttachment}
                     removeOperationAttachment={removeOperationAttachment}
-                    farmId={Number(props.farm_id)}
+                    farmId={numericFarmId}
+                    allPolygons={allPolygons}
+                    extraParcelIds={operations.operationExtraParcelIds}
+                    setExtraParcelIds={operations.setOperationExtraParcelIds}
+                    setOperationError={operations.setOperationError}
                 />
             )}
 
             <MapModals
-                t={t} renamingId={renamingId} setRenamingId={setRenamingId} renameValue={renameValue} setRenameValue={setRenameValue} renamePeriodId={renamePeriodId} setRenamePeriodId={setRenamePeriodId} handleRenameConfirm={handleRenameConfirm} periods={periods}
+                t={t} periods={periods}
                 isAreaModalOpen={modal.open} areaName={areaName} setAreaName={setAreaName} selectedPeriodId={selectedPeriodId} setSelectedPeriodId={setSelectedPeriodId} handleAreaConfirm={confirmCreate} handleAreaCancel={cancelModal}
                 sharing={sharing} currentUsername={user?.username} allPolygons={allPolygons} tools={tools} products={products} operationTypes={operationTypes}
             />
+
+            {/* Manage-parcel modal (colour + periods) */}
+            {managingParcelId && (() => {
+                const target = polygons.find(p => p.id === managingParcelId) || allPolygons.find(p => p.id === managingParcelId);
+                if (!target || target.farmId == null) return null;
+                return (
+                    <ParcelPeriodManager
+                        parcelId={target.id}
+                        parcelName={target.name}
+                        farmId={target.farmId}
+                        parcelPeriods={target.parcelPeriods ?? []}
+                        currentColor={target.color}
+                        customColor={target.customColor}
+                        cultureColor={target.cultureColor}
+                        onColorChange={(c) => applyParcelColor(target.id, c)}
+                        onRename={target.canEdit !== false ? (name) => commitPolygonName(target.id, name) : undefined}
+                        share={(!isImportMode && canSharePolygon(target.id)) ? {
+                            childCount: allPolygons.filter(p => p.parentId != null && String(p.parentId) === String(target.id)).length,
+                            shareList, shareError, shareLoading, currentUsername: user?.username,
+                            handleAddShare, handleUpdateShare, handleRemoveShare,
+                        } : undefined}
+                        onClose={() => setManagingParcelId(null)}
+                        onChanged={() => search.applySearchFilters()}
+                    />
+                );
+            })()}
 
             <div className="flex h-full w-full min-h-0 relative">
                 <div className="absolute top-6 left-6 z-[2500] pointer-events-none flex justify-start w-full gap-4">
                     <MapSidebar
                         isListCollapsed={isListCollapsed} setIsListCollapsed={setIsListCollapsed} listBarRef={listBarRef} t={t} filteredPolygons={filteredPolygons} searchQuery={searchQuery} setSearchQuery={setSearchQuery} showFilterMenu={showFilterMenu} setShowFilterMenu={setShowFilterMenu} activeFilterLabel={activeFilterLabel} filterOptions={filterOptions} listFilter={listFilter} setListFilter={setListFilter}
                         handleApproveAll={handleApproveAll} approveLabel={props.approveLabel} isApproving={isApproving} approveFeedback={approveFeedback}
-                        togglePolygonVisibility={togglePolygonVisibility} renamePolygonInline={renamePolygonInline} focusPolygon={focusPolygon} isImportMode={isImportMode} approveSingleParcel={approveSingleParcel} allPolygons={allPolygons} onApproveAll={props.onApproveAll}
+                        togglePolygonVisibility={togglePolygonVisibility} focusPolygon={focusPolygon} isImportMode={isImportMode} approveSingleParcel={approveSingleParcel} onPolygonContextMenu={(id, x, y) => setPolygonContextMenu({ x, y, polygonId: id })} periods={periods} displayPeriodId={displayPeriodId} setDisplayPeriodId={setDisplayPeriodId} allPolygons={allPolygons} onApproveAll={props.onApproveAll}
                     />
                 </div>
 
@@ -493,6 +718,7 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
                         products={products}
                         periods={periods}
                         operationTypes={operationTypes}
+                        shareFilterOptions={shareFilterOptions}
                         searchAreaCoords={searchAreaCoords}
                         isSearchDrawing={isSearchDrawing}
                         startSearchPolygon={() => startSearchPolygon(isCreating, editingId)}
@@ -501,6 +727,9 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
                         clearSearchFilters={clearSearchFilters}
                         applySearchFilters={applySearchFilters}
                         hasActiveSearchFilters={hasActiveSearchFilters}
+                        onShareFilter={contextType === 'farm' && selectedFarm?.canManage ? sharing.handleQuickShareCurrentFilter : undefined}
+                        shareFilterFeedback={sharing.quickShareFeedback}
+                        onListOperations={contextType === 'farm' && (hasActiveSearchFilters || displayPeriodIds.length > 0) ? () => setFilteredOpsOpen(true) : undefined}
                         disabled={isCreating || !!editingId}
                         t={t}
                     />

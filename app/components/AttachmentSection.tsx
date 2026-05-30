@@ -55,11 +55,21 @@ export default function AttachmentSection({ uploadUrl, deleteUrlPrefix, attachme
                 if (res.ok) {
                     const dto: AttachmentDto = await res.json();
                     onAdd(dto);
+                } else if (res.status === 413) {
+                    let detail: string | null = null;
+                    try {
+                        const body = await res.json();
+                        if (body && typeof body.message === 'string') detail = body.message;
+                    } catch {}
+                    setError(detail ?? t("attachments.fileTooLarge", {
+                        defaultValue: 'File "{{name}}" is too large to upload.',
+                        name: file.name,
+                    }));
                 } else {
-                    setError(t("attachments.uploadFailed", { defaultValue: "Upload failed" }));
+                    setError(t("attachments.uploadFailed", { defaultValue: "Upload failed" }) + ` (${res.status})`);
                 }
-            } catch {
-                setError(t("attachments.uploadFailed", { defaultValue: "Upload failed" }));
+            } catch (err: any) {
+                setError(`${t("attachments.uploadFailed", { defaultValue: "Upload failed" })}: ${err?.message ?? 'network error'}`);
             }
         }
         setUploading(false);

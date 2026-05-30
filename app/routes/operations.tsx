@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import ProtectedRoute from "~/components/ProtectedRoute";
 import { useFarm } from "~/contexts/FarmContext";
-import { apiGet, apiPost, getPageMeta } from "~/utils/api";
+import { apiGet, apiPost, apiPut, apiDelete, getPageMeta } from "~/utils/api";
 import { useDateTimeFormatter } from "~/utils/datetime";
 import AttachmentSection from "~/components/AttachmentSection";
 import type { AttachmentDto } from "~/components/AttachmentSection";
@@ -26,6 +26,8 @@ interface ParcelOperationDto {
   id: number; date?: string; durationSeconds?: number;
   typeId?: number; typeName?: string;
   parcelId?: number; parcelName?: string;
+  parcelIds?: number[]; parcelNames?: string[];
+  periodId?: number; periodName?: string;
   products?: OperationProductDto[];
   attachments?: AttachmentDto[];
 }
@@ -55,16 +57,42 @@ interface AddModalProps {
   parcels: ParcelSummary[];
   onSaved: () => void;
   onClose: () => void;
+  /** When set, the modal edits this operation instead of creating a new one. */
+  editOp?: ParcelOperationDto;
 }
 
-function AddOperationModal({ farmId, parcels, onSaved, onClose }: AddModalProps) {
-  const { t } = useTranslation();
+/** Convert an ISO datetime to the local "YYYY-MM-DDTHH:mm" expected by datetime-local inputs. */
+const toLocalInput = (iso?: string): string => {
+  if (!iso) return nowForInput();
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return nowForInput();
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+};
 
-  const [parcelId, setParcelId] = useState("");
-  const [typeId, setTypeId] = useState("");
-  const [date, setDate] = useState(nowForInput);
-  const [durationMinutes, setDurationMinutes] = useState("");
-  const [lines, setLines] = useState<LineState[]>([{ productId: "", quantity: "", unitId: "", toolId: "" }]);
+function AddOperationModal({ farmId, parcels, onSaved, onClose, editOp }: AddModalProps) {
+  const { t } = useTranslation();
+  const isEdit = !!editOp;
+
+  const [parcelIds, setParcelIds] = useState<string[]>(
+    editOp
+      ? (editOp.parcelIds && editOp.parcelIds.length > 0
+          ? editOp.parcelIds.map(String)
+          : (editOp.parcelId != null ? [String(editOp.parcelId)] : []))
+      : []
+  );
+  const [typeId, setTypeId] = useState(editOp?.typeId != null ? String(editOp.typeId) : "");
+  const [date, setDate] = useState(editOp ? toLocalInput(editOp.date) : nowForInput);
+  const [durationMinutes, setDurationMinutes] = useState(editOp?.durationSeconds != null ? String(Math.round(editOp.durationSeconds / 60)) : "");
+  const [lines, setLines] = useState<LineState[]>(
+    editOp && editOp.products && editOp.products.length > 0
+      ? editOp.products.map(p => ({
+          productId: p.productId != null ? String(p.productId) : "",
+          quantity: p.quantity != null ? String(p.quantity) : "",
+          unitId: p.unitId != null ? String(p.unitId) : "",
+          toolId: p.toolId != null ? String(p.toolId) : "",
+        }))
+      : [{ productId: "", quantity: "", unitId: "", toolId: "" }]
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -140,13 +168,22 @@ function AddOperationModal({ farmId, parcels, onSaved, onClose }: AddModalProps)
   };
 
   const handleSave = async () => {
-    if (!parcelId) { setError(t("operations.selectParcel", { defaultValue: "Select a parcel" })); return; }
+    if (parcelIds.length === 0) { setError(t("operations.selectParcel", { defaultValue: "Select a parcel" })); return; }
     setSaving(true); setError(null);
     try {
+      let primaryParcelId = parcelIds[0];
+      if (isEdit) {
+        const originalIds = editOp!.parcelIds && editOp!.parcelIds.length > 0
+          ? editOp!.parcelIds.map(String)
+          : (editOp!.parcelId != null ? [String(editOp!.parcelId)] : []);
+        const stillLinked = parcelIds.find(id => originalIds.includes(id));
+        if (stillLinked) primaryParcelId = stillLinked;
+      }
       const payload = {
         typeId: typeId ? Number(typeId) : undefined,
         date: date ? date + ":00" : undefined,
         durationSeconds: durationMinutes ? Number(durationMinutes) * 60 : undefined,
+        parcelIds: parcelIds.map(Number),
         products: lines.filter(l => l.productId).map(l => ({
           productId: Number(l.productId),
           quantity: l.quantity ? Number(l.quantity) : undefined,
@@ -154,7 +191,9 @@ function AddOperationModal({ farmId, parcels, onSaved, onClose }: AddModalProps)
           toolId: l.toolId ? Number(l.toolId) : undefined,
         })),
       };
-      const res = await apiPost(`/farm/${farmId}/parcels/${parcelId}/operations`, payload);
+      const res = isEdit
+        ? await apiPut(`/farm/${farmId}/parcels/${primaryParcelId}/operations/${editOp!.id}`, payload)
+        : await apiPost(`/farm/${farmId}/parcels/${primaryParcelId}/operations`, payload);
       if (!res.ok) throw new Error("failed");
       onSaved(); onClose();
     } catch {
@@ -169,6 +208,7 @@ function AddOperationModal({ farmId, parcels, onSaved, onClose }: AddModalProps)
   }, [onClose]);
 
   const parcelOpts: SelectOption[] = parcels.map(p => ({ value: String(p.id), label: p.name }));
+  const availableParcelOpts: SelectOption[] = parcelOpts.filter(o => !parcelIds.includes(o.value));
   const opTypeOpts: SelectOption[] = opTypes.map(t => ({ value: String(t.id), label: t.name }));
   const productOpts: SelectOption[] = products.map(p => ({
     value: String(p.id),
@@ -182,13 +222,15 @@ function AddOperationModal({ farmId, parcels, onSaved, onClose }: AddModalProps)
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      className="fixed inset-0 z-[10060] flex items-center justify-center bg-black/60 p-4"
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div className="relative flex max-h-[90vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-white/10 bg-slate-900 shadow-2xl">
         <div className="flex items-center justify-between border-b border-white/10 px-6 py-4">
           <h2 className="text-base font-semibold text-white">
-            {t("operations.addModal.title", { defaultValue: "New operation" })}
+            {isEdit
+              ? t("operations.editModal.title", { defaultValue: "Edit operation" })
+              : t("operations.addModal.title", { defaultValue: "New operation" })}
           </h2>
           <button type="button" onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-white/10 hover:text-white">
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -203,12 +245,33 @@ function AddOperationModal({ farmId, parcels, onSaved, onClose }: AddModalProps)
           )}
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <label className={labelCls}>{t("operations.selectParcel", { defaultValue: "Parcel" })} *</label>
+            <div className="sm:col-span-2">
+              <label className={labelCls}>{t("operations.selectParcels", { defaultValue: "Parcels" })} *</label>
+              {parcelIds.length > 0 && (
+                <div className="mt-1 flex flex-wrap gap-1.5">
+                  {parcelIds.map(id => {
+                    const name = parcels.find(p => String(p.id) === id)?.name ?? id;
+                    return (
+                      <span key={id} className="inline-flex items-center gap-1 rounded-full border border-indigo-400/30 bg-indigo-500/15 px-2.5 py-1 text-xs font-medium text-indigo-200">
+                        {name}
+                        <button
+                          type="button"
+                          onClick={() => setParcelIds(prev => prev.filter(x => x !== id))}
+                          className="text-indigo-300 hover:text-white"
+                          aria-label={t("common.remove", { defaultValue: "Remove" })}
+                        >
+                          ×
+                        </button>
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
               <SearchableSelect
-                value={parcelId} onChange={setParcelId} options={parcelOpts}
-                placeholder={t("operations.noParcel", { defaultValue: "Select parcel…" })}
-                className="mt-1"
+                value="" onChange={v => { if (v && !parcelIds.includes(v)) setParcelIds(prev => [...prev, v]); }}
+                options={availableParcelOpts}
+                placeholder={t("operations.addParcel", { defaultValue: "Add a parcel…" })}
+                className="mt-1.5"
               />
             </div>
             <div>
@@ -297,13 +360,14 @@ function AddOperationModal({ farmId, parcels, onSaved, onClose }: AddModalProps)
   );
 }
 
-interface CardProps { op: ParcelOperationDto; farmId: string; }
+interface CardProps { op: ParcelOperationDto; farmId: string; onEdit?: (op: ParcelOperationDto) => void; onDelete?: (op: ParcelOperationDto) => void; }
 
-function OperationCard({ op, farmId }: CardProps) {
+function OperationCard({ op, farmId, onEdit, onDelete }: CardProps) {
   const { t } = useTranslation();
   const { formatDateTime } = useDateTimeFormatter();
   const [expanded, setExpanded] = useState(false);
   const [attachments, setAttachments] = useState<AttachmentDto[]>(op.attachments ?? []);
+  const canEdit = !!(op.parcelIds?.length || op.parcelId);
 
   return (
     <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/5 shadow shadow-black/20">
@@ -317,9 +381,14 @@ function OperationCard({ op, farmId }: CardProps) {
             <span className="text-sm font-semibold text-white">
               {op.typeName ?? t("operations.selectTypePlaceholder", { defaultValue: "No type" })}
             </span>
-            {op.parcelName && (
-              <span className="rounded-full bg-indigo-500/15 px-2 py-0.5 text-xs font-medium text-indigo-300">
-                {op.parcelName}
+            {(op.parcelNames && op.parcelNames.length > 0 ? op.parcelNames : op.parcelName ? [op.parcelName] : []).map((name, i) => (
+              <span key={i} className="rounded-full bg-indigo-500/15 px-2 py-0.5 text-xs font-medium text-indigo-300">
+                {name}
+              </span>
+            ))}
+            {op.periodName && (
+              <span className="rounded-full bg-violet-500/15 px-2 py-0.5 text-xs font-medium text-violet-300">
+                {op.periodName}
               </span>
             )}
           </div>
@@ -347,6 +416,28 @@ function OperationCard({ op, farmId }: CardProps) {
 
       {expanded && (
         <div className="space-y-4 border-t border-white/5 px-5 py-4">
+          {canEdit && (onEdit || onDelete) && (
+            <div className="flex items-center justify-end gap-2">
+              {onEdit && (
+                <button
+                  type="button"
+                  onClick={() => onEdit(op)}
+                  className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-slate-200 transition-colors hover:bg-white/10"
+                >
+                  {t("common.edit", { defaultValue: "Edit" })}
+                </button>
+              )}
+              {onDelete && (
+                <button
+                  type="button"
+                  onClick={() => onDelete(op)}
+                  className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-1.5 text-xs font-semibold text-rose-300 transition-colors hover:bg-rose-500/20"
+                >
+                  {t("common.delete", { defaultValue: "Delete" })}
+                </button>
+              )}
+            </div>
+          )}
           {op.products && op.products.length > 0 && (
             <div>
               <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -377,10 +468,13 @@ function OperationCard({ op, farmId }: CardProps) {
               {t("attachments.title", { defaultValue: "Attachments" })}
             </p>
             <AttachmentSection
-              uploadUrl={op.parcelId ? `/farm/${farmId}/parcels/${op.parcelId}/operations/${op.id}/attachments` : ""}
+              uploadUrl={(() => {
+                const pid = op.parcelIds?.[0] ?? op.parcelId;
+                return pid ? `/farm/${farmId}/parcels/${pid}/operations/${op.id}/attachments` : "";
+              })()}
               deleteUrlPrefix={`/farm/${farmId}/attachments`}
               attachments={attachments}
-              canEdit={!!op.parcelId}
+              canEdit={!!(op.parcelIds?.length || op.parcelId)}
               onAdd={att => setAttachments(prev => [...prev, att])}
               onRemove={id => setAttachments(prev => prev.filter(a => a.id !== id))}
             />
@@ -417,6 +511,20 @@ export default function OperationsPage() {
   const listRef = useRef<HTMLDivElement>(null);
 
   const [showAdd, setShowAdd] = useState(false);
+  const [editOp, setEditOp] = useState<ParcelOperationDto | null>(null);
+
+  const handleDeleteOperation = useCallback(async (op: ParcelOperationDto) => {
+    if (!farmId) return;
+    const pid = op.parcelIds?.[0] ?? op.parcelId;
+    if (!pid) return;
+    if (!confirm(t("operations.deleteConfirm", { defaultValue: "Delete this operation?" }))) return;
+    try {
+      const res = await apiDelete(`/farm/${farmId}/parcels/${pid}/operations/${op.id}`);
+      if (res.ok) setOperations(prev => prev.filter(o => o.id !== op.id));
+    } catch (err) {
+      console.error("Failed to delete operation", err);
+    }
+  }, [farmId, t]);
 
   useEffect(() => {
     if (!farmId) return;
@@ -493,7 +601,7 @@ export default function OperationsPage() {
               </p>
               <h1 className="text-3xl font-semibold text-white">{t("operations.subtitle")}</h1>
             </div>
-            {farmId && (
+            {farmId && selectedFarm?.canEdit !== false && (
               <button
                 type="button"
                 onClick={() => setShowAdd(true)}
@@ -590,7 +698,7 @@ export default function OperationsPage() {
                 )}
 
                 {operations.map(op => (
-                  <OperationCard key={op.id} op={op} farmId={String(farmId)} />
+                  <OperationCard key={op.id} op={op} farmId={String(farmId)} onEdit={setEditOp} onDelete={handleDeleteOperation} />
                 ))}
 
                 {loading && operations.length > 0 && (
@@ -617,6 +725,15 @@ export default function OperationsPage() {
           parcels={parcels}
           onSaved={() => { setOperations([]); void fetchOperations(0); }}
           onClose={() => setShowAdd(false)}
+        />
+      )}
+      {editOp && farmId && (
+        <AddOperationModal
+          farmId={Number(farmId)}
+          parcels={parcels}
+          editOp={editOp}
+          onSaved={() => { setOperations([]); void fetchOperations(0); }}
+          onClose={() => setEditOp(null)}
         />
       )}
     </ProtectedRoute>

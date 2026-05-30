@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { FormEvent } from 'react';
-import { useNavigate, Link } from 'react-router';
+import { useNavigate, useLocation, Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import { apiPost, apiGet } from '~/utils/api';
@@ -25,14 +25,17 @@ export default function Register() {
   
   const { login, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const redirectTo = (location.state as { redirectTo?: string } | null)?.redirectTo;
   const locale = useCurrentLocale();
   const { t } = useTranslation();
+  const postAuthTarget = redirectTo && redirectTo.startsWith('/') ? redirectTo : buildLocalizedPath(locale, '/');
 
   useEffect(() => {
     if (isAuthenticated) {
-      navigate(buildLocalizedPath(locale, '/'));
+      navigate(postAuthTarget);
     }
-  }, [isAuthenticated, locale, navigate]);
+  }, [isAuthenticated, navigate, postAuthTarget]);
 
   useEffect(() => {
     apiGet('/auth/settings', { requireAuth: false })
@@ -74,13 +77,13 @@ export default function Register() {
       if (response.ok) {
         const data = await response.json().catch(() => ({}));
         if (data.message === 'verification_required') {
-            navigate(buildLocalizedPath(locale, '/verify'));
+            navigate(buildLocalizedPath(locale, '/verify'), redirectTo ? { state: { redirectTo } } : undefined);
             return;
         }
         // Registration successful, now login
         try {
           await login(username, password);
-          navigate(buildLocalizedPath(locale, '/'));
+          navigate(postAuthTarget);
         } catch (loginErr) {
           setError(t('auth.register.errors.loginFailed'));
         }
@@ -198,7 +201,7 @@ export default function Register() {
           <div className="text-center">
             <p className="text-sm text-gray-600">
               {t('auth.register.loginPrompt')}{' '}
-              <Link to={buildLocalizedPath(locale, '/login')} className="font-medium text-indigo-600 hover:text-indigo-500">
+              <Link to={buildLocalizedPath(locale, '/login')} state={redirectTo ? { redirectTo } : undefined} className="font-medium text-indigo-600 hover:text-indigo-500">
                 {t('auth.register.loginLink')}
               </Link>
             </p>

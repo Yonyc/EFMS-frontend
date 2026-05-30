@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from "react";
-import type { PolygonData } from "../types";
+import type { PolygonData, PeriodDto } from "../types";
 import PolygonList from "../PolygonList";
+import { PeriodPicker } from "./PeriodPicker";
 import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 
 interface MapSidebarProps {
@@ -22,10 +23,13 @@ interface MapSidebarProps {
     isApproving: boolean;
     approveFeedback: { type: 'success' | 'error'; message: string } | null;
     togglePolygonVisibility: (id: string) => void;
-    renamePolygonInline: (id: string, name: string) => void;
     focusPolygon: (id: string) => void;
     isImportMode: boolean;
     approveSingleParcel: (id: string) => Promise<void>;
+    onPolygonContextMenu?: (id: string, x: number, y: number) => void;
+    periods?: PeriodDto[];
+    displayPeriodId?: string;
+    setDisplayPeriodId?: (val: string) => void;
     allPolygons: PolygonData[];
     onApproveAll?: () => Promise<void>; // from parent
 }
@@ -37,8 +41,9 @@ const MapSidebar = React.memo((props: MapSidebarProps) => {
         showFilterMenu, setShowFilterMenu, activeFilterLabel,
         filterOptions, listFilter, setListFilter,
         handleApproveAll, approveLabel, isApproving, approveFeedback,
-        togglePolygonVisibility, renamePolygonInline, focusPolygon,
-        isImportMode, approveSingleParcel, allPolygons, onApproveAll
+        togglePolygonVisibility, focusPolygon,
+        isImportMode, approveSingleParcel, onPolygonContextMenu,
+        periods, displayPeriodId, setDisplayPeriodId, allPolygons, onApproveAll
     } = props;
 
     // click-outside dismiss for the filter dropdown
@@ -178,6 +183,18 @@ const MapSidebar = React.memo((props: MapSidebarProps) => {
                                 </button>
                             )}
                         </div>
+                        {!isImportMode && periods && periods.length > 0 && setDisplayPeriodId && (
+                            <div className="flex items-center gap-2 text-xs text-slate-500">
+                                <span className="shrink-0">{t('map.periodPicker.label', { defaultValue: 'Period' })}</span>
+                                <PeriodPicker
+                                    periods={periods}
+                                    value={displayPeriodId ?? ''}
+                                    onChange={setDisplayPeriodId}
+                                    includeAll
+                                    size="compact"
+                                />
+                            </div>
+                        )}
                         <div ref={filterWrapRef} style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
                             <button
                                 type="button"
@@ -292,14 +309,13 @@ const MapSidebar = React.memo((props: MapSidebarProps) => {
                             )}
                         </div>
                     )}
-                    {/* only the list scrolls so the filter dropdown isn't clipped */}
-                    <div style={{ overflowY: 'auto', minHeight: 0 }}>
+                    <div style={{ flex: '1 1 auto', overflowY: 'auto', minHeight: 0 }}>
                         <PolygonList
                             polygons={filteredPolygons}
                             onToggle={togglePolygonVisibility}
-                            onRename={renamePolygonInline}
                             onFocus={focusPolygon}
                             onApproveSingle={isImportMode ? approveSingleParcel : undefined}
+                            onContextMenu={onPolygonContextMenu}
                             showStatus={isImportMode}
                             emptyLabel={allPolygons.length ? t('map.polygonList.emptyFiltered', { defaultValue: 'No polygons match this filter' }) : undefined}
                         />

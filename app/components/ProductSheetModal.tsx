@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { apiRequest, resolveUploadUrl } from "~/utils/api";
 import AttachmentSection, { type AttachmentDto } from "~/components/AttachmentSection";
+import { SearchableSelect } from "~/components/map/components/SearchableSelect";
 
 export interface ProductSheetData {
   id: number;
@@ -30,6 +31,7 @@ export interface ProductSheetData {
   officialFormulationTypeEn?: string | null;
   officialProductTypeCodes?: string | null;
   officialProductTypeEn?: string | null;
+  cultureTypeId?: number | null;
   attachments?: AttachmentDto[];
 }
 
@@ -40,6 +42,10 @@ interface ProductSheetModalProps {
   isAdmin?: boolean;
   canEdit?: boolean;
   productTypes: RefOption[];
+  
+  seedTypeIds?: number[];
+  
+  cultureTypes?: RefOption[];
   units: RefOption[];
   operationTypes: RefOption[];
   tools: RefOption[];
@@ -53,6 +59,8 @@ export default function ProductSheetModal({
   isAdmin,
   canEdit,
   productTypes,
+  seedTypeIds = [],
+  cultureTypes = [],
   units,
   operationTypes,
   tools,
@@ -66,6 +74,8 @@ export default function ProductSheetModal({
 
   const [name, setName] = useState(product.name);
   const [productTypeId, setProductTypeId] = useState(product.productTypeId != null ? String(product.productTypeId) : "");
+  const [cultureTypeId, setCultureTypeId] = useState(product.cultureTypeId != null ? String(product.cultureTypeId) : "");
+  const isSeedType = productTypeId !== "" && seedTypeIds.includes(Number(productTypeId));
   const [unitId, setUnitId] = useState(product.unitId != null ? String(product.unitId) : "");
   const [defaultOpTypeId, setDefaultOpTypeId] = useState(product.defaultOperationTypeId != null ? String(product.defaultOperationTypeId) : "");
   const [overrideToolId, setOverrideToolId] = useState(product.overrideToolId != null ? String(product.overrideToolId) : "");
@@ -110,7 +120,6 @@ export default function ProductSheetModal({
   const handleSave = async () => {
     setSaving(true);
     try {
-      // Base: if no pending file, use the stored server URL (not the local DataURL preview)
       let finalPictureUrl: string | null = pendingPictureFile ? (product.pictureUrl ?? null) : pictureUrl;
 
       if (pendingPictureFile && product.farmId) {
@@ -129,6 +138,8 @@ export default function ProductSheetModal({
       const updated: Partial<ProductSheetData> = {
         name: name.trim() || product.name,
         productTypeId: productTypeId ? Number(productTypeId) : null,
+        
+        cultureTypeId: isSeedType && cultureTypeId ? Number(cultureTypeId) : null,
         unitId: unitId ? Number(unitId) : null,
         defaultOperationTypeId: defaultOpTypeId ? Number(defaultOpTypeId) : null,
         overrideToolId: overrideToolId ? Number(overrideToolId) : null,
@@ -178,7 +189,7 @@ export default function ProductSheetModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      className="fixed inset-0 z-[10060] flex items-center justify-center bg-black/50 p-4"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div className="relative flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-slate-900">
@@ -218,6 +229,25 @@ export default function ProductSheetModal({
                 {productTypes.map((pt) => <option key={pt.id} value={String(pt.id)}>{pt.label}</option>)}
               </select>
             </div>
+            {isSeedType && (
+              <div className="sm:col-span-2">
+                <label className={labelCls}>{t("productSheet.cultureType", { defaultValue: "Seeded culture" })}</label>
+                <SearchableSelect
+                  className="mt-1"
+                  value={cultureTypeId}
+                  onChange={setCultureTypeId}
+                  options={[
+                    { value: "", label: t("productSheet.noCultureType", { defaultValue: "No culture" }) },
+                    ...cultureTypes.map((ct) => ({ value: String(ct.id), label: ct.label })),
+                  ]}
+                  placeholder={t("productSheet.noCultureType", { defaultValue: "No culture" })}
+                  disabled={!editable || saving}
+                />
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                  {t("productSheet.cultureTypeHint", { defaultValue: "Applied to a parcel's period when an operation uses this seed and the period has no culture yet." })}
+                </p>
+              </div>
+            )}
             <div>
               <label className={labelCls}>{t("productSheet.unit", { defaultValue: "Unit" })}</label>
               <select value={unitId} onChange={(e) => setUnitId(e.target.value)} disabled={!editable || saving} className={`mt-1 ${inputCls}`}>
@@ -305,7 +335,7 @@ export default function ProductSheetModal({
             </div>
           </div>
 
-          {/* Official fields — shown to everyone read-only, editable only for admin */}
+          {/* Official fields - shown to everyone read-only, editable only for admin */}
           {product.official && (
             <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 p-4 dark:border-indigo-900/30 dark:bg-indigo-950/20">
               <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-indigo-600 dark:text-indigo-400">

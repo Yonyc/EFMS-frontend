@@ -38,6 +38,11 @@ interface ResearchZoneShareDto {
     operationTypeIds?: number[];
     toolIds?: number[];
     productIds?: number[];
+    
+    periodLabels?: string[];
+    operationTypeLabels?: string[];
+    toolLabels?: string[];
+    productLabels?: string[];
     filterStartDate?: string | null;
     filterEndDate?: string | null;
     maxUsers?: number | null;
@@ -164,7 +169,7 @@ export default function FarmSharesPage() {
 
             const [periodsRes, operationTypesRes, toolsRes, productsRes, officialRes] = await Promise.all([
                 apiGet(`/farm/${farmId}/periods`),
-                apiGet(`/operations/types`),
+                apiGet(`/operations/types?farmId=${farmId}`),
                 apiGet(`/farm/${farmId}/tools`),
                 apiGet(`/farm/${farmId}/products`),
                 apiGet(`/products/official`),
@@ -189,9 +194,13 @@ export default function FarmSharesPage() {
             }
 
             if (productsRes.ok || officialRes.ok) {
-                const farmProducts = productsRes.ok ? await productsRes.json() : [];
-                const officialProducts = officialRes.ok ? await officialRes.json() : [];
-                setProducts([...farmProducts, ...officialProducts]);
+                const asList = (data: any): any[] => Array.isArray(data) ? data : (data?.content ?? []);
+                const farmProducts = productsRes.ok ? asList(await productsRes.json()) : [];
+                const officialProducts = officialRes.ok ? asList(await officialRes.json()) : [];
+
+                const byId = new Map<number, ProductDto>();
+                [...farmProducts, ...officialProducts].forEach((p: ProductDto) => { if (!byId.has(p.id)) byId.set(p.id, p); });
+                setProducts(Array.from(byId.values()));
             } else {
                 setProducts([]);
             }
@@ -384,6 +393,24 @@ export default function FarmSharesPage() {
         return found ? productLabel(found) : `Product ${id}`;
     }, [operationTypes, periods, productLabel, products, tools]);
 
+    const dimText = useCallback((labels: string[] | undefined, ids: number[] | undefined, type: "period" | "operationType" | "tool" | "product") => {
+        if (labels && labels.length) return labels.join(", ");
+        if (ids && ids.length) return ids.map((id) => lookupLabel(type, id)).join(", ");
+        return t("farmShares.research.any", { defaultValue: "Any" });
+    }, [lookupLabel, t]);
+
+    const mergeShareOptions = useCallback((
+        base: Array<{ id: number; label: string }>,
+        ids: number[] | undefined,
+        labels: string[] | undefined,
+    ) => {
+        const byId = new Map<number, string>(base.map((o) => [o.id, o.label]));
+        (ids || []).forEach((id, i) => {
+            if (!byId.has(id)) byId.set(id, labels?.[i] || `#${id}`);
+        });
+        return Array.from(byId.entries()).map(([id, label]) => ({ id, label }));
+    }, []);
+
     function MultiSelectField({
         label,
         selected,
@@ -445,8 +472,8 @@ export default function FarmSharesPage() {
                 )}
 
                 {farmId && !canManage && (
-                    <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/60 dark:text-amber-200">
-                        {t("farmShares.noAccess", { defaultValue: "You do not have permission to manage shares for this farm." })}
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-300">
+                        {t("farmShares.sharedUserNotice", { defaultValue: "You can review and manage the shares you have access to below." })}
                     </div>
                 )}
 
@@ -472,7 +499,7 @@ export default function FarmSharesPage() {
                                             : t("farmShares.research.linkShare", { defaultValue: "Link-based share" })
                                         }
                                     </p>
-                                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{t("farmShares.research.periods", { defaultValue: "Periods" })}: {share.periodIds && share.periodIds.length ? share.periodIds.map((id) => lookupLabel("period", id)).join(", ") : t("farmShares.research.any", { defaultValue: "Any" })}</p>
+                                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{t("farmShares.research.periods", { defaultValue: "Periods" })}: {dimText(share.periodLabels, share.periodIds, "period")}</p>
                                     <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                                         {t("farmShares.research.window", {
                                             defaultValue: "Window: {{start}} -> {{end}}",
@@ -617,16 +644,16 @@ export default function FarmSharesPage() {
                                             {t("farmShares.research.accessUsers", { defaultValue: "Users with access" })}: {share.accessUsernames && share.accessUsernames.length ? share.accessUsernames.join(", ") : t("farmShares.research.none", { defaultValue: "none" })}
                                         </p>
                                         <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                                            {t("farmShares.research.periods", { defaultValue: "Periods" })}: {share.periodIds && share.periodIds.length ? share.periodIds.map((id) => lookupLabel("period", id)).join(", ") : t("farmShares.research.any", { defaultValue: "Any" })}
+                                            {t("farmShares.research.periods", { defaultValue: "Periods" })}: {dimText(share.periodLabels, share.periodIds, "period")}
                                         </p>
                                         <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                                            {t("farmShares.research.operationTypes", { defaultValue: "Operation types" })}: {share.operationTypeIds && share.operationTypeIds.length ? share.operationTypeIds.map((id) => lookupLabel("operationType", id)).join(", ") : t("farmShares.research.any", { defaultValue: "Any" })}
+                                            {t("farmShares.research.operationTypes", { defaultValue: "Operation types" })}: {dimText(share.operationTypeLabels, share.operationTypeIds, "operationType")}
                                         </p>
                                         <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                                            {t("farmShares.research.tools", { defaultValue: "Tools" })}: {share.toolIds && share.toolIds.length ? share.toolIds.map((id) => lookupLabel("tool", id)).join(", ") : t("farmShares.research.any", { defaultValue: "Any" })}
+                                            {t("farmShares.research.tools", { defaultValue: "Tools" })}: {dimText(share.toolLabels, share.toolIds, "tool")}
                                         </p>
                                         <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                                            {t("farmShares.research.products", { defaultValue: "Products" })}: {share.productIds && share.productIds.length ? share.productIds.map((id) => lookupLabel("product", id)).join(", ") : t("farmShares.research.any", { defaultValue: "Any" })}
+                                            {t("farmShares.research.products", { defaultValue: "Products" })}: {dimText(share.productLabels, share.productIds, "product")}
                                         </p>
                                         <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                                             {t("farmShares.research.filterWindow", { defaultValue: "Filter window" })}: {(share.filterStartDate || t("farmShares.research.any", { defaultValue: "Any" }))} - {(share.filterEndDate || t("farmShares.research.any", { defaultValue: "Any" }))}
@@ -718,25 +745,25 @@ export default function FarmSharesPage() {
                                     label={t("farmShares.research.periods", { defaultValue: "Periods" })}
                                     selected={editPeriodIds}
                                     onChange={setEditPeriodIds}
-                                    options={periods.map((period) => ({ id: period.id, label: period.name || `Period ${period.id}` }))}
+                                    options={mergeShareOptions(periods.map((period) => ({ id: period.id, label: period.name || `Period ${period.id}` })), editingResearchShare.periodIds, editingResearchShare.periodLabels)}
                                 />
                                 <MultiSelectField
                                     label={t("farmShares.research.operationTypes", { defaultValue: "Operation types" })}
                                     selected={editOperationTypeIds}
                                     onChange={setEditOperationTypeIds}
-                                    options={operationTypes.map((op) => ({ id: op.id, label: op.name }))}
+                                    options={mergeShareOptions(operationTypes.map((op) => ({ id: op.id, label: op.name })), editingResearchShare.operationTypeIds, editingResearchShare.operationTypeLabels)}
                                 />
                                 <MultiSelectField
                                     label={t("farmShares.research.tools", { defaultValue: "Tools" })}
                                     selected={editToolIds}
                                     onChange={setEditToolIds}
-                                    options={tools.map((tool) => ({ id: tool.id, label: tool.name }))}
+                                    options={mergeShareOptions(tools.map((tool) => ({ id: tool.id, label: tool.name })), editingResearchShare.toolIds, editingResearchShare.toolLabels)}
                                 />
                                 <MultiSelectField
                                     label={t("farmShares.research.products", { defaultValue: "Products" })}
                                     selected={editProductIds}
                                     onChange={setEditProductIds}
-                                    options={products.map((product) => ({ id: product.id, label: productLabel(product) }))}
+                                    options={mergeShareOptions(products.map((product) => ({ id: product.id, label: productLabel(product) })), editingResearchShare.productIds, editingResearchShare.productLabels)}
                                 />
                             </div>
 
