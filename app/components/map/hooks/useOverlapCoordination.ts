@@ -276,25 +276,18 @@ export function useOverlapCoordination({
             const coords = ring.map((ll: any) => [ll.lat, ll.lng]) as [number, number][];
 
             const tempId = `poly-${Date.now()}`;
-            const overlapping = detectOverlaps(tempId, coords);
+            const overlapping = autoCorrectEnabled ? detectOverlaps(tempId, coords) : [];
             if (overlapping.length > 0) {
-                const parent = selectedParentId ? polygons.find(p => p.id === selectedParentId) : null;
-                const normalizedParent = selectedParentId ? String(selectedParentId) : null;
-                const siblings = polygons.filter(p =>
-                    overlapping.some(o => o.id === p.id) &&
-                    (p.parentId ? String(p.parentId) : null) === normalizedParent
-                );
-                const fixedCoords = autoCorrectEnabled ? coords : fixOverlap(coords, siblings, parent?.coords);
                 setOverlapWarning({
                     polygonId: tempId,
                     overlappingPolygons: overlapping,
                     originalCoords: coords,
-                    fixedCoords: fixedCoords || null,
+                    fixedCoords: coords,
                     isNewPolygon: true,
                     areaNameSnapshot: areaNameRef.current,
                     selectedPeriodIdSnapshot: selectedPeriodId
                 });
-                setModal({ open: true, coords: fixedCoords || coords });
+                setModal({ open: true, coords });
             } else {
                 setOverlapWarning(null);
                 setModal({ open: true, coords });
@@ -306,7 +299,7 @@ export function useOverlapCoordination({
             console.error("Error in handleCreated geometry processing:", err);
             setModal({ open: true, coords: [] });
         }
-    }, [detectOverlaps, polygons, setOverlapWarning, areaNameRef, selectedPeriodId, setShowPreview, setModal, createHandlerRef, setIsCreating, selectedParentId, autoCorrectEnabled]);
+    }, [detectOverlaps, setOverlapWarning, areaNameRef, selectedPeriodId, setModal, createHandlerRef, createdLayerRef, setIsCreating, autoCorrectEnabled]);
 
     return {
         handleOverlapCancel, handleOverlapAccept, handleOverlapManualEdit, confirmCreate, handleCreated
