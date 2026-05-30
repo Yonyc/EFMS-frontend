@@ -14,9 +14,12 @@ interface Props {
     hasMore?: boolean;
     loading?: boolean;
     disabled?: boolean;
+    /** Colour scheme: "dark" (default, for map overlays) or "light" (for white modals/lists). */
+    variant?: "dark" | "light";
 }
 
-export function SearchableSelect({ value, onChange, options, placeholder, noResultsText = "No results", className, onLoadMore, hasMore, loading, disabled }: Props) {
+export function SearchableSelect({ value, onChange, options, placeholder, noResultsText = "No results", className, onLoadMore, hasMore, loading, disabled, variant = "dark" }: Props) {
+    const light = variant === "light";
     const [open, setOpen] = useState(false);
     const [query, setQuery] = useState("");
     const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number; width: number } | null>(null);
@@ -93,18 +96,22 @@ export function SearchableSelect({ value, onChange, options, placeholder, noResu
                         if (e.key === 'Enter' && filtered.length > 0) handleSelect(filtered[0].value);
                     }}
                     placeholder={placeholder}
-                    className="w-full rounded-md border border-indigo-400/60 bg-white/5 px-2 py-2 text-sm text-white outline-none ring-1 ring-indigo-400/30"
+                    className={light
+                        ? "w-full rounded-md border border-indigo-400 bg-white px-2 py-2 text-sm text-slate-900 outline-none ring-1 ring-indigo-200"
+                        : "w-full rounded-md border border-indigo-400/60 bg-white/5 px-2 py-2 text-sm text-white outline-none ring-1 ring-indigo-400/30"}
                 />
             ) : (
                 <button
                     type="button"
                     onClick={handleOpen}
                     disabled={disabled}
-                    className="w-full rounded-md border border-white/10 bg-white/5 px-2 py-2 text-sm text-left outline-none transition-colors hover:border-white/20 hover:bg-white/8 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-white/10 disabled:hover:bg-white/5"
+                    className={light
+                        ? "w-full rounded-md border border-slate-300 bg-white px-2 py-2 text-sm text-left outline-none transition-colors hover:border-slate-400 disabled:cursor-not-allowed disabled:opacity-50"
+                        : "w-full rounded-md border border-white/10 bg-white/5 px-2 py-2 text-sm text-left outline-none transition-colors hover:border-white/20 hover:bg-white/8 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-white/10 disabled:hover:bg-white/5"}
                 >
                     {value && selectedLabel
-                        ? <span className="text-white">{selectedLabel}</span>
-                        : <span className="text-slate-400">{placeholder}</span>
+                        ? <span className={light ? "text-slate-900" : "text-white"}>{selectedLabel}</span>
+                        : <span className={light ? "text-slate-400" : "text-slate-400"}>{placeholder}</span>
                     }
                 </button>
             )}
@@ -113,19 +120,21 @@ export function SearchableSelect({ value, onChange, options, placeholder, noResu
                 <div
                     ref={dropdownRef}
                     style={{ position: 'fixed', top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width, zIndex: 130000 }}
-                    className="max-h-52 overflow-y-auto rounded-xl border border-white/15 bg-slate-800 shadow-2xl"
+                    className={light
+                        ? "max-h-52 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-2xl"
+                        : "max-h-52 overflow-y-auto rounded-xl border border-white/15 bg-slate-800 shadow-2xl"}
                 >
                     {filtered.length === 0 && !loading ? (
-                        <div className="px-3 py-2 text-sm text-slate-400">{noResultsText}</div>
+                        <div className={`px-3 py-2 text-sm ${light ? 'text-slate-500' : 'text-slate-400'}`}>{noResultsText}</div>
                     ) : (
                         filtered.map(opt => (
                             <button
                                 key={opt.value}
                                 type="button"
                                 onPointerDown={() => handleSelect(opt.value)}
-                                className={`w-full px-3 py-2 text-left text-sm transition-colors hover:bg-white/10 ${
-                                    opt.value === value ? 'bg-indigo-500/10 font-semibold text-indigo-300' : 'text-white'
-                                }`}
+                                className={light
+                                    ? `w-full px-3 py-2 text-left text-sm transition-colors hover:bg-slate-100 ${opt.value === value ? 'bg-indigo-50 font-semibold text-indigo-700' : 'text-slate-900'}`
+                                    : `w-full px-3 py-2 text-left text-sm transition-colors hover:bg-white/10 ${opt.value === value ? 'bg-indigo-500/10 font-semibold text-indigo-300' : 'text-white'}`}
                             >
                                 {opt.label}
                             </button>

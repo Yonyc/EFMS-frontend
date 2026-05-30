@@ -13,6 +13,7 @@ import { useTranslation } from "react-i18next";
 import type { Route } from "./+types/root";
 import "./app.css";
 import Navbar from "./components/Navbar";
+import ApiHealthBanner from "./components/ApiHealthBanner";
 import i18n, { applyPostHydrationLanguage } from "./i18n";
 import { AuthProvider } from "./contexts/AuthContext";
 import { FarmProvider } from "./contexts/FarmContext";
@@ -68,6 +69,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <AuthProvider>
           <FarmProvider>
             <Navbar currentLocale={currentLocale} />
+            <ApiHealthBanner />
             {children}
           </FarmProvider>
         </AuthProvider>

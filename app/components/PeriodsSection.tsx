@@ -39,6 +39,11 @@ export default function PeriodsSection({ farmId }: { farmId: string | number | n
     const handleCreate = useCallback(async () => {
         if (!farmId) return;
         setError(null);
+        // <input type="date"> yields "" for an incomplete/invalid date; require both before sending.
+        if (!draft.startDate || !draft.endDate) {
+            setError(t('periods.errorDatesRequired', { defaultValue: 'Please enter a valid start and end date.' }));
+            return;
+        }
         try {
             const payload = {
                 name: draft.name || undefined,
@@ -58,9 +63,13 @@ export default function PeriodsSection({ farmId }: { farmId: string | number | n
     const handleUpdate = useCallback(async (periodId: number, next: PeriodDto) => {
         if (!farmId) return;
         setError(null);
+        const startInput = next.startDate ? next.startDate.slice(0, 10) : "";
+        const endInput = next.endDate ? next.endDate.slice(0, 10) : "";
+        if (!startInput || !endInput) {
+            setError(t('periods.errorDatesRequired', { defaultValue: 'Please enter a valid start and end date.' }));
+            return;
+        }
         try {
-            const startInput = next.startDate ? next.startDate.slice(0, 10) : "";
-            const endInput = next.endDate ? next.endDate.slice(0, 10) : "";
             const payload = {
                 name: next.name || undefined,
                 startDate: dateForApi(startInput),

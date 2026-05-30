@@ -263,7 +263,10 @@
     "close": "Close",
     "all": "All",
     "clear": "Clear",
-    "remove": "Remove"
+    "remove": "Remove",
+    "apiUnreachable": "Cannot reach the server. Please check your connection or try again later.",
+    "apiUnreachableTitle": "Server unavailable",
+    "retry": "Retry"
   },
   "farmSelector": {
     "noFarms": "No farms available",
@@ -619,7 +622,8 @@
     "empty": "No periods created yet.",
     "errorLoad": "Unable to load periods",
     "errorCreate": "Unable to create period",
-    "errorUpdate": "Unable to update period"
+    "errorUpdate": "Unable to update period",
+    "errorDatesRequired": "Please enter a valid start and end date."
   },
   "profile": {
     "title": "Profile",

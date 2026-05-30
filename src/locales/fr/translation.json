@@ -263,7 +263,10 @@
     "close": "Fermer",
     "all": "Tout",
     "clear": "Effacer",
-    "remove": "Retirer"
+    "remove": "Retirer",
+    "apiUnreachable": "Impossible de joindre le serveur. Vérifiez votre connexion ou réessayez plus tard.",
+    "apiUnreachableTitle": "Serveur indisponible",
+    "retry": "Réessayer"
   },
   "farmSelector": {
     "noFarms": "Aucune exploitation disponible",
@@ -619,7 +622,8 @@
     "empty": "Aucune période créée pour le moment.",
     "errorLoad": "Impossible de charger les périodes",
     "errorCreate": "Impossible de créer la période",
-    "errorUpdate": "Impossible de mettre à jour la période"
+    "errorUpdate": "Impossible de mettre à jour la période",
+    "errorDatesRequired": "Veuillez saisir une date de début et de fin valides."
   },
   "profile": {
     "title": "Profil",

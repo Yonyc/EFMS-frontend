@@ -729,7 +729,6 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
                         hasActiveSearchFilters={hasActiveSearchFilters}
                         onShareFilter={contextType === 'farm' && selectedFarm?.canManage ? sharing.handleQuickShareCurrentFilter : undefined}
                         shareFilterFeedback={sharing.quickShareFeedback}
-                        onListOperations={contextType === 'farm' && (hasActiveSearchFilters || displayPeriodIds.length > 0) ? () => setFilteredOpsOpen(true) : undefined}
                         disabled={isCreating || !!editingId}
                         t={t}
                     />
@@ -750,6 +749,19 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
                             setRestrictToFamily={setRestrictToFamily}
                             onRemoveLastHover={setHighlightLastPoint}
                         />
+                    )}
+                    {/* Standalone "list matching operations" button, shown under the filter toolbar
+                        when a filter/period yields a list worth exploring. Kept out of the filter form. */}
+                    {!isSearchOpen && contextType === 'farm' && (hasActiveSearchFilters || displayPeriodIds.length > 0) && (
+                        <button
+                            type="button"
+                            onClick={() => setFilteredOpsOpen(true)}
+                            disabled={isCreating || !!editingId}
+                            className="pointer-events-auto inline-flex items-center gap-1.5 rounded-xl border border-emerald-600 bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow-lg transition hover:bg-emerald-500 disabled:opacity-50"
+                        >
+                            <span aria-hidden>📋</span>
+                            {t('map.searchFilters.listOperations', { defaultValue: 'List matching operations' })}
+                        </button>
                     )}
                 </div>
             </div>

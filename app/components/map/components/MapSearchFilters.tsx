@@ -24,7 +24,6 @@ interface MapSearchFiltersProps {
     hasActiveSearchFilters: boolean;
     onShareFilter?: () => void;
     shareFilterFeedback?: string;
-    onListOperations?: () => void;
     disabled?: boolean;
     t: any;
 }
@@ -36,7 +35,7 @@ const MapSearchFilters = React.memo((props: MapSearchFiltersProps) => {
         tools, products, periods, operationTypes, shareFilterOptions, searchAreaCoords, isSearchDrawing,
         startSearchPolygon, cancelSearchPolygon, clearSearchPolygon,
         clearSearchFilters, applySearchFilters,
-        onShareFilter, shareFilterFeedback, onListOperations,
+        onShareFilter, shareFilterFeedback,
         disabled, t
     } = props;
 
@@ -239,22 +238,8 @@ const MapSearchFilters = React.memo((props: MapSearchFiltersProps) => {
                         </div>
                     </div>
 
-                    {onListOperations && (
-                        <div className="mt-4 border-t border-slate-200 pt-3">
-                            <button
-                                type="button"
-                                onClick={onListOperations}
-                                disabled={disabled}
-                                className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-100 disabled:opacity-50"
-                            >
-                                <span aria-hidden>📋</span>
-                                {t('map.searchFilters.listOperations', { defaultValue: 'List matching operations' })}
-                            </button>
-                        </div>
-                    )}
-
                     {onShareFilter && (
-                        <div className="mt-3 border-t border-slate-200 pt-3">
+                        <div className="mt-4 border-t border-slate-200 pt-3">
                             <button
                                 type="button"
                                 onClick={onShareFilter}
