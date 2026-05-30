@@ -7,12 +7,9 @@ import { apiDelete, apiGet, apiPut } from "~/utils/api";
 import UserSearchInput from "~/components/UserSearchInput";
 import { useDateTimeFormatter } from "~/utils/datetime";
 
-interface ParcelSummaryDto {
-    id: number;
-    name?: string;
-}
-
-interface ParcelShareDto {
+interface FarmParcelShareDto {
+    parcelId: number;
+    parcelName?: string;
     userId: number;
     username: string;
     role: string;
@@ -132,26 +129,17 @@ export default function FarmSharesPage() {
         setError(null);
         try {
             if (canManage) {
-                const parcelsRes = await apiGet(`/farm/${farmId}/parcels/all`);
-                if (!parcelsRes.ok) throw new Error("failed to load parcels");
-                const parcels: ParcelSummaryDto[] = await parcelsRes.json();
-
-                const shareRequests = parcels.map(async (parcel) => {
-                    const res = await apiGet(`/farm/${farmId}/parcels/${parcel.id}/shares`);
-                    if (!res.ok) return [] as ParcelShareRow[];
-                    const shares: ParcelShareDto[] = await res.json();
-                    return shares.map((share) => ({
-                        parcelId: parcel.id,
-                        parcelName: parcel.name || t("map.unnamedParcel", { defaultValue: "Unnamed Parcel" }),
-                        userId: share.userId,
-                        username: share.username,
-                        role: share.role,
-                        includeChildren: share.includeChildren ?? true,
-                    }));
-                });
-
-                const shareResults = await Promise.all(shareRequests);
-                setParcelShares(shareResults.flat());
+                const sharesRes = await apiGet(`/farm/${farmId}/parcel-shares`);
+                if (!sharesRes.ok) throw new Error("failed to load parcel shares");
+                const shares: FarmParcelShareDto[] = await sharesRes.json();
+                setParcelShares(shares.map((share) => ({
+                    parcelId: share.parcelId,
+                    parcelName: share.parcelName || t("map.unnamedParcel", { defaultValue: "Unnamed Parcel" }),
+                    userId: share.userId,
+                    username: share.username,
+                    role: share.role,
+                    includeChildren: share.includeChildren ?? true,
+                })));
 
                 const researchRes = await apiGet(`/farm/${farmId}/research-shares`);
                 if (!researchRes.ok) throw new Error("failed to load research shares");

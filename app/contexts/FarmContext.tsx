@@ -54,7 +54,9 @@ export function FarmProvider({ children }: { children: ReactNode }) {
   const fetchFarms = async (preferredFarmId?: string) => {
     if (!isAuthenticated) {
       setFarms([]);
-      setAndPersistSelectedFarm(null);
+      // Clear only the in-memory selection — keep the persisted id so a reload (where the token is
+      // restored a tick later) can still recover it. Login resets it explicitly.
+      setSelectedFarm(null);
       return [];
     }
 
@@ -74,7 +76,7 @@ export function FarmProvider({ children }: { children: ReactNode }) {
       setFarms(data);
 
       let preferredFarm = preferredFarmId
-        ? data.find((farm: Farm) => farm.id === preferredFarmId)
+        ? data.find((farm: Farm) => String(farm.id) === String(preferredFarmId))
         : undefined;
 
       if (!preferredFarm && preferredFarmId) {
@@ -90,7 +92,7 @@ export function FarmProvider({ children }: { children: ReactNode }) {
       }
 
       if (!preferredFarm && selectedFarm) {
-        const stillExists = data.find((f: Farm) => f.id === selectedFarm.id);
+        const stillExists = data.find((f: Farm) => String(f.id) === String(selectedFarm.id));
         if (!stillExists) {
             try {
                 const res = await apiGet(`/farm/${selectedFarm.id}`, { suppressUnauthorizedRedirect: true });
@@ -111,13 +113,13 @@ export function FarmProvider({ children }: { children: ReactNode }) {
         setAndPersistSelectedFarm(preferredFarm);
       } else if (!selectedFarm) {
         const defaultId = user?.defaultFarmId;
-        const fromDefault = defaultId ? data.find((f: Farm) => f.id === defaultId) : null;
+        const fromDefault = defaultId ? data.find((f: Farm) => String(f.id) === String(defaultId)) : null;
         if (fromDefault) setAndPersistSelectedFarm(fromDefault);
       } else {
-        const stillExists = data.find((f: Farm) => f.id === selectedFarm.id);
+        const stillExists = data.find((f: Farm) => String(f.id) === String(selectedFarm.id));
         if (!stillExists) {
           const defaultId = user?.defaultFarmId;
-          const fromDefault = defaultId ? data.find((f: Farm) => f.id === defaultId) : null;
+          const fromDefault = defaultId ? data.find((f: Farm) => String(f.id) === String(defaultId)) : null;
           setAndPersistSelectedFarm(fromDefault || null);
         }
       }
@@ -140,7 +142,9 @@ export function FarmProvider({ children }: { children: ReactNode }) {
       fetchFarms(stored || user?.defaultFarmId || undefined);
     } else {
       setFarms([]);
-      setAndPersistSelectedFarm(null);
+      // Don't wipe the persisted selectedFarmId here: on reload this branch runs once before the
+      // token is restored, and removing it would lose the user's farm. Only clear in-memory state.
+      setSelectedFarm(null);
     }
   }, [isAuthenticated, token, user?.defaultFarmId]);
 
