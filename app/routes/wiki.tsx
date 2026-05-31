@@ -79,38 +79,38 @@ export default function WikiPage() {
     const activeCategory = categories.find(c => c.id === activeTab) || categories[0];
 
     return (
-        <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-indigo-500/30 selection:text-indigo-200">
+        <div className="min-h-screen bg-slate-50 text-slate-800 font-sans selection:bg-indigo-500/20 selection:text-indigo-700">
             {/* Ambient Background Glows */}
-            <div className="absolute top-0 left-0 w-full h-[500px] bg-gradient-to-b from-indigo-950/20 to-transparent blur-3xl -z-10 pointer-events-none"></div>
+            <div className="absolute top-0 left-0 w-full h-[500px] bg-gradient-to-b from-indigo-100/40 to-transparent blur-3xl -z-10 pointer-events-none"></div>
 
             <div className="max-w-6xl mx-auto px-4 py-12 sm:px-6 lg:py-16">
 
                 {/* Header Section */}
-                <header className="relative overflow-hidden rounded-3xl border border-slate-800 bg-slate-900 p-8 sm:p-10 shadow-2xl mb-12 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-                    <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none"></div>
+                <header className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-8 sm:p-10 shadow-xl shadow-slate-200/60 mb-12 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                    <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-100/40 rounded-full blur-3xl pointer-events-none"></div>
                     <div className="space-y-3 max-w-2xl">
-                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-600 border border-indigo-200">
                             <BookOpenIcon className="w-4 h-4" />
                             {t("wiki:helpPortal", { defaultValue: "Help Portal" })}
                         </div>
-                        <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-100 tracking-tight">
+                        <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
                             {t("wiki:title", { defaultValue: "Wiki & User Documentation" })}
                         </h1>
-                        <p className="text-slate-400 text-sm sm:text-base">
+                        <p className="text-slate-500 text-sm sm:text-base">
                             {t("wiki:subtitle", { defaultValue: "Explore comprehensive guides covering every platform capability." })}
                         </p>
                     </div>
                     <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto shrink-0">
                         <Link
                             to={mapPath}
-                            className="inline-flex items-center justify-center rounded-xl bg-indigo-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 hover:bg-indigo-400 transition-all hover:-translate-y-0.5"
+                            className="inline-flex items-center justify-center rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 hover:bg-indigo-500 transition-all hover:-translate-y-0.5"
                         >
                             {t("wiki:openMap", { defaultValue: "Open Interactive Map" })}
                         </Link>
                         <button
                             type="button"
                             onClick={handleRestartTour}
-                            className="inline-flex items-center justify-center rounded-xl border border-slate-700 bg-slate-900/50 px-5 py-3 text-sm font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition-all"
+                            className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all"
                         >
                             {t("wiki:restartTour", { defaultValue: "Restart Interactive Tour" })}
                         </button>
@@ -121,8 +121,8 @@ export default function WikiPage() {
                 <div className="grid lg:grid-cols-[280px_1fr] gap-8 items-start">
 
                     {/* Categories Sidebar */}
-                    <aside className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-1.5 shadow-xl">
-                        <p className="text-xs font-bold text-slate-500 uppercase tracking-wider px-3 mb-3">
+                    <aside className="bg-white border border-slate-200 rounded-2xl p-4 space-y-1.5 shadow-sm">
+                        <p className="text-xs font-bold text-slate-400 uppercase tracking-wider px-3 mb-3">
                             {t("wiki:learningTopics", { defaultValue: "Learning Topics" })}
                         </p>
                         {categories.map((category) => {
@@ -134,11 +134,11 @@ export default function WikiPage() {
                                     type="button"
                                     onClick={() => setActiveTab(category.id)}
                                     className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left text-sm font-medium transition-all ${isActive
-                                        ? "bg-indigo-500/10 text-indigo-400 border border-indigo-500/20"
-                                        : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/30 border border-transparent"
+                                        ? "bg-indigo-50 text-indigo-700 border border-indigo-200"
+                                        : "text-slate-500 hover:text-slate-700 hover:bg-slate-50 border border-transparent"
                                         }`}
                                 >
-                                    <IconComponent className={`w-5 h-5 ${isActive ? "text-indigo-400" : "text-slate-500"}`} />
+                                    <IconComponent className={`w-5 h-5 ${isActive ? "text-indigo-600" : "text-slate-400"}`} />
                                     {category.title}
                                 </button>
                             );
@@ -149,15 +149,15 @@ export default function WikiPage() {
                     <main className="space-y-8">
 
                         {/* Topic Overview Card */}
-                        <section className="bg-slate-900 border border-slate-800 rounded-2xl p-6 sm:p-8 shadow-xl relative overflow-hidden">
-                            <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none"></div>
+                        <section className="bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 shadow-sm relative overflow-hidden">
+                            <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-50/60 rounded-full blur-3xl pointer-events-none"></div>
 
-                            <h2 className="text-2xl font-extrabold text-slate-100 flex items-center gap-3">
-                                <activeCategory.icon className="w-7 h-7 text-indigo-400" />
+                            <h2 className="text-2xl font-extrabold text-slate-900 flex items-center gap-3">
+                                <activeCategory.icon className="w-7 h-7 text-indigo-600" />
                                 {activeCategory.title}
                             </h2>
-                            <p className="text-sm text-indigo-400 mt-1 font-medium">{activeCategory.subtitle}</p>
-                            <p className="text-slate-400 text-sm sm:text-base leading-relaxed mt-4 pt-4 border-t border-slate-800">
+                            <p className="text-sm text-indigo-600 mt-1 font-medium">{activeCategory.subtitle}</p>
+                            <p className="text-slate-500 text-sm sm:text-base leading-relaxed mt-4 pt-4 border-t border-slate-100">
                                 {activeCategory.overview}
                             </p>
                         </section>
@@ -165,22 +165,22 @@ export default function WikiPage() {
                         {/* Step by Step Guide */}
                         {activeCategory.steps.length > 0 && (
                             <section className="space-y-4">
-                                <h3 className="text-lg font-bold text-slate-300 px-1">
+                                <h3 className="text-lg font-bold text-slate-700 px-1">
                                     {t("wiki:stepByStep", { defaultValue: "Step-by-Step Walkthrough" })}
                                 </h3>
                                 <div className="space-y-4">
                                     {activeCategory.steps.map((step, idx) => (
                                         <article
                                             key={idx}
-                                            className="bg-slate-900/60 border border-slate-800/80 hover:border-slate-800 rounded-xl p-5 sm:p-6 transition-all"
+                                            className="bg-white border border-slate-200 hover:border-slate-300 rounded-xl p-5 sm:p-6 transition-all shadow-sm"
                                         >
-                                            <h4 className="text-base font-bold text-indigo-300 flex items-center gap-3">
-                                                <span className="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-500/10 text-xs font-extrabold text-indigo-400 border border-indigo-500/20">
+                                            <h4 className="text-base font-bold text-indigo-700 flex items-center gap-3">
+                                                <span className="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-50 text-xs font-extrabold text-indigo-600 border border-indigo-200">
                                                     {idx + 1}
                                                 </span>
                                                 {step.title}
                                             </h4>
-                                            <p className="text-slate-400 text-sm mt-3 leading-relaxed pl-9">
+                                            <p className="text-slate-500 text-sm mt-3 leading-relaxed pl-9">
                                                 {step.content}
                                             </p>
                                         </article>
@@ -194,15 +194,15 @@ export default function WikiPage() {
 
                             {/* Pro Tips Panel */}
                             {activeCategory.tips.length > 0 && (
-                                <section className="bg-emerald-950/15 border border-emerald-500/20 rounded-2xl p-6">
-                                    <h4 className="text-sm font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-2 mb-4">
+                                <section className="bg-emerald-50 border border-emerald-200 rounded-2xl p-6">
+                                    <h4 className="text-sm font-bold uppercase tracking-wider text-emerald-700 flex items-center gap-2 mb-4">
                                         <LightBulbIcon className="w-5 h-5" />
                                         {t("wiki:tips", { defaultValue: "Tips" })}
                                     </h4>
                                     <ul className="space-y-3">
                                         {activeCategory.tips.map((tip, idx) => (
-                                            <li key={idx} className="flex gap-3 text-sm text-emerald-300/90 leading-relaxed">
-                                                <span className="text-emerald-500 shrink-0 font-bold">•</span>
+                                            <li key={idx} className="flex gap-3 text-sm text-emerald-800 leading-relaxed">
+                                                <span className="text-emerald-600 shrink-0 font-bold">•</span>
                                                 <span>{tip}</span>
                                             </li>
                                         ))}
@@ -212,18 +212,18 @@ export default function WikiPage() {
 
                             {/* Keyboard Shortcuts Panel */}
                             {shortcuts.length > 0 && (
-                                <section className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
-                                    <h4 className="text-sm font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2 mb-4">
-                                        <CommandLineIcon className="w-5 h-5 text-indigo-400" />
+                                <section className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+                                    <h4 className="text-sm font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2 mb-4">
+                                        <CommandLineIcon className="w-5 h-5 text-indigo-600" />
                                         {t("wiki:keyboardShortcuts", { defaultValue: "Keyboard Shortcuts" })}
                                     </h4>
                                     <ul className="space-y-3">
                                         {shortcuts.map((shortcut) => (
-                                            <li key={shortcut.keys} className="flex items-center justify-between text-sm py-1.5 border-b border-slate-800/50 last:border-0">
-                                                <kbd className="px-2.5 py-1 rounded bg-slate-950 border border-slate-800 text-indigo-400 font-mono text-xs font-semibold shadow-inner">
+                                            <li key={shortcut.keys} className="flex items-center justify-between text-sm py-1.5 border-b border-slate-100 last:border-0">
+                                                <kbd className="px-2.5 py-1 rounded bg-slate-100 border border-slate-200 text-indigo-600 font-mono text-xs font-semibold">
                                                     {shortcut.keys}
                                                 </kbd>
-                                                <span className="text-slate-400 text-xs text-right ml-4">
+                                                <span className="text-slate-500 text-xs text-right ml-4">
                                                     {shortcut.description}
                                                 </span>
                                             </li>
