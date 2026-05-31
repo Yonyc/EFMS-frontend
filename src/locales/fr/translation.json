@@ -506,11 +506,14 @@
     "matchingCount": "{{count}} opération(s)",
     "matchingEmpty": "Aucune opération ne correspond au filtre actuel.",
     "export": {
+      "label": "Exporter",
+      "periodHint": "Exporter les opérations de cette période",
       "excel": "Excel",
       "pdf": "PDF",
       "generating": "Génération…",
       "error": "Échec de l'export",
       "title": "Rapport d'opérations",
+      "parcelTitle": "Rapport d'opérations de la parcelle",
       "sheetName": "Opérations",
       "generatedAt": "Généré le {{date}}",
       "colDate": "Date",
@@ -525,7 +528,11 @@
       "sumProducts": "Produits : {{count}}",
       "sumMapArea": "Zone de la carte",
       "sumPolygon": "Zone dessinée",
-      "sumNoFilter": "Aucun filtre (toutes les opérations)"
+      "sumNoFilter": "Aucun filtre (toutes les opérations)",
+      "sumParcel": "Parcelle : {{name}}",
+      "sumSubparcels": "+{{count}} sous-parcelle(s)",
+      "sumPeriodName": "Période : {{name}}",
+      "sumAllPeriods": "Toutes les périodes"
     }
   },
   "assets": {
@@ -782,6 +789,8 @@
       "defaultColor": "Défaut (culture)",
       "defaultColorHint": "Utiliser la couleur du type de culture",
       "defaultColorNone": "Aucune couleur de type de culture définie",
+      "customColor": "Personnalisée",
+      "customColorHint": "Choisir une couleur personnalisée",
       "shareTitle": "Partage",
       "shareHint": "Partagez cette parcelle avec un autre utilisateur ou via un lien de recherche."
     },
@@ -971,20 +980,7 @@
       "requireFarmApprovalDesc": "Les nouvelles exploitations créées par les utilisateurs doivent être approuvées par un administrateur avant d'être pleinement actives et publiques.",
       "saveBtn": "Enregistrer les préférences",
       "savingBtn": "Enregistrement...",
-      "loading": "Chargement des paramètres...",
-      "phytoTitle": "Import du catalogue PHYTO",
-      "phytoSubtitle": "Importez les produits officiels depuis un fichier JSON PHYTO_DB.",
-      "phytoFileLabel": "Chemin du fichier JSON",
-      "phytoFilePlaceholder": "/chemin/vers/PHYTO_DB/2026_05_01_FULL_1.json",
-      "phytoFileHint": "Utilisez un chemin absolu sur le serveur où EFMS s'exécute.",
-      "phytoVersionLabel": "Tag de version (optionnel)",
-      "phytoVersionPlaceholder": "ex : 2026-05-01 FULL",
-      "phytoPathRequired": "Le chemin du fichier est obligatoire.",
-      "phytoImportError": "Échec de l'import PHYTO.",
-      "phytoImportSuccess": "Import terminé.",
-      "phytoImportSummary": "Total {{total}} · Créés {{created}} · Mis à jour {{updated}} · Ignorés {{skipped}}",
-      "phytoImporting": "Import en cours...",
-      "phytoImportBtn": "Importer le fichier PHYTO"
+      "loading": "Chargement des paramètres..."
     },
     "users": {
       "title": "Utilisateurs",

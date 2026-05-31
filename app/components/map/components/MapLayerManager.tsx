@@ -93,16 +93,16 @@ const midpointIcon = L.divIcon({
 const MIDPOINT_Z_INDEX = 200000;
 const VERTEX_Z_INDEX = 300000;
 
-const ZIndexEnforcer = ({ polygons, polygonLayersRef, editingId }: { polygons: PolygonData[], polygonLayersRef: React.MutableRefObject<Map<string, L.Polygon>>, editingId: string | null }) => {
+const ZIndexEnforcer = ({ polygons, polygonLayersRef, editingId, selectedId }: { polygons: PolygonData[], polygonLayersRef: React.MutableRefObject<Map<string, L.Polygon>>, editingId: string | null, selectedId: string | null }) => {
     const map = useMap();
-    
+
     const signature = useMemo(() => {
-        const parts: string[] = [editingId || ''];
+        const parts: string[] = [editingId || '', selectedId || ''];
         for (const p of polygons) {
-            if (p.parentId && p.visible) parts.push(`${p.id}|${p.parentId}`);
+            if (p.visible) parts.push(`${p.id}|${p.parentId ?? ''}|${p.version}`);
         }
         return parts.join('#');
-    }, [polygons, editingId]);
+    }, [polygons, editingId, selectedId]);
 
     useEffect(() => {
         if (!map) return;
@@ -510,6 +510,24 @@ function MapLayerManagerImpl({
         };
     }, [selectedId, polygonLayersRef, polygons]);
 
+    // react-leaflet freezes a Polygon's `interactive` option at layer-creation time and never
+    // updates it (core only re-applies pathOptions via setStyle). So a polygon that mounts while
+    // a create/edit is in progress (interactive=false) stays unclickable until a full reload.
+    // Re-sync the live layers' interactivity whenever the global create/edit state changes — and
+    // when the polygon set changes, so freshly-added layers adopt the current state too.
+    // For the SVG renderer, toggling the `leaflet-interactive` class flips pointer-events (the
+    // target is already registered in map._targets), which is all clickability depends on.
+    useEffect(() => {
+        const interactive = !editingId && !isCreating;
+        polygonLayersRef.current.forEach((layer) => {
+            const opts = layer.options as { interactive?: boolean };
+            if (opts.interactive === interactive) return;
+            opts.interactive = interactive;
+            const el = layer.getElement();
+            if (el) el.classList.toggle('leaflet-interactive', interactive);
+        });
+    }, [editingId, isCreating, polygons, polygonLayersRef]);
+
     const tileLayer = TILE_LAYERS[baseLayer];
 
     return (
@@ -530,7 +548,7 @@ function MapLayerManagerImpl({
             />
             <ZoomControl position="bottomright" />
             <MapEvents propsRef={mapEventsPropsRef} viewportDebounceRef={viewportDebounceRef} mapInstanceRef={mapInstanceRef} />
-            <ZIndexEnforcer polygons={polygons} polygonLayersRef={polygonLayersRef} editingId={editingId} />
+            <ZIndexEnforcer polygons={polygons} polygonLayersRef={polygonLayersRef} editingId={editingId} selectedId={selectedId} />
             <ParcelPatternDefs polygons={polygons} />
 
             <FeatureGroup ref={featureGroupRef}>
@@ -548,7 +566,11 @@ function MapLayerManagerImpl({
                         const strokeColor = strokeColorFor(effColor);
                         const polyColor = effColor;
                         const showPermanentTooltip = isSelected;
-                        const polygonKey = `${poly.id}-${poly.version}`;
+                        // react-leaflet bakes the Tooltip `permanent` option in at creation and never
+                        // re-applies it, so toggling selection alone can't flip a name between
+                        // hover-only and always-on. Fold it into the key so the affected polygon
+                        // remounts with a freshly-bound tooltip (mirrors what a page reload does).
+                        const polygonKey = `${poly.id}-${poly.version}-${showPermanentTooltip ? 'sel' : 'unsel'}`;
 
                         let displayCoords = poly.coords;
                         if (editingId === String(poly.parentId) && ghostCoords && ghostCoords.length >= 3) {

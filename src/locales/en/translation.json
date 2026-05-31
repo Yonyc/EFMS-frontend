@@ -506,11 +506,14 @@
     "matchingCount": "{{count}} operation(s)",
     "matchingEmpty": "No operations match the current filter.",
     "export": {
+      "label": "Export",
+      "periodHint": "Export this period's operations",
       "excel": "Excel",
       "pdf": "PDF",
       "generating": "Generating…",
       "error": "Export failed",
       "title": "Operations report",
+      "parcelTitle": "Parcel operations report",
       "sheetName": "Operations",
       "generatedAt": "Generated on {{date}}",
       "colDate": "Date",
@@ -525,7 +528,11 @@
       "sumProducts": "Products: {{count}}",
       "sumMapArea": "Map area",
       "sumPolygon": "Drawn area",
-      "sumNoFilter": "No filter (all operations)"
+      "sumNoFilter": "No filter (all operations)",
+      "sumParcel": "Parcel: {{name}}",
+      "sumSubparcels": "+{{count}} subparcel(s)",
+      "sumPeriodName": "Period: {{name}}",
+      "sumAllPeriods": "All periods"
     }
   },
   "assets": {
@@ -782,6 +789,8 @@
       "defaultColor": "Default (culture)",
       "defaultColorHint": "Use the culture type colour",
       "defaultColorNone": "No culture-type colour defined yet",
+      "customColor": "Custom",
+      "customColorHint": "Pick a custom colour",
       "shareTitle": "Sharing",
       "shareHint": "Share this parcel with another user or via a research link."
     },
@@ -974,20 +983,7 @@
       "requireFarmApprovalDesc": "New farms created by users must be approved by an admin before they are fully active and public.",
       "saveBtn": "Save Preferences",
       "savingBtn": "Saving...",
-      "loading": "Loading settings...",
-      "phytoTitle": "PHYTO catalog import",
-      "phytoSubtitle": "Import official products from a PHYTO_DB JSON file.",
-      "phytoFileLabel": "JSON file path",
-      "phytoFilePlaceholder": "/path/to/PHYTO_DB/2026_05_01_FULL_1.json",
-      "phytoFileHint": "Use an absolute path on the server where EFMS is running.",
-      "phytoVersionLabel": "Version tag (optional)",
-      "phytoVersionPlaceholder": "e.g., 2026-05-01 FULL",
-      "phytoPathRequired": "File path is required.",
-      "phytoImportError": "Failed to import PHYTO file.",
-      "phytoImportSuccess": "Import completed.",
-      "phytoImportSummary": "Total {{total}} · Created {{created}} · Updated {{updated}} · Skipped {{skipped}}",
-      "phytoImporting": "Importing...",
-      "phytoImportBtn": "Import PHYTO file"
+      "loading": "Loading settings..."
     },
     "users": {
       "title": "Users",

@@ -97,11 +97,12 @@ const MapModals = React.memo((props: MapModalsProps) => {
             {/* Parcel sharing now lives inside the manage-parcel modal (ParcelSharePanel). */}
 {filterShareModalOpen && typeof document !== 'undefined' && createPortal((
                     <div className="pointer-events-auto fixed inset-0 z-[6500] flex items-center justify-center bg-slate-950/60 p-4">
-                        <div className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-2xl border border-white/10 bg-slate-900/95 p-6 shadow-2xl shadow-black/40">
+                        <div className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl shadow-slate-900/10">
                             <div className="flex items-start justify-between">
                                 <div>
-                                    <h3 className="text-lg font-semibold text-white">Share Current Filter</h3>
-                                    <p className="text-sm text-slate-300">
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-indigo-600">Share</p>
+                                    <h3 className="text-lg font-semibold text-slate-900">Share Current Filter</h3>
+                                    <p className="text-sm text-slate-500">
                                         Define permissions, user limits, and optional time window before generating the share.
                                     </p>
                                 </div>
@@ -111,7 +112,7 @@ const MapModals = React.memo((props: MapModalsProps) => {
                                         setFilterShareModalOpen(false);
                                         setFilterShareZoneWkt(null);
                                     }}
-                                    className="rounded-full p-1 text-slate-400 hover:bg-slate-800 hover:text-white"
+                                    className="rounded-full p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
                                     aria-label="Close"
                                 >
                                     <XMarkIcon className="h-5 w-5" />
@@ -119,36 +120,36 @@ const MapModals = React.memo((props: MapModalsProps) => {
                             </div>
 
                             <form className="mt-4 grid gap-2" onSubmit={handleCreateFilterResearchShare}>
-                                <div className="grid grid-cols-2 gap-2 rounded-lg border border-white/10 bg-slate-950/40 p-1">
+                                <div className="grid grid-cols-2 gap-2 rounded-lg border border-slate-200 bg-slate-100 p-1">
                                     <button
                                         type="button"
                                         onClick={() => setResearchShareMode('direct')}
-                                        className={`rounded-md px-3 py-2 text-xs font-semibold transition ${researchShareMode === 'direct' ? 'bg-indigo-500 text-white' : 'text-slate-300 hover:bg-white/5'}`}
+                                        className={`rounded-md px-3 py-2 text-xs font-semibold transition ${researchShareMode === 'direct' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 hover:bg-white'}`}
                                     >
                                         Share directly to user(s)
                                     </button>
                                     <button
                                         type="button"
                                         onClick={() => setResearchShareMode('link')}
-                                        className={`rounded-md px-3 py-2 text-xs font-semibold transition ${researchShareMode === 'link' ? 'bg-indigo-500 text-white' : 'text-slate-300 hover:bg-white/5'}`}
+                                        className={`rounded-md px-3 py-2 text-xs font-semibold transition ${researchShareMode === 'link' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 hover:bg-white'}`}
                                     >
                                         Create link with user limit
                                     </button>
                                 </div>
 
                                 {researchShareMode === 'direct' ? (
-                                    <label className="text-xs text-slate-300">
+                                    <label className="text-xs text-slate-600">
                                         Usernames (comma or new line separated)
                                         <UserSearchInput
                                             value={researchShareUsername}
                                             onChange={setResearchShareUsername}
                                             placeholder="alice, bob"
-                                            className="mt-1 w-full rounded-lg border border-white/15 bg-slate-900/70 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:border-indigo-400 focus:outline-none"
+                                            className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none"
                                             multiple={true}
                                         />
                                     </label>
                                 ) : (
-                                    <label className="text-xs text-slate-300">
+                                    <label className="text-xs text-slate-600">
                                         Maximum number of users for this link
                                         <input
                                             type="number"
@@ -156,7 +157,7 @@ const MapModals = React.memo((props: MapModalsProps) => {
                                             value={researchShareMaxUsers}
                                             onChange={(event) => setResearchShareMaxUsers(event.target.value)}
                                             placeholder="Unlimited"
-                                            className="mt-1 w-full rounded-lg border border-white/15 bg-slate-900/70 px-3 py-2 text-xs text-white placeholder:text-slate-500 focus:border-indigo-400 focus:outline-none"
+                                            className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none"
                                         />
                                     </label>
                                 )}
@@ -193,43 +194,43 @@ const MapModals = React.memo((props: MapModalsProps) => {
                                 </div>
 
                                 <div className="grid gap-2 sm:grid-cols-2">
-                                    <label className="text-xs text-slate-300">
+                                    <label className="text-xs text-slate-600">
                                         Filter start date
                                         <input
                                             type="date"
                                             value={researchShareFilterStartDate}
                                             onChange={(event) => setResearchShareFilterStartDate(event.target.value)}
-                                            className="mt-1 w-full rounded-lg border border-white/15 bg-slate-900/70 px-3 py-2 text-xs text-white focus:border-indigo-400 focus:outline-none"
+                                            className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 focus:border-indigo-500 focus:outline-none"
                                         />
                                     </label>
-                                    <label className="text-xs text-slate-300">
+                                    <label className="text-xs text-slate-600">
                                         Filter end date
                                         <input
                                             type="date"
                                             value={researchShareFilterEndDate}
                                             onChange={(event) => setResearchShareFilterEndDate(event.target.value)}
-                                            className="mt-1 w-full rounded-lg border border-white/15 bg-slate-900/70 px-3 py-2 text-xs text-white focus:border-indigo-400 focus:outline-none"
+                                            className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 focus:border-indigo-500 focus:outline-none"
                                         />
                                     </label>
                                 </div>
 
                                 <div className="grid gap-2 sm:grid-cols-2">
-                                    <label className="text-xs text-slate-300">
+                                    <label className="text-xs text-slate-600">
                                         Share starts at
                                         <input
                                             type="datetime-local"
                                             value={researchShareStartAt}
                                             onChange={(event) => setResearchShareStartAt(event.target.value)}
-                                            className="mt-1 w-full rounded-lg border border-white/15 bg-slate-900/70 px-3 py-2 text-xs text-white focus:border-indigo-400 focus:outline-none"
+                                            className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 focus:border-indigo-500 focus:outline-none"
                                         />
                                     </label>
-                                    <label className="text-xs text-slate-300">
+                                    <label className="text-xs text-slate-600">
                                         Share ends at
                                         <input
                                             type="datetime-local"
                                             value={researchShareEndAt}
                                             onChange={(event) => setResearchShareEndAt(event.target.value)}
-                                            className="mt-1 w-full rounded-lg border border-white/15 bg-slate-900/70 px-3 py-2 text-xs text-white focus:border-indigo-400 focus:outline-none"
+                                            className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 focus:border-indigo-500 focus:outline-none"
                                         />
                                     </label>
                                 </div>
@@ -241,14 +242,14 @@ const MapModals = React.memo((props: MapModalsProps) => {
                                             setFilterShareModalOpen(false);
                                             setFilterShareZoneWkt(null);
                                         }}
-                                        className="rounded-lg border border-white/15 px-4 py-2 text-sm font-medium text-white hover:bg-white/10"
+                                        className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
                                     >
                                         Cancel
                                     </button>
                                     <button
                                         type="submit"
                                         disabled={researchShareLoading}
-                                        className="rounded-lg bg-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-teal-500/25 hover:bg-teal-400 disabled:cursor-not-allowed disabled:opacity-60"
+                                        className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-indigo-600/20 transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-60"
                                     >
                                         {researchShareLoading ? 'Creating...' : (researchShareMode === 'direct' ? 'Create Direct Share' : 'Create Limited Link')}
                                     </button>
@@ -256,14 +257,14 @@ const MapModals = React.memo((props: MapModalsProps) => {
                             </form>
 
                             {researchShareFeedback && (
-                                <div className="mt-2 rounded-lg border border-cyan-500/40 bg-cyan-500/10 px-3 py-2 text-xs text-cyan-100 break-all">
+                                <div className="mt-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700 break-all">
                                     {researchShareFeedback}
                                 </div>
                             )}
 
                             {quickShareLink && (
-                                <div className="mt-2 flex items-center gap-2 rounded-lg border border-indigo-500/30 bg-indigo-500/10 px-3 py-2">
-                                    <p className="flex-1 text-xs text-indigo-100 break-all">{quickShareLink}</p>
+                                <div className="mt-2 flex items-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2">
+                                    <p className="flex-1 text-xs text-indigo-700 break-all">{quickShareLink}</p>
                                     <button
                                         type="button"
                                         onClick={async () => {
@@ -271,7 +272,7 @@ const MapModals = React.memo((props: MapModalsProps) => {
                                             const copied = true;
                                             setResearchShareFeedback(copied ? 'Link copied to clipboard.' : 'Unable to copy the link.');
                                         }}
-                                        className="rounded-lg border border-indigo-400/40 bg-indigo-500/10 px-2 py-1 text-xs font-semibold text-indigo-100 hover:bg-indigo-500/20"
+                                        className="rounded-lg border border-indigo-300 bg-white px-2 py-1 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-50"
                                     >
                                         Copy
                                     </button>

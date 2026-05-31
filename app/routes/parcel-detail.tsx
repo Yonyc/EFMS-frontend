@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router";
 import { useTranslation } from "react-i18next";
 import ProtectedRoute from "~/components/ProtectedRoute";
@@ -6,14 +6,18 @@ import { apiGet } from "~/utils/api";
 import { buildLocalizedPath } from "~/utils/locale";
 import { useCurrentLocale } from "~/hooks/useCurrentLocale";
 import { useFarm } from "~/contexts/FarmContext";
+import { useDateTimeFormatter } from "~/utils/datetime";
 import ParcelPeriodManager from "~/components/map/components/ParcelPeriodManager";
 import { PeriodPicker } from "~/components/map/components/PeriodPicker";
+import { exportParcelPeriodOperations } from "~/components/map/utils/operationsExport";
 import type { ParcelPeriodInfo, PeriodDto } from "~/components/map/types";
 
 interface ParcelDetail {
     id: number;
     name: string | null;
     color: string | null;
+    cultureColor: string | null;
+    geodata: string | null;
     farmId: number | null;
     parentParcelId: number | null;
     status: string | null;
@@ -55,6 +59,7 @@ export default function ParcelDetailPage() {
     const { t } = useTranslation();
     const locale = useCurrentLocale();
     const { selectedFarm } = useFarm();
+    const { formatDateTime } = useDateTimeFormatter();
     const { parcelId } = useParams<{ parcelId: string }>();
     const [parcel, setParcel] = useState<ParcelDetail | null>(null);
     const [loading, setLoading] = useState(false);
@@ -62,6 +67,10 @@ export default function ParcelDetailPage() {
     const [selectedPeriodId, setSelectedPeriodId] = useState<string>('');
     const [managing, setManaging] = useState(false);
     const [refreshNonce, setRefreshNonce] = useState(0);
+    const [exporting, setExporting] = useState<"excel" | "pdf" | null>(null);
+    const [exportError, setExportError] = useState<string | null>(null);
+    // auto-pick a period only on first load; afterwards '' is a deliberate "All periods" choice
+    const didAutoSelectPeriod = useRef(false);
 
     useEffect(() => {
         if (!parcelId) return;
@@ -80,9 +89,11 @@ export default function ParcelDetailPage() {
     }, [parcelId, t, refreshNonce]);
 
     useEffect(() => {
-        if (selectedPeriodId !== '') return;
+        if (didAutoSelectPeriod.current) return;
+        if (selectedPeriodId !== '') { didAutoSelectPeriod.current = true; return; }
         const pps = parcel?.parcelPeriods ?? [];
         if (pps.length === 0) return;
+        didAutoSelectPeriod.current = true;
         const preferredId = selectedFarm?.defaultPeriodId != null ? String(selectedFarm.defaultPeriodId) : null;
         const preferred = preferredId && pps.find(pp => String(pp.periodId) === preferredId);
         if (preferred) { setSelectedPeriodId(String(preferred.periodId)); return; }
@@ -108,6 +119,29 @@ export default function ParcelDetailPage() {
         const pps = parcel?.parcelPeriods ?? [];
         return pps.map(pp => ({ id: pp.periodId, name: pp.periodName ?? `#${pp.periodId}`, startDate: pp.startValidity ?? undefined }));
     }, [parcel]);
+
+    const handleExport = async (kind: "excel" | "pdf") => {
+        if (!parcel || parcel.farmId == null || exporting) return;
+        setExporting(kind);
+        setExportError(null);
+        try {
+            await exportParcelPeriodOperations({
+                kind,
+                farmId: parcel.farmId,
+                parcelId: String(parcel.id),
+                parcelName: parcel.sourceName || parcel.name || `#${parcel.id}`,
+                periodId: selectedPeriodId || null,
+                periodName: activePeriod?.periodName ?? null,
+                t,
+                formatDate: formatDateTime,
+                fallbackRoot: { id: String(parcel.id), name: parcel.name ?? `#${parcel.id}`, geodata: parcel.geodata, color: parcel.color, cultureColor: parcel.cultureColor },
+            });
+        } catch {
+            setExportError(t("operations.export.error", { defaultValue: "Export failed" }));
+        } finally {
+            setExporting(null);
+        }
+    };
 
     return (
         <ProtectedRoute>
@@ -191,12 +225,41 @@ export default function ParcelDetailPage() {
                                                 periods={periodOptions}
                                                 value={selectedPeriodId}
                                                 onChange={setSelectedPeriodId}
-                                                includeAll={false}
+                                                includeAll={true}
                                                 size="compact"
                                             />
                                         </div>
                                     )}
+                                    {parcel.farmId && (
+                                        <>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleExport('excel')}
+                                                disabled={exporting !== null}
+                                                className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-50"
+                                            >
+                                                <span aria-hidden>⬇</span>
+                                                {exporting === 'excel'
+                                                    ? t('operations.export.generating', { defaultValue: 'Generating…' })
+                                                    : t('operations.export.excel', { defaultValue: 'Excel' })}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleExport('pdf')}
+                                                disabled={exporting !== null}
+                                                className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-50"
+                                            >
+                                                <span aria-hidden>⬇</span>
+                                                {exporting === 'pdf'
+                                                    ? t('operations.export.generating', { defaultValue: 'Generating…' })
+                                                    : t('operations.export.pdf', { defaultValue: 'PDF' })}
+                                            </button>
+                                        </>
+                                    )}
                                 </div>
+                                {exportError && (
+                                    <p className="mt-2 text-xs text-rose-600">{exportError}</p>
+                                )}
                             </div>
 
                             {/* Identity */}

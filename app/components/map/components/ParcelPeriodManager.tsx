@@ -1,7 +1,9 @@
-import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { apiDelete, apiGet, apiPatch, apiPost } from "~/utils/api";
+import { useDateTimeFormatter } from "~/utils/datetime";
 import type { ParcelPeriodInfo, PeriodDto } from "../types";
+import { exportParcelPeriodOperations } from "../utils/operationsExport";
 import ParcelSharePanel, { type ParcelShareData } from "./ParcelSharePanel";
 
 interface ParcelPeriodManagerProps {
@@ -26,8 +28,6 @@ interface ParcelPeriodManagerProps {
     
     share?: ParcelShareData;
 }
-
-const COLOR_PALETTE = ['#3388ff', '#ff6b6b', '#4ecdc4', '#ffe66d', '#a8e6cf', '#ff8b94', '#b4a7d6', '#ffa07a'];
 
 interface DraftFields {
     cultureCode: string;
@@ -141,6 +141,29 @@ function Collapsible({ title, badge, defaultOpen = false, children }: {
 export default function ParcelPeriodManager(props: ParcelPeriodManagerProps) {
     const { parcelId, parcelName, farmId, parcelPeriods, onClose, onChanged, currentColor, customColor, cultureColor, onColorChange, onRename, share } = props;
     const { t } = useTranslation();
+    const { formatDateTime } = useDateTimeFormatter();
+
+    const [exportingKey, setExportingKey] = useState<string | null>(null);
+    const handleExportPeriod = useCallback(async (pp: ParcelPeriodInfo, kind: "excel" | "pdf") => {
+        if (exportingKey) return;
+        setExportingKey(`${pp.id}-${kind}`);
+        try {
+            await exportParcelPeriodOperations({
+                kind,
+                farmId,
+                parcelId: String(parcelId),
+                parcelName,
+                periodId: pp.periodId != null ? String(pp.periodId) : null,
+                periodName: pp.periodName ?? null,
+                t,
+                formatDate: formatDateTime,
+            });
+        } catch {
+            setError(t("operations.export.error", { defaultValue: "Export failed" }));
+        } finally {
+            setExportingKey(null);
+        }
+    }, [exportingKey, farmId, parcelId, parcelName, t, formatDateTime]);
 
     const [availablePeriods, setAvailablePeriods] = useState<PeriodDto[]>([]);
     const [drafts, setDrafts] = useState<Record<number, DraftFields>>({});
@@ -153,6 +176,16 @@ export default function ParcelPeriodManager(props: ParcelPeriodManagerProps) {
     
     
     const [localPeriods, setLocalPeriods] = useState<ParcelPeriodInfo[]>(parcelPeriods);
+
+    const [manualColor, setManualColor] = useState<string>(customColor || cultureColor || '#3388ff');
+    const colorCommitRef = useRef<number | null>(null);
+    useEffect(() => { setManualColor(customColor || cultureColor || '#3388ff'); }, [customColor, cultureColor]);
+    useEffect(() => () => { if (colorCommitRef.current) window.clearTimeout(colorCommitRef.current); }, []);
+    const commitColorDebounced = useCallback((value: string) => {
+        setManualColor(value);
+        if (colorCommitRef.current) window.clearTimeout(colorCommitRef.current);
+        colorCommitRef.current = window.setTimeout(() => { onColorChange?.(value); }, 250);
+    }, [onColorChange]);
 
     useEffect(() => { setNameDraft(parcelName); }, [parcelName]);
     useEffect(() => { setLocalPeriods(parcelPeriods); }, [parcelPeriods]);
@@ -295,44 +328,43 @@ export default function ParcelPeriodManager(props: ParcelPeriodManagerProps) {
                                     </div>
                                 </div>
                             )}
-                            {onColorChange && (
-                                <>
-                                    <div className="text-xs font-medium text-slate-600">{t('map.polygonMenu.color', { defaultValue: 'Colour' })}</div>
-                                    <div className="mt-2 flex flex-wrap items-center gap-2">
-                                        {/* Default = inherit the culture-type colour. Selecting it clears the parcel's own colour. */}
-                                        {(() => {
-                                            const isDefault = customColor == null || customColor === '';
-                                            const swatch = cultureColor || '#cbd5e1';
-                                            return (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => onColorChange('')}
-                                                    className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-1 text-[11px] font-semibold transition hover:bg-slate-50 ${isDefault ? 'border-indigo-400 ring-2 ring-indigo-200 text-indigo-700' : 'border-slate-300 text-slate-600'}`}
-                                                    title={cultureColor
-                                                        ? t('map.parcelManager.defaultColorHint', { defaultValue: 'Use the culture type colour' })
-                                                        : t('map.parcelManager.defaultColorNone', { defaultValue: 'No culture-type colour defined yet' })}
-                                                >
-                                                    <span className="h-4 w-4 rounded-full border border-white shadow" style={{ background: swatch }} aria-hidden />
-                                                    {t('map.parcelManager.defaultColor', { defaultValue: 'Default (culture)' })}
-                                                </button>
-                                            );
-                                        })()}
-                                        {COLOR_PALETTE.map(color => {
-                                            const isCurrent = (customColor || '').toLowerCase() === color.toLowerCase();
-                                            return (
-                                                <button
-                                                    key={color}
-                                                    type="button"
-                                                    onClick={() => onColorChange(color)}
-                                                    className={`h-7 w-7 rounded-full border-2 border-white shadow-md transition hover:scale-110 ${isCurrent ? 'ring-2 ring-indigo-400' : ''}`}
-                                                    style={{ background: color }}
-                                                    aria-label={color}
+                            {onColorChange && (() => {
+                                const isDefault = customColor == null || customColor === '';
+                                const defaultSwatch = cultureColor || '#3388ff';
+                                return (
+                                    <>
+                                        <div className="text-xs font-medium text-slate-600">{t('map.polygonMenu.color', { defaultValue: 'Colour' })}</div>
+                                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                                            {/* Default = follow the culture colour (blue fallback). Selecting it clears the parcel's own colour. */}
+                                            <button
+                                                type="button"
+                                                onClick={() => onColorChange('')}
+                                                className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-1 text-[11px] font-semibold transition hover:bg-slate-50 ${isDefault ? 'border-indigo-400 ring-2 ring-indigo-200 text-indigo-700' : 'border-slate-300 text-slate-600'}`}
+                                                title={cultureColor
+                                                    ? t('map.parcelManager.defaultColorHint', { defaultValue: 'Use the culture type colour' })
+                                                    : t('map.parcelManager.defaultColorNone', { defaultValue: 'No culture colour set — defaults to blue' })}
+                                            >
+                                                <span className="h-4 w-4 rounded-full border border-white shadow" style={{ background: defaultSwatch }} aria-hidden />
+                                                {t('map.parcelManager.defaultColor', { defaultValue: 'Default (culture)' })}
+                                            </button>
+                                            {/* Free-form picker for any colour by hand. */}
+                                            <label
+                                                className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-1 text-[11px] font-semibold transition hover:bg-slate-50 ${!isDefault ? 'border-indigo-400 ring-2 ring-indigo-200 text-indigo-700' : 'border-slate-300 text-slate-600'}`}
+                                                title={t('map.parcelManager.customColorHint', { defaultValue: 'Pick a custom colour' })}
+                                            >
+                                                <input
+                                                    type="color"
+                                                    value={manualColor}
+                                                    onChange={e => commitColorDebounced(e.target.value)}
+                                                    className="h-5 w-5 cursor-pointer rounded border-0 bg-transparent p-0"
+                                                    aria-label={t('map.parcelManager.customColor', { defaultValue: 'Custom colour' })}
                                                 />
-                                            );
-                                        })}
-                                    </div>
-                                </>
-                            )}
+                                                {t('map.parcelManager.customColor', { defaultValue: 'Custom' })}
+                                            </label>
+                                        </div>
+                                    </>
+                                );
+                            })()}
                         </Collapsible>
                     )}
 
@@ -403,23 +435,53 @@ export default function ParcelPeriodManager(props: ParcelPeriodManagerProps) {
                                                 />
                                             </label>
                                         </div>
-                                        <div className="mt-3 flex items-center justify-end gap-2">
-                                            <button
-                                                type="button"
-                                                onClick={() => handleDelete(pp.id)}
-                                                disabled={busy}
-                                                className="rounded-md border border-red-200 bg-red-50 px-3 py-1 text-xs font-medium text-red-700 hover:bg-red-100 disabled:opacity-50"
-                                            >
-                                                {t('map.periodManager.delete', { defaultValue: 'Remove' })}
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={() => handleSave(pp.id)}
-                                                disabled={busy}
-                                                className="rounded-md bg-indigo-600 px-3 py-1 text-xs font-semibold text-white hover:bg-indigo-500 disabled:opacity-50"
-                                            >
-                                                {t('map.periodManager.save', { defaultValue: 'Save' })}
-                                            </button>
+                                        <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                                            {/* Export this parcel's (and its subparcels') operations for this period. */}
+                                            <div className="flex items-center gap-1.5">
+                                                <span className="mr-0.5 text-[11px] text-slate-400">{t('operations.export.label', { defaultValue: 'Export' })}</span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleExportPeriod(pp, 'excel')}
+                                                    disabled={exportingKey != null}
+                                                    title={t('operations.export.periodHint', { defaultValue: "Export this period's operations" })}
+                                                    className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-50"
+                                                >
+                                                    <span aria-hidden>⬇</span>
+                                                    {exportingKey === `${pp.id}-excel`
+                                                        ? t('operations.export.generating', { defaultValue: 'Generating…' })
+                                                        : t('operations.export.excel', { defaultValue: 'Excel' })}
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleExportPeriod(pp, 'pdf')}
+                                                    disabled={exportingKey != null}
+                                                    title={t('operations.export.periodHint', { defaultValue: "Export this period's operations" })}
+                                                    className="inline-flex items-center gap-1 rounded-md border border-rose-200 bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-50"
+                                                >
+                                                    <span aria-hidden>⬇</span>
+                                                    {exportingKey === `${pp.id}-pdf`
+                                                        ? t('operations.export.generating', { defaultValue: 'Generating…' })
+                                                        : t('operations.export.pdf', { defaultValue: 'PDF' })}
+                                                </button>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleDelete(pp.id)}
+                                                    disabled={busy}
+                                                    className="rounded-md border border-red-200 bg-red-50 px-3 py-1 text-xs font-medium text-red-700 hover:bg-red-100 disabled:opacity-50"
+                                                >
+                                                    {t('map.periodManager.delete', { defaultValue: 'Remove' })}
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleSave(pp.id)}
+                                                    disabled={busy}
+                                                    className="rounded-md bg-indigo-600 px-3 py-1 text-xs font-semibold text-white hover:bg-indigo-500 disabled:opacity-50"
+                                                >
+                                                    {t('map.periodManager.save', { defaultValue: 'Save' })}
+                                                </button>
+                                            </div>
                                         </div>
                                     </Collapsible>
                                 );

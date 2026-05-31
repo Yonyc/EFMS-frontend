@@ -1,6 +1,7 @@
 import { apiGet, getPageMeta } from "~/utils/api";
 import type { ParcelSearchFilters } from "../types";
-import type { SnapshotResult } from "./mapSnapshot";
+import { renderParcelsSatellite, type SnapshotParcel, type SnapshotResult } from "./mapSnapshot";
+import { parseWktCoords } from "./wkt";
 
 type TFn = (key: string, opts?: any) => string;
 
@@ -165,6 +166,17 @@ export function buildFilterSummary(filters: ParcelSearchFilters, t: TFn): string
     return parts.length ? parts.join(" · ") : t("operations.export.sumNoFilter", { defaultValue: "No filter (all operations)" });
 }
 
+function exportColumns(t: TFn): ExportMeta["columns"] {
+    return {
+        date: t("operations.export.colDate", { defaultValue: "Date" }),
+        type: t("operations.export.colType", { defaultValue: "Type" }),
+        parcels: t("operations.export.colParcels", { defaultValue: "Parcels" }),
+        period: t("operations.export.colPeriod", { defaultValue: "Period" }),
+        duration: t("operations.export.colDuration", { defaultValue: "Duration" }),
+        products: t("operations.export.colProducts", { defaultValue: "Products" }),
+    };
+}
+
 export function buildExportMeta(
     filters: ParcelSearchFilters,
     t: TFn,
@@ -177,14 +189,51 @@ export function buildExportMeta(
         sheetName: t("operations.export.sheetName", { defaultValue: "Operations" }),
         generatedAtLabel: t("operations.export.generatedAt", { defaultValue: "Generated on {{date}}", date: formatDate(new Date().toISOString()) }),
         filterSummary: buildFilterSummary(filters, t),
-        columns: {
-            date: t("operations.export.colDate", { defaultValue: "Date" }),
-            type: t("operations.export.colType", { defaultValue: "Type" }),
-            parcels: t("operations.export.colParcels", { defaultValue: "Parcels" }),
-            period: t("operations.export.colPeriod", { defaultValue: "Period" }),
-            duration: t("operations.export.colDuration", { defaultValue: "Duration" }),
-            products: t("operations.export.colProducts", { defaultValue: "Products" }),
-        },
+        columns: exportColumns(t),
+    };
+}
+
+/**
+ * Keeps operations that touch any of the given parcels (e.g. a parcel and its subparcels),
+ * optionally restricted to a single period. The only filter is the period — no type/tool/product.
+ */
+export function filterOperationsForParcels(
+    operations: ExportOperation[],
+    parcelIds: string[],
+    periodId?: string | null,
+): ExportOperation[] {
+    const ids = new Set(parcelIds.map(String));
+    return operations.filter((op) => {
+        if (periodId && !(op.periodId != null && String(op.periodId) === String(periodId))) return false;
+        const opParcels = (op.parcelIds && op.parcelIds.length > 0)
+            ? op.parcelIds.map(String)
+            : (op.parcelId != null ? [String(op.parcelId)] : []);
+        return opParcels.some((id) => ids.has(id));
+    }).sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""));
+}
+
+/** Report chrome for a single-parcel export (parcel + subparcels, optional period). */
+export function buildParcelExportMeta(
+    t: TFn,
+    formatDate: (date?: string) => string,
+    opts: { parcelName: string; subparcelCount: number; periodName?: string | null },
+): ExportMeta {
+    const stamp = new Date().toISOString().slice(0, 10);
+    const safeName = opts.parcelName.replace(/[^\w.-]+/g, "_").slice(0, 40) || "parcel";
+    const parts = [t("operations.export.sumParcel", { defaultValue: "Parcel: {{name}}", name: opts.parcelName })];
+    if (opts.subparcelCount > 0) {
+        parts.push(t("operations.export.sumSubparcels", { defaultValue: "+{{count}} subparcel(s)", count: opts.subparcelCount }));
+    }
+    parts.push(opts.periodName
+        ? t("operations.export.sumPeriodName", { defaultValue: "Period: {{name}}", name: opts.periodName })
+        : t("operations.export.sumAllPeriods", { defaultValue: "All periods" }));
+    return {
+        title: t("operations.export.parcelTitle", { defaultValue: "Parcel operations report" }),
+        filename: `parcel-${safeName}-${stamp}`,
+        sheetName: t("operations.export.sheetName", { defaultValue: "Operations" }),
+        generatedAtLabel: t("operations.export.generatedAt", { defaultValue: "Generated on {{date}}", date: formatDate(new Date().toISOString()) }),
+        filterSummary: parts.join(" · "),
+        columns: exportColumns(t),
     };
 }
 
@@ -318,4 +367,73 @@ export async function exportPdf(
     });
 
     doc.save(`${meta.filename}.pdf`);
+}
+
+/**
+ * Export every operation of a single parcel — and all of its descendant subparcels — optionally
+ * scoped to one period. Shared by the parcel detail page and the manage-parcel modal so both
+ * produce identical Excel/PDF reports. The farm parcel list carries `geodata` + `parentParcelId`,
+ * which is how we gather the subtree and draw the PDF satellite snapshot.
+ */
+export async function exportParcelPeriodOperations(opts: {
+    kind: "excel" | "pdf";
+    farmId: number;
+    parcelId: string;
+    parcelName: string;
+    periodId?: string | null;
+    periodName?: string | null;
+    t: TFn;
+    formatDate: (date?: string) => string;
+    fallbackRoot?: { id: string; name: string; geodata?: string | null; color?: string | null; cultureColor?: string | null };
+}): Promise<void> {
+    const { kind, farmId, parcelId, parcelName, t, formatDate } = opts;
+    const periodId = opts.periodId ?? null;
+
+    const res = await apiGet(`/farm/${farmId}/parcels`);
+    const all: any[] = res.ok ? await res.json() : [];
+    const childrenByParent = new Map<string, any[]>();
+    for (const p of all) {
+        if (p.parentParcelId == null) continue;
+        const parent = String(p.parentParcelId);
+        const list = childrenByParent.get(parent) ?? [];
+        list.push(p);
+        childrenByParent.set(parent, list);
+    }
+    const subtree: any[] = [];
+    const seen = new Set<string>();
+    const rootDto = all.find((p) => String(p.id) === String(parcelId));
+    const queue: any[] = [rootDto ?? opts.fallbackRoot ?? { id: parcelId, name: parcelName }];
+    while (queue.length) {
+        const node = queue.shift();
+        const nid = String(node.id);
+        if (seen.has(nid)) continue;
+        seen.add(nid);
+        subtree.push(node);
+        queue.push(...(childrenByParent.get(nid) ?? []));
+    }
+
+    const parcelIds = subtree.map((p) => String(p.id));
+    const subparcelCount = parcelIds.length - 1;
+
+    const ops = await fetchFarmOperations(farmId);
+    const filtered = filterOperationsForParcels(ops, parcelIds, periodId);
+    const meta = buildParcelExportMeta(t, formatDate, {
+        parcelName,
+        subparcelCount,
+        periodName: periodId ? (opts.periodName ?? null) : null,
+    });
+    const rows = buildRows(filtered, formatDate);
+
+    if (kind === "excel") {
+        await exportExcel(rows, meta);
+    } else {
+        const snapshotParcels: SnapshotParcel[] = subtree.map((p) => ({
+            id: String(p.id),
+            name: p.name || p.sourceName || `#${p.id}`,
+            coords: parseWktCoords(p.geodata),
+            color: p.color ?? p.cultureColor ?? null,
+        }));
+        const image = await renderParcelsSatellite(snapshotParcels);
+        await exportPdf(rows, meta, image);
+    }
 }
