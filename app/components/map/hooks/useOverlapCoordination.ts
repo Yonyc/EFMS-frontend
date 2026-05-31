@@ -163,7 +163,7 @@ export function useOverlapCoordination({
                     coords,
                     version: 0,
                     visible: true,
-                    color: '#3388ff',
+                    color: undefined,
                     canEdit: true,
                     canShare: false,
                 }];
@@ -228,11 +228,13 @@ export function useOverlapCoordination({
             coords,
             version: 0,
             visible: true,
-            color: '#3388ff',
+            color: undefined,
+            customColor: null,
             periodId: selectedPeriodId ? Number(selectedPeriodId) : null,
             canEdit: true,
             canShare: false,
             parentId: selectedParentId,
+            farmId: contextType === 'farm' ? Number(resolvedContextId) : undefined,
         };
 
         const postPayload: any = {
@@ -241,7 +243,7 @@ export function useOverlapCoordination({
             startValidity: new Date().toISOString(),
             endValidity: null,
             geodata: coordsToWKT(newPoly.coords),
-            color: newPoly.color,
+            color: null,
             periodId: selectedPeriodId ? Number(selectedPeriodId) : undefined,
             parentParcelId: normalizeParentParcelId(selectedParentId) ?? undefined,
         };
@@ -253,6 +255,11 @@ export function useOverlapCoordination({
                 newPoly.id = String(createdParcel.id);
                 newPoly.canEdit = createdParcel.canEdit ?? true;
                 newPoly.canShare = createdParcel.canShare ?? false;
+                if (createdParcel.farmId != null) newPoly.farmId = createdParcel.farmId;
+                if (createdParcel.cultureColor) {
+                    newPoly.cultureColor = createdParcel.cultureColor;
+                    newPoly.color = createdParcel.cultureColor;
+                }
                 // clear the naming state for the next create
                 areaNameRef.current = "";
                 setAreaName("");
