@@ -40,6 +40,12 @@ import OperationPopup from "./components/OperationPopup";
 import FilteredOperationsModal from "./components/FilteredOperationsModal";
 import PolygonContextMenu from "./components/PolygonContextMenu";
 import MapSearchFilters from "./components/MapSearchFilters";
+import { useDateTimeFormatter } from "~/utils/datetime";
+import {
+    buildExportMeta, buildRows, exportExcel, exportPdf, fetchFarmOperations,
+    filterOperations, parcelsForSnapshot,
+} from "./utils/operationsExport";
+import { renderParcelsSatellite, type SnapshotParcel } from "./utils/mapSnapshot";
 
 // hooks
 import { useParcelOperations } from "./hooks/useParcelOperations";
@@ -74,6 +80,7 @@ const MAP_CENTER: [number, number] = [50.668333, 4.621278];
 
 export default function MapWithPolygons(props: MapWithPolygonsProps) {
     const { t } = useTranslation();
+    const { formatDateTime } = useDateTimeFormatter();
     const { selectedFarm } = useFarm();
     const { user } = useAuth();
 
@@ -186,6 +193,41 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
     // The on-map quick selector is single-select; writing it sets the shared period filter.
     const setDisplayPeriodId = useCallback((val: string) => search.setPeriodFilter(val ? [val] : []), [search.setPeriodFilter]);
     const [filteredOpsOpen, setFilteredOpsOpen] = useState(false);
+
+    // Parcels currently visible on the map, reused for the filtered-operations list and exports.
+    const visibleParcels = useMemo(() => polygons.filter(p => p.visible !== false), [polygons]);
+    const matchingParcelIds = useMemo(() => visibleParcels.map(p => p.id), [visibleParcels]);
+    const snapshotParcels = useMemo<SnapshotParcel[]>(
+        () => visibleParcels.map(p => ({ id: p.id, name: p.name, coords: p.coords, color: p.customColor ?? p.cultureColor ?? p.color })),
+        [visibleParcels],
+    );
+
+    const [searchExporting, setSearchExporting] = useState<"excel" | "pdf" | null>(null);
+    const [searchExportError, setSearchExportError] = useState<string | null>(null);
+    const canSearchExport = contextType === 'farm' && !isImportMode;
+
+    const handleSearchExport = useCallback(async (kind: "excel" | "pdf") => {
+        if (searchExporting) return;
+        setSearchExporting(kind);
+        setSearchExportError(null);
+        try {
+            const ops = await fetchFarmOperations(numericFarmId);
+            const filtered = filterOperations(ops, search.appliedFilters, matchingParcelIds);
+            const meta = buildExportMeta(search.appliedFilters, t, formatDateTime);
+            const rows = buildRows(filtered, formatDateTime);
+            if (kind === "excel") {
+                await exportExcel(rows, meta);
+            } else {
+                const image = await renderParcelsSatellite(parcelsForSnapshot(filtered, snapshotParcels));
+                await exportPdf(rows, meta, image);
+            }
+        } catch {
+            setSearchExportError(t("operations.export.error", { defaultValue: "Export failed" }));
+        } finally {
+            setSearchExporting(null);
+        }
+    }, [searchExporting, numericFarmId, search.appliedFilters, matchingParcelIds, snapshotParcels, t, formatDateTime]);
+
     const operations = useParcelOperations({ farmId: numericFarmId, resolvedContextId, contextType, canEditPolygon: (id: string) => (polygons.find(p => p.id === id) || allPolygons.find(p => p.id === id))?.canEdit !== false, t });
     const sharing = useMapSharing({ resolvedContextId, contextType, allPolygons, searchDraft: search.searchDraft, searchAreaCoords: search.searchAreaCoords, viewportBounds: search.viewportBounds });
     const draggable = useDraggablePopup({ getMap, preferTopRight, POPUP_WIDTH, POPUP_HEIGHT, POPUP_PADDING, isMobile, activePopup: operations.operationPopup });
@@ -618,7 +660,8 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
                 <FilteredOperationsModal
                     farmId={numericFarmId}
                     filters={search.appliedFilters}
-                    matchingParcelIds={polygons.filter(p => p.visible !== false).map(p => p.id)}
+                    matchingParcelIds={matchingParcelIds}
+                    matchingParcels={snapshotParcels}
                     onClose={() => setFilteredOpsOpen(false)}
                     t={t}
                 />
@@ -729,6 +772,11 @@ export default function MapWithPolygons(props: MapWithPolygonsProps) {
                         hasActiveSearchFilters={hasActiveSearchFilters}
                         onShareFilter={contextType === 'farm' && selectedFarm?.canManage ? sharing.handleQuickShareCurrentFilter : undefined}
                         shareFilterFeedback={sharing.quickShareFeedback}
+                        onExportExcel={canSearchExport ? () => handleSearchExport("excel") : undefined}
+                        onExportPdf={canSearchExport ? () => handleSearchExport("pdf") : undefined}
+                        canExport={canSearchExport}
+                        exporting={searchExporting}
+                        exportError={searchExportError}
                         disabled={isCreating || !!editingId}
                         t={t}
                     />

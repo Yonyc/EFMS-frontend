@@ -24,6 +24,11 @@ interface MapSearchFiltersProps {
     hasActiveSearchFilters: boolean;
     onShareFilter?: () => void;
     shareFilterFeedback?: string;
+    onExportExcel?: () => void;
+    onExportPdf?: () => void;
+    canExport?: boolean;
+    exporting?: "excel" | "pdf" | null;
+    exportError?: string | null;
     disabled?: boolean;
     t: any;
 }
@@ -36,6 +41,7 @@ const MapSearchFilters = React.memo((props: MapSearchFiltersProps) => {
         startSearchPolygon, cancelSearchPolygon, clearSearchPolygon,
         clearSearchFilters, applySearchFilters,
         onShareFilter, shareFilterFeedback,
+        onExportExcel, onExportPdf, canExport, exporting, exportError,
         disabled, t
     } = props;
 
@@ -251,6 +257,45 @@ const MapSearchFilters = React.memo((props: MapSearchFiltersProps) => {
                             </button>
                             {shareFilterFeedback && (
                                 <p className="mt-1.5 text-xs text-slate-500">{shareFilterFeedback}</p>
+                            )}
+                        </div>
+                    )}
+
+                    {canExport && (onExportExcel || onExportPdf) && (
+                        <div className="mt-4 border-t border-slate-200 pt-3">
+                            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                {t('map.searchFilters.exportLabel', { defaultValue: 'Export operations' })}
+                            </p>
+                            <div className="grid grid-cols-2 gap-2">
+                                {onExportExcel && (
+                                    <button
+                                        type="button"
+                                        onClick={onExportExcel}
+                                        disabled={disabled || exporting != null}
+                                        className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-100 disabled:opacity-50"
+                                    >
+                                        <span aria-hidden>⬇</span>
+                                        {exporting === 'excel'
+                                            ? t('operations.export.generating', { defaultValue: 'Generating…' })
+                                            : t('operations.export.excel', { defaultValue: 'Excel' })}
+                                    </button>
+                                )}
+                                {onExportPdf && (
+                                    <button
+                                        type="button"
+                                        onClick={onExportPdf}
+                                        disabled={disabled || exporting != null}
+                                        className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700 transition hover:border-rose-300 hover:bg-rose-100 disabled:opacity-50"
+                                    >
+                                        <span aria-hidden>⬇</span>
+                                        {exporting === 'pdf'
+                                            ? t('operations.export.generating', { defaultValue: 'Generating…' })
+                                            : t('operations.export.pdf', { defaultValue: 'PDF' })}
+                                    </button>
+                                )}
+                            </div>
+                            {exportError && (
+                                <p className="mt-1.5 text-xs text-rose-600">{exportError}</p>
                             )}
                         </div>
                     )}

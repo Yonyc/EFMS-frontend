@@ -504,7 +504,29 @@
     "inactiveParcels": "These parcels are not active during the selected period: {{names}}",
     "matchingTitle": "Operations matching the filter",
     "matchingCount": "{{count}} operation(s)",
-    "matchingEmpty": "No operations match the current filter."
+    "matchingEmpty": "No operations match the current filter.",
+    "export": {
+      "excel": "Excel",
+      "pdf": "PDF",
+      "generating": "Generating…",
+      "error": "Export failed",
+      "title": "Operations report",
+      "sheetName": "Operations",
+      "generatedAt": "Generated on {{date}}",
+      "colDate": "Date",
+      "colType": "Type",
+      "colParcels": "Parcels",
+      "colPeriod": "Period",
+      "colDuration": "Duration",
+      "colProducts": "Products",
+      "sumPeriods": "Periods: {{count}}",
+      "sumTypes": "Types: {{count}}",
+      "sumTools": "Tools: {{count}}",
+      "sumProducts": "Products: {{count}}",
+      "sumMapArea": "Map area",
+      "sumPolygon": "Drawn area",
+      "sumNoFilter": "No filter (all operations)"
+    }
   },
   "assets": {
     "title": "Assets",
@@ -828,6 +850,7 @@
       "apply": "Apply filters",
       "clear": "Clear",
       "listOperations": "List matching operations",
+      "exportLabel": "Export operations",
       "shareScope": "Shared zone",
       "shareScopeHint": "Pick a zone you have access to, then filter within it.",
       "shareScopePlaceholder": "Select a shared zone…"

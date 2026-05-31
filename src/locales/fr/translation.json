@@ -504,7 +504,29 @@
     "inactiveParcels": "Ces parcelles ne sont pas actives durant la période sélectionnée : {{names}}",
     "matchingTitle": "Opérations correspondant au filtre",
     "matchingCount": "{{count}} opération(s)",
-    "matchingEmpty": "Aucune opération ne correspond au filtre actuel."
+    "matchingEmpty": "Aucune opération ne correspond au filtre actuel.",
+    "export": {
+      "excel": "Excel",
+      "pdf": "PDF",
+      "generating": "Génération…",
+      "error": "Échec de l'export",
+      "title": "Rapport d'opérations",
+      "sheetName": "Opérations",
+      "generatedAt": "Généré le {{date}}",
+      "colDate": "Date",
+      "colType": "Type",
+      "colParcels": "Parcelles",
+      "colPeriod": "Période",
+      "colDuration": "Durée",
+      "colProducts": "Produits",
+      "sumPeriods": "Périodes : {{count}}",
+      "sumTypes": "Types : {{count}}",
+      "sumTools": "Outils : {{count}}",
+      "sumProducts": "Produits : {{count}}",
+      "sumMapArea": "Zone de la carte",
+      "sumPolygon": "Zone dessinée",
+      "sumNoFilter": "Aucun filtre (toutes les opérations)"
+    }
   },
   "assets": {
     "title": "Ressources",
@@ -828,6 +850,7 @@
       "apply": "Appliquer les filtres",
       "clear": "Effacer",
       "listOperations": "Lister les opérations correspondantes",
+      "exportLabel": "Exporter les opérations",
       "shareScope": "Zone partagée",
       "shareScopeHint": "Choisissez une zone à laquelle vous avez accès, puis filtrez à l'intérieur.",
       "shareScopePlaceholder": "Sélectionnez une zone partagée…"

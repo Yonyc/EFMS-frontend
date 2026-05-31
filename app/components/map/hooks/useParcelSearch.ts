@@ -132,7 +132,8 @@ export function useParcelSearch({
         } else {
             setAppliedBounds(null);
         }
-        setIsSearchOpen(false);
+        // Keep the filter panel open after applying so the user can review results and export
+        // without re-opening it.
     }, [searchAreaCoords, searchDraft, getMap]);
 
     const clearSearchFilters = useCallback(() => {

@@ -1,29 +1,26 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { apiGet, getPageMeta } from "~/utils/api";
 import { useDateTimeFormatter } from "~/utils/datetime";
 import type { ParcelSearchFilters } from "../types";
+import {
+    buildExportMeta, buildRows, exportExcel, exportPdf, fetchFarmOperations,
+    filterOperations, formatDuration, parcelsForSnapshot,
+    type ExportOperation,
+} from "../utils/operationsExport";
+import { renderParcelsSatellite, type SnapshotParcel } from "../utils/mapSnapshot";
 
-interface OpProduct { productId?: number; productName?: string; toolId?: number; toolName?: string; quantity?: number; unitValue?: string; }
-interface OperationDto {
-    id: number; date?: string; durationSeconds?: number;
-    typeId?: number; typeName?: string;
-    parcelId?: number; parcelName?: string;
-    parcelIds?: number[]; parcelNames?: string[];
-    periodId?: number; periodName?: string;
-    products?: OpProduct[];
-}
+type OperationDto = ExportOperation;
 
 interface Props {
     farmId: number;
     filters: ParcelSearchFilters;
     /** Ids of parcels currently matching the filter on the map (string ids). */
     matchingParcelIds: string[];
+    /** Visible parcels with geometry, used to draw the satellite snapshot in the PDF export. */
+    matchingParcels: SnapshotParcel[];
     onClose: () => void;
     t: (key: string, opts?: any) => string;
 }
-
-const PAGE_FETCH = 200;
 
 /**
  * Lists every operation matching the active map filter. Operations are fetched for the farm and
@@ -32,11 +29,13 @@ const PAGE_FETCH = 200;
  * date range. Results are also scoped to the parcels currently matching on the map so spatial
  * filters (map area / drawn polygon) are honoured.
  */
-export default function FilteredOperationsModal({ farmId, filters, matchingParcelIds, onClose, t }: Props) {
+export default function FilteredOperationsModal({ farmId, filters, matchingParcelIds, matchingParcels, onClose, t }: Props) {
     const { formatDateTime } = useDateTimeFormatter();
     const [operations, setOperations] = useState<OperationDto[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [exporting, setExporting] = useState<"excel" | "pdf" | null>(null);
+    const [exportError, setExportError] = useState<string | null>(null);
 
     useEffect(() => {
         let cancelled = false;
@@ -44,20 +43,7 @@ export default function FilteredOperationsModal({ farmId, filters, matchingParce
             setLoading(true);
             setError(null);
             try {
-                // Pull all farm operations (paginated) then filter locally
-                const all: OperationDto[] = [];
-                let page = 0;
-                for (;;) {
-                    const res = await apiGet(`/farm/${farmId}/operations?page=${page}&size=${PAGE_FETCH}`);
-                    if (!res.ok) throw new Error("failed");
-                    const data = await res.json();
-                    const content: OperationDto[] = Array.isArray(data) ? data : (data.content ?? []);
-                    all.push(...content);
-                    const pm = getPageMeta(data);
-                    if (Array.isArray(data) || pm.number >= pm.totalPages - 1) break;
-                    page += 1;
-                    if (page > 50) break; // safety cap
-                }
+                const all = await fetchFarmOperations(farmId);
                 if (!cancelled) setOperations(all);
             } catch {
                 if (!cancelled) setError(t("operations.errorLoad", { defaultValue: "Failed to load operations" }));
@@ -68,50 +54,38 @@ export default function FilteredOperationsModal({ farmId, filters, matchingParce
         return () => { cancelled = true; };
     }, [farmId, t]);
 
-    const filtered = useMemo(() => {
-        const periodIds = new Set(filters.periodIds.map(String));
-        const typeIds = new Set(filters.operationTypeIds.map(String));
-        const toolIds = new Set(filters.toolIds.map(String));
-        const productIds = new Set(filters.productIds.map(String));
-        const matching = new Set(matchingParcelIds.map(String));
-        const hasOpFilter = typeIds.size > 0 || toolIds.size > 0 || productIds.size > 0;
-        const spatial = filters.useMapArea || filters.usePolygon;
-        const start = filters.startDate ? new Date(filters.startDate) : null;
-        const end = filters.endDate ? new Date(filters.endDate + "T23:59:59") : null;
+    const filtered = useMemo(
+        () => filterOperations(operations, filters, matchingParcelIds),
+        [operations, filters, matchingParcelIds],
+    );
 
-        return operations.filter(op => {
-            // Period (union)
-            if (periodIds.size > 0 && !(op.periodId != null && periodIds.has(String(op.periodId)))) return false;
-            // Date range
-            if (op.date) {
-                const d = new Date(op.date);
-                if (start && d < start) return false;
-                if (end && d > end) return false;
-            } else if (start || end) {
-                return false;
-            }
-            // Operation attributes (OR group)
-            if (hasOpFilter) {
-                const typeMatch = typeIds.size > 0 && op.typeId != null && typeIds.has(String(op.typeId));
-                const toolMatch = toolIds.size > 0 && (op.products ?? []).some(p => p.toolId != null && toolIds.has(String(p.toolId)));
-                const productMatch = productIds.size > 0 && (op.products ?? []).some(p => p.productId != null && productIds.has(String(p.productId)));
-                if (!(typeMatch || toolMatch || productMatch)) return false;
-            }
-            // Spatial filters: scope to the parcels currently matching on the map.
-            if (spatial && matching.size > 0) {
-                const opParcels = (op.parcelIds && op.parcelIds.length > 0)
-                    ? op.parcelIds.map(String)
-                    : (op.parcelId != null ? [String(op.parcelId)] : []);
-                if (!opParcels.some(id => matching.has(id))) return false;
-            }
-            return true;
-        }).sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""));
-    }, [operations, filters, matchingParcelIds]);
+    const handleExportExcel = async () => {
+        if (exporting) return;
+        setExporting("excel");
+        setExportError(null);
+        try {
+            const meta = buildExportMeta(filters, t, formatDateTime);
+            await exportExcel(buildRows(filtered, formatDateTime), meta);
+        } catch {
+            setExportError(t("operations.export.error", { defaultValue: "Export failed" }));
+        } finally {
+            setExporting(null);
+        }
+    };
 
-    const formatDuration = (s?: number) => {
-        if (!s) return null;
-        const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
-        return h > 0 ? `${h}h ${m}min` : `${m}min`;
+    const handleExportPdf = async () => {
+        if (exporting) return;
+        setExporting("pdf");
+        setExportError(null);
+        try {
+            const meta = buildExportMeta(filters, t, formatDateTime);
+            const image = await renderParcelsSatellite(parcelsForSnapshot(filtered, matchingParcels));
+            await exportPdf(buildRows(filtered, formatDateTime), meta, image);
+        } catch {
+            setExportError(t("operations.export.error", { defaultValue: "Export failed" }));
+        } finally {
+            setExporting(null);
+        }
     };
 
     return createPortal(
@@ -129,14 +103,38 @@ export default function FilteredOperationsModal({ farmId, filters, matchingParce
                             {t("operations.matchingCount", { defaultValue: "{{count}} operation(s)", count: filtered.length })}
                         </p>
                     </div>
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="rounded-lg p-1.5 text-slate-400 hover:bg-white/10 hover:text-white"
-                        aria-label={t("common.close", { defaultValue: "Close" })}
-                    >
-                        ✕
-                    </button>
+                    <div className="flex items-center gap-2">
+                        <button
+                            type="button"
+                            onClick={handleExportExcel}
+                            disabled={loading || filtered.length === 0 || exporting !== null}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-400/30 bg-emerald-500/15 px-3 py-1.5 text-xs font-semibold text-emerald-300 transition hover:bg-emerald-500/25 disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                            <span aria-hidden>⬇</span>
+                            {exporting === "excel"
+                                ? t("operations.export.generating", { defaultValue: "Generating…" })
+                                : t("operations.export.excel", { defaultValue: "Excel" })}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleExportPdf}
+                            disabled={loading || filtered.length === 0 || exporting !== null}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-rose-400/30 bg-rose-500/15 px-3 py-1.5 text-xs font-semibold text-rose-300 transition hover:bg-rose-500/25 disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                            <span aria-hidden>⬇</span>
+                            {exporting === "pdf"
+                                ? t("operations.export.generating", { defaultValue: "Generating…" })
+                                : t("operations.export.pdf", { defaultValue: "PDF" })}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="rounded-lg p-1.5 text-slate-400 hover:bg-white/10 hover:text-white"
+                            aria-label={t("common.close", { defaultValue: "Close" })}
+                        >
+                            ✕
+                        </button>
+                    </div>
                 </div>
 
                 <div className="flex-1 overflow-y-auto px-6 py-5 space-y-2">
@@ -145,6 +143,9 @@ export default function FilteredOperationsModal({ farmId, filters, matchingParce
                     )}
                     {error && (
                         <div className="rounded-lg border border-rose-500/30 bg-rose-500/15 px-3 py-2 text-sm text-rose-300">{error}</div>
+                    )}
+                    {exportError && (
+                        <div className="rounded-lg border border-amber-500/30 bg-amber-500/15 px-3 py-2 text-sm text-amber-300">{exportError}</div>
                     )}
                     {!loading && !error && filtered.length === 0 && (
                         <div className="py-12 text-center text-slate-400">{t("operations.matchingEmpty", { defaultValue: "No operations match the current filter." })}</div>
