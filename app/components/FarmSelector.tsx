@@ -1,14 +1,21 @@
-import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
+import { useMemo } from 'react';
 import { useTranslation } from "react-i18next";
 import { useFarm } from '../contexts/FarmContext';
+import { SearchableSelect } from './map/components/SearchableSelect';
+import type { SelectOption } from './map/components/SearchableSelect';
 
 export default function FarmSelector() {
   const { farms, selectedFarm, selectFarm, isLoading, error } = useFarm();
   const { t } = useTranslation();
 
+  const options: SelectOption[] = useMemo(
+    () => farms.map((farm) => ({ value: farm.id, label: farm.name })),
+    [farms]
+  );
+
   if (!selectedFarm && !isLoading && farms.length === 0) {
     return (
-      <div className="px-4 py-2 text-sm text-gray-400">
+      <div className="px-4 py-2 text-sm text-slate-500">
         {t('farmSelector.noFarms')}
       </div>
     );
@@ -16,7 +23,7 @@ export default function FarmSelector() {
 
   if (isLoading) {
     return (
-      <div className="px-4 py-2 text-sm text-gray-400">
+      <div className="px-4 py-2 text-sm text-slate-500">
         {t('farmSelector.loading')}
       </div>
     );
@@ -31,53 +38,17 @@ export default function FarmSelector() {
   }
 
   return (
-    <Menu as="div" className="relative" data-tour-id="map-farm-selector">
-      <MenuButton className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-300 hover:bg-white/5 hover:text-white rounded-md transition-colors">
-        <span>🏛️</span>
-        <span>{selectedFarm?.name || t('farmSelector.selectFarm')}</span>
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
-      </MenuButton>
-
-      <MenuItems
-        transition
-        className="absolute left-0 z-50 mt-2 w-56 origin-top-left rounded-md bg-gray-800 py-1 outline -outline-offset-1 outline-white/10 transition data-closed:scale-95 data-closed:transform data-closed:opacity-0 data-enter:duration-100 data-enter:ease-out data-leave:duration-75 data-leave:ease-in"
-      >
-        {farms.map((farm) => (
-          <MenuItem key={farm.id}>
-            <button
-              onClick={() => selectFarm(farm.id)}
-              className={`block w-full text-left px-4 py-2 text-sm transition-colors ${
-                selectedFarm?.id === farm.id
-                  ? 'bg-indigo-600 text-white'
-                  : 'text-gray-300 data-focus:bg-white/5 data-focus:outline-hidden'
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <span>🏛️</span>
-                <div className="flex-1">
-                  <div className="font-medium">{farm.name}</div>
-                  {farm.location && (
-                    <div className="text-xs opacity-75">{farm.location}</div>
-                  )}
-                </div>
-                {selectedFarm?.id === farm.id && (
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                  </svg>
-                )}
-              </div>
-            </button>
-          </MenuItem>
-        ))}
-        
-        {farms.length === 0 && (
-          <div className="px-4 py-2 text-sm text-gray-400">
-            {t('farmSelector.noFarms')}
-          </div>
-        )}
-      </MenuItems>
-    </Menu>
+    <div className="flex items-center gap-2" data-tour-id="map-farm-selector">
+      <span>🏛️</span>
+      <SearchableSelect
+        className="w-48"
+        value={selectedFarm?.id ?? ''}
+        onChange={(val) => selectFarm(val || null)}
+        options={options}
+        placeholder={t('farmSelector.selectFarm')}
+        variant="light"
+        loading={isLoading}
+      />
+    </div>
   );
 }

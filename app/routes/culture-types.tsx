@@ -34,7 +34,7 @@ function Badge({ label, active, onClick }: { label: string; active: boolean; onC
             onClick={onClick}
             className={`rounded-full px-3 py-1 text-sm font-medium transition ${active
                 ? "bg-indigo-600 text-white shadow-sm"
-                : "bg-white/10 text-slate-300 hover:bg-white/15"}`}
+                : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
         >
             {label}
         </button>
@@ -75,10 +75,10 @@ function EditRow({
         }
     };
 
-    const editInput = "rounded border border-indigo-400/40 bg-white/5 px-1.5 py-1 text-sm text-white focus:outline-none focus:ring-1 focus:ring-indigo-400";
+    const editInput = "rounded border border-indigo-300 bg-white px-1.5 py-1 text-sm text-slate-900 focus:outline-none focus:ring-1 focus:ring-indigo-400";
 
     return (
-        <tr className="bg-indigo-500/10">
+        <tr className="bg-indigo-50">
             <td className="px-3 py-2">
                 <input
                     value={code}
@@ -107,6 +107,7 @@ function EditRow({
                     onChange={setCategory}
                     placeholder={t("cultureTypes.col.category", { defaultValue: "Category" })}
                     className="min-w-[8rem]"
+                    variant="light"
                 />
             </td>
             <td className="px-3 py-2">
@@ -115,16 +116,16 @@ function EditRow({
                         type="color"
                         value={color || "#3388ff"}
                         onChange={e => setColor(e.target.value)}
-                        className="h-7 w-9 cursor-pointer rounded border border-white/10"
+                        className="h-7 w-9 cursor-pointer rounded border border-slate-200"
                         title={t("cultureTypes.col.color", { defaultValue: "Colour" })}
                     />
                     {color && (
-                        <button type="button" onClick={() => setColor("")} className="text-xs text-slate-500 hover:text-slate-300" title={t("common.clear", { defaultValue: "Clear" })}>×</button>
+                        <button type="button" onClick={() => setColor("")} className="text-xs text-slate-400 hover:text-slate-600" title={t("common.clear", { defaultValue: "Clear" })}>×</button>
                     )}
                 </div>
             </td>
             <td className="px-3 py-2">
-                {error && <span className="mr-2 text-xs text-rose-300">{error}</span>}
+                {error && <span className="mr-2 text-xs text-rose-600">{error}</span>}
                 <button
                     type="button"
                     onClick={save}
@@ -136,7 +137,7 @@ function EditRow({
                 <button
                     type="button"
                     onClick={onCancel}
-                    className="rounded-lg border border-white/10 px-3 py-1 text-xs font-medium text-slate-300 transition hover:bg-white/10"
+                    className="rounded-lg border border-slate-200 px-3 py-1 text-xs font-medium text-slate-600 transition hover:bg-slate-100"
                 >
                     {t("common.cancel", { defaultValue: "Cancel" })}
                 </button>
@@ -176,7 +177,7 @@ function CultureTypeTable({
     };
 
     if (types.length === 0) return (
-        <div className="rounded-xl border border-dashed border-white/10 py-10 text-center text-sm text-slate-400">
+        <div className="rounded-xl border border-dashed border-slate-200 py-10 text-center text-sm text-slate-500">
             {t("cultureTypes.empty", { defaultValue: "No culture types." })}
         </div>
     );
@@ -191,37 +192,37 @@ function CultureTypeTable({
     }
 
     return (
-        <div className="overflow-x-auto rounded-xl border border-white/10 bg-white/5">
-            <table className="min-w-full divide-y divide-white/5">
-                <thead className="bg-white/5">
+        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+            <table className="min-w-full divide-y divide-slate-100">
+                <thead className="bg-slate-50">
                     <tr>
-                        <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
+                        <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                             {t("cultureTypes.col.code", { defaultValue: "Code" })}
                         </th>
-                        <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
+                        <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                             {t("cultureTypes.col.nameFr", { defaultValue: "Name (FR)" })}
                         </th>
-                        <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
+                        <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                             {t("cultureTypes.col.nameNl", { defaultValue: "Name (NL)" })}
                         </th>
-                        <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
+                        <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                             {t("cultureTypes.col.category", { defaultValue: "Category" })}
                         </th>
-                        <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
+                        <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                             {t("cultureTypes.col.color", { defaultValue: "Colour" })}
                         </th>
                         {(isAdmin || !isGlobal) && (
-                            <th className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wide text-slate-400">
+                            <th className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">
                                 {t("cultureTypes.col.actions", { defaultValue: "Actions" })}
                             </th>
                         )}
                     </tr>
                 </thead>
-                <tbody className="divide-y divide-white/5">
+                <tbody className="divide-y divide-slate-100">
                     {Array.from(byCategory.entries()).map(([cat, cts]) => (
                         <>
-                            <tr key={`cat-${cat}`} className="bg-white/[0.03]">
-                                <td colSpan={6} className="px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-slate-400">
+                            <tr key={`cat-${cat}`} className="bg-slate-50/50">
+                                <td colSpan={6} className="px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-slate-500">
                                     {categoryLabel(cat)}
                                 </td>
                             </tr>
@@ -234,15 +235,15 @@ function CultureTypeTable({
                                         onCancel={() => setEditingId(null)}
                                     />
                                 ) : (
-                                    <tr key={ct.id} className="hover:bg-white/[0.03]">
-                                        <td className="px-3 py-2 font-mono text-sm font-semibold text-slate-200">{ct.code}</td>
-                                        <td className="px-3 py-2 text-sm text-slate-100">{ct.name}</td>
-                                        <td className="px-3 py-2 text-sm text-slate-400">{ct.nameNl ?? <span className="text-slate-600">—</span>}</td>
-                                        <td className="px-3 py-2 text-xs text-slate-400">{categoryLabel(ct.category)}</td>
+                                    <tr key={ct.id} className="hover:bg-slate-50">
+                                        <td className="px-3 py-2 font-mono text-sm font-semibold text-slate-800">{ct.code}</td>
+                                        <td className="px-3 py-2 text-sm text-slate-900">{ct.name}</td>
+                                        <td className="px-3 py-2 text-sm text-slate-500">{ct.nameNl ?? <span className="text-slate-300">—</span>}</td>
+                                        <td className="px-3 py-2 text-xs text-slate-500">{categoryLabel(ct.category)}</td>
                                         <td className="px-3 py-2">
                                             {ct.color
-                                                ? <span className="inline-flex items-center gap-1.5 text-xs text-slate-400"><span className="h-4 w-4 rounded-full border border-white/20 shadow" style={{ background: ct.color }} aria-hidden />{ct.color}</span>
-                                                : <span className="text-slate-600">—</span>}
+                                                ? <span className="inline-flex items-center gap-1.5 text-xs text-slate-500"><span className="h-4 w-4 rounded-full border border-slate-200 shadow-sm" style={{ background: ct.color }} aria-hidden />{ct.color}</span>
+                                                : <span className="text-slate-300">—</span>}
                                         </td>
                                         {(isAdmin || !isGlobal) && (
                                             <td className="px-3 py-2 text-right">
@@ -251,7 +252,7 @@ function CultureTypeTable({
                                                         <button
                                                             type="button"
                                                             onClick={() => setEditingId(ct.id)}
-                                                            className="rounded px-2 py-1 text-xs font-medium text-indigo-300 hover:bg-indigo-500/10"
+                                                            className="rounded px-2 py-1 text-xs font-medium text-indigo-600 hover:bg-indigo-50"
                                                         >
                                                             {t("common.edit", { defaultValue: "Edit" })}
                                                         </button>
@@ -260,7 +261,7 @@ function CultureTypeTable({
                                                         <button
                                                             type="button"
                                                             onClick={() => handlePromote(ct)}
-                                                            className="rounded px-2 py-1 text-xs font-medium text-emerald-300 hover:bg-emerald-500/10"
+                                                            className="rounded px-2 py-1 text-xs font-medium text-emerald-600 hover:bg-emerald-50"
                                                         >
                                                             {t("cultureTypes.promote", { defaultValue: "Promote" })}
                                                         </button>
@@ -268,7 +269,7 @@ function CultureTypeTable({
                                                     <button
                                                         type="button"
                                                         onClick={() => handleDelete(ct)}
-                                                        className="rounded px-2 py-1 text-xs font-medium text-rose-300 hover:bg-rose-500/10"
+                                                        className="rounded px-2 py-1 text-xs font-medium text-rose-600 hover:bg-rose-50"
                                                     >
                                                         {t("common.delete", { defaultValue: "Delete" })}
                                                     </button>
@@ -328,16 +329,16 @@ function AddCultureTypeForm({
         }
     };
 
-    const addInput = "w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-400/30";
+    const addInput = "w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-400/30";
 
     return (
         <form onSubmit={save}>
             {error && (
-                <p className="mb-3 rounded-lg bg-rose-500/10 px-3 py-2 text-xs text-rose-300">{error}</p>
+                <p className="mb-3 rounded-lg bg-rose-50 border border-rose-200 px-3 py-2 text-xs text-rose-700">{error}</p>
             )}
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <div>
-                    <label className="mb-1 block text-xs font-medium text-slate-300">
+                    <label className="mb-1 block text-xs font-medium text-slate-600">
                         {t("cultureTypes.col.code", { defaultValue: "Code" })} *
                     </label>
                     <input
@@ -348,7 +349,7 @@ function AddCultureTypeForm({
                     />
                 </div>
                 <div>
-                    <label className="mb-1 block text-xs font-medium text-slate-300">
+                    <label className="mb-1 block text-xs font-medium text-slate-600">
                         {t("cultureTypes.col.nameFr", { defaultValue: "Name (FR)" })} *
                     </label>
                     <input
@@ -359,7 +360,7 @@ function AddCultureTypeForm({
                     />
                 </div>
                 <div>
-                    <label className="mb-1 block text-xs font-medium text-slate-300">
+                    <label className="mb-1 block text-xs font-medium text-slate-600">
                         {t("cultureTypes.col.nameNl", { defaultValue: "Name (NL)" })}
                     </label>
                     <input
@@ -370,7 +371,7 @@ function AddCultureTypeForm({
                     />
                 </div>
                 <div>
-                    <label className="mb-1 block text-xs font-medium text-slate-300">
+                    <label className="mb-1 block text-xs font-medium text-slate-600">
                         {t("cultureTypes.col.category", { defaultValue: "Category" })}
                     </label>
                     <SearchableSelect
@@ -378,10 +379,11 @@ function AddCultureTypeForm({
                         value={category}
                         onChange={setCategory}
                         placeholder={t("cultureTypes.selectCategory", { defaultValue: "— Select —" })}
+                        variant="light"
                     />
                 </div>
                 <div>
-                    <label className="mb-1 block text-xs font-medium text-slate-300">
+                    <label className="mb-1 block text-xs font-medium text-slate-600">
                         {t("cultureTypes.col.color", { defaultValue: "Colour" })}
                     </label>
                     <div className="flex items-center gap-2">
@@ -389,16 +391,16 @@ function AddCultureTypeForm({
                             type="color"
                             value={color || "#3388ff"}
                             onChange={e => setColor(e.target.value)}
-                            className="h-9 w-12 cursor-pointer rounded-lg border border-white/10"
+                            className="h-9 w-12 cursor-pointer rounded-lg border border-slate-200"
                         />
                         {color
-                            ? <button type="button" onClick={() => setColor("")} className="text-xs text-slate-500 hover:text-slate-300">{t("common.clear", { defaultValue: "Clear" })}</button>
-                            : <span className="text-xs text-slate-500">{t("cultureTypes.noColor", { defaultValue: "No default" })}</span>}
+                            ? <button type="button" onClick={() => setColor("")} className="text-xs text-slate-400 hover:text-slate-600">{t("common.clear", { defaultValue: "Clear" })}</button>
+                            : <span className="text-xs text-slate-400">{t("cultureTypes.noColor", { defaultValue: "No default" })}</span>}
                     </div>
                 </div>
             </div>
             {isAdmin && (
-                <div className="mt-3 flex items-center gap-4 text-sm text-slate-300">
+                <div className="mt-3 flex items-center gap-4 text-sm text-slate-600">
                     <span className="font-medium">{t("cultureTypes.scope", { defaultValue: "Scope:" })}</span>
                     <label className="flex items-center gap-1.5 cursor-pointer">
                         <input type="radio" value="farm" checked={scope === "farm"} onChange={() => setScope("farm")} className="accent-indigo-500" />
@@ -508,13 +510,13 @@ export function CultureTypesManager() {
         <div>
                     {/* Header */}
                     <div className="mb-8">
-                        <p className="text-sm font-semibold uppercase tracking-wide text-indigo-300">
+                        <p className="text-sm font-semibold uppercase tracking-wide text-indigo-600">
                             {t("cultureTypes.title", { defaultValue: "Belgian PAC / SIGEC crop codes" })}
                         </p>
-                        <h1 className="text-3xl font-bold text-white">
+                        <h1 className="text-3xl font-bold text-slate-900">
                             {t("cultureTypes.subtitle", { defaultValue: "Culture Types" })}
                         </h1>
-                        <p className="mt-2 text-slate-400">
+                        <p className="mt-2 text-slate-500">
                             {t("cultureTypes.description", { defaultValue: "Reference crop codes used in PAC declarations. Global codes follow the Belgian SIGEC reference list; farm-specific codes extend it for your farm." })}
                         </p>
                     </div>
@@ -550,7 +552,7 @@ export function CultureTypesManager() {
                             <button
                                 type="button"
                                 onClick={() => setCategoryFilter("all")}
-                                className={`rounded-full px-3 py-1 text-xs font-medium transition ${categoryFilter === "all" ? "bg-indigo-600 text-white" : "bg-white/10 text-slate-300 hover:bg-white/15"}`}
+                                className={`rounded-full px-3 py-1 text-xs font-medium transition ${categoryFilter === "all" ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
                             >
                                 {t("common.all", { defaultValue: "All" })}
                             </button>
@@ -559,7 +561,7 @@ export function CultureTypesManager() {
                                     key={cat}
                                     type="button"
                                     onClick={() => setCategoryFilter(cat)}
-                                    className={`rounded-full px-3 py-1 text-xs font-medium transition ${categoryFilter === cat ? "bg-indigo-600 text-white" : "bg-white/10 text-slate-300 hover:bg-white/15"}`}
+                                    className={`rounded-full px-3 py-1 text-xs font-medium transition ${categoryFilter === cat ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
                                 >
                                     {categoryLabel(cat)}
                                 </button>
@@ -569,12 +571,12 @@ export function CultureTypesManager() {
 
                     {/* Error / loading */}
                     {loading && (
-                        <div className="py-16 text-center text-slate-400">
+                        <div className="py-16 text-center text-slate-500">
                             {t("common.loading", { defaultValue: "Loading..." })}
                         </div>
                     )}
                     {error && (
-                        <div className="mb-4 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">{error}</div>
+                        <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>
                     )}
 
                     {/* Table */}
@@ -602,18 +604,18 @@ export function CultureTypesManager() {
                     {/* Add modal */}
                     {addModalOpen && (
                         <div
-                            className="fixed inset-0 z-[10060] flex items-center justify-center bg-black/60 p-4"
+                            className="fixed inset-0 z-[10060] flex items-center justify-center bg-black/40 p-4"
                             onClick={(e) => { if (e.target === e.currentTarget) setAddModalOpen(false); }}
                         >
-                            <div className="relative flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-white/10 bg-slate-900 text-slate-50 shadow-2xl">
-                                <div className="flex items-center justify-between border-b border-white/10 px-6 py-4">
-                                    <h2 className="text-base font-semibold text-white">
+                            <div className="relative flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white text-slate-900 shadow-2xl">
+                                <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+                                    <h2 className="text-base font-semibold text-slate-900">
                                         {t("cultureTypes.addTitle", { defaultValue: "Add a culture type" })}
                                     </h2>
                                     <button
                                         type="button"
                                         onClick={() => setAddModalOpen(false)}
-                                        className="rounded-lg p-1.5 text-slate-400 hover:bg-white/10 hover:text-white"
+                                        className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
                                         aria-label={t("common.close", { defaultValue: "Close" })}
                                     >
                                         ✕
@@ -637,7 +639,7 @@ export function CultureTypesManager() {
 export default function CultureTypesPage() {
     return (
         <ProtectedRoute>
-            <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 text-slate-50">
+            <div className="min-h-screen bg-slate-50 text-slate-900">
                 <div className="mx-auto max-w-6xl px-4 py-10">
                     <CultureTypesManager />
                 </div>

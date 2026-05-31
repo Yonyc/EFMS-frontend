@@ -64,23 +64,23 @@ export default function ManageFarmCreate() {
 
     return (
         <div className="space-y-6">
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl shadow-black/20">
+            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xl shadow-slate-900/10">
                 <div>
-                    <h2 className="text-xl font-bold text-slate-100">{t('manageFarms.newTitle', { defaultValue: 'Create New Farm' })}</h2>
-                    <p className="text-sm text-slate-400 mt-1">{t('manageFarms.newDescription', { defaultValue: 'Set up a new farm workspace.' })}</p>
+                    <h2 className="text-xl font-bold text-slate-900">{t('manageFarms.newTitle', { defaultValue: 'Create New Farm' })}</h2>
+                    <p className="text-sm text-slate-500 mt-1">{t('manageFarms.newDescription', { defaultValue: 'Set up a new farm workspace.' })}</p>
                 </div>
 
                 {error && <div className="mt-4 rounded-xl bg-rose-500/10 p-4 text-sm font-medium text-rose-400 border border-rose-500/20">{error}</div>}
 
                 <form className="mt-6 space-y-5" onSubmit={handleCreate}>
                     <div className="space-y-1.5">
-                        <label htmlFor="new-farm-name" className="block text-sm font-medium text-slate-300">
+                        <label htmlFor="new-farm-name" className="block text-sm font-medium text-slate-600">
                             {t('manageFarms.nameLabel', { defaultValue: 'Farm Name' })}
                         </label>
                         <input
                             id="new-farm-name"
                             type="text"
-                            className="w-full rounded-xl bg-slate-950 border border-slate-800 px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+                            className="w-full rounded-xl bg-white border border-slate-200 px-4 py-2.5 text-sm text-slate-700 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
                             placeholder={t('manageFarms.namePlaceholder', { defaultValue: 'e.g. Sunny Valley Farm' })}
                             value={newFarmName}
                             onChange={(e) => setNewFarmName(e.target.value)}
@@ -90,10 +90,10 @@ export default function ManageFarmCreate() {
                     </div>
 
                     <div className="space-y-1.5">
-                        <label htmlFor="new-farm-description" className="block text-sm font-medium text-slate-300">{t('manageFarms.descriptionLabel', { defaultValue: 'Description' })}</label>
+                        <label htmlFor="new-farm-description" className="block text-sm font-medium text-slate-600">{t('manageFarms.descriptionLabel', { defaultValue: 'Description' })}</label>
                         <textarea
                             id="new-farm-description"
-                            className="w-full rounded-xl bg-slate-950 border border-slate-800 px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+                            className="w-full rounded-xl bg-white border border-slate-200 px-4 py-2.5 text-sm text-slate-700 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
                             rows={3}
                             placeholder="Optional description"
                             value={newFarmDescription}
@@ -103,11 +103,11 @@ export default function ManageFarmCreate() {
                     </div>
 
                     <div className="space-y-1.5">
-                        <label htmlFor="new-farm-location" className="block text-sm font-medium text-slate-300">{t('manageFarms.locationLabel', { defaultValue: 'Location' })}</label>
+                        <label htmlFor="new-farm-location" className="block text-sm font-medium text-slate-600">{t('manageFarms.locationLabel', { defaultValue: 'Location' })}</label>
                         <input
                             id="new-farm-location"
                             type="text"
-                            className="w-full rounded-xl bg-slate-950 border border-slate-800 px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+                            className="w-full rounded-xl bg-white border border-slate-200 px-4 py-2.5 text-sm text-slate-700 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
                             placeholder="City / region"
                             value={newFarmLocation}
                             onChange={(e) => setNewFarmLocation(e.target.value)}
@@ -117,21 +117,21 @@ export default function ManageFarmCreate() {
                     </div>
 
                     <div className="grid gap-4 sm:grid-cols-2 pt-4">
-                        <label className="flex items-center gap-3 p-3 rounded-xl border border-slate-800 bg-slate-950/50 hover:bg-slate-800/50 transition-colors cursor-pointer">
-                            <input type="checkbox" className="w-4 h-4 rounded border-slate-700 bg-slate-950 text-indigo-500 focus:ring-indigo-500" checked={newFarmIsPublic} onChange={(e) => setNewFarmIsPublic(e.target.checked)} disabled={isCreating} />
-                            <span className="text-sm font-medium text-slate-300">{t('manageFarms.public', { defaultValue: 'Public Farm' })}</span>
+                        <label className="flex items-center gap-3 p-3 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-50 transition-colors cursor-pointer">
+                            <input type="checkbox" className="w-4 h-4 rounded border-slate-300 bg-white text-indigo-500 focus:ring-indigo-500" checked={newFarmIsPublic} onChange={(e) => setNewFarmIsPublic(e.target.checked)} disabled={isCreating} />
+                            <span className="text-sm font-medium text-slate-600">{t('manageFarms.public', { defaultValue: 'Public Farm' })}</span>
                         </label>
-                        <label className="flex items-center gap-3 p-3 rounded-xl border border-slate-800 bg-slate-950/50 hover:bg-slate-800/50 transition-colors cursor-pointer">
-                            <input type="checkbox" className="w-4 h-4 rounded border-slate-700 bg-slate-950 text-indigo-500 focus:ring-indigo-500" checked={newShowName} onChange={(e) => setNewShowName(e.target.checked)} disabled={isCreating} />
-                            <span className="text-sm font-medium text-slate-300">{t('manageFarms.showName', { defaultValue: 'Show Name' })}</span>
+                        <label className="flex items-center gap-3 p-3 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-50 transition-colors cursor-pointer">
+                            <input type="checkbox" className="w-4 h-4 rounded border-slate-300 bg-white text-indigo-500 focus:ring-indigo-500" checked={newShowName} onChange={(e) => setNewShowName(e.target.checked)} disabled={isCreating} />
+                            <span className="text-sm font-medium text-slate-600">{t('manageFarms.showName', { defaultValue: 'Show Name' })}</span>
                         </label>
-                        <label className="flex items-center gap-3 p-3 rounded-xl border border-slate-800 bg-slate-950/50 hover:bg-slate-800/50 transition-colors cursor-pointer">
-                            <input type="checkbox" className="w-4 h-4 rounded border-slate-700 bg-slate-950 text-indigo-500 focus:ring-indigo-500" checked={newShowDescription} onChange={(e) => setNewShowDescription(e.target.checked)} disabled={isCreating} />
-                            <span className="text-sm font-medium text-slate-300">{t('manageFarms.showDescription', { defaultValue: 'Show Description' })}</span>
+                        <label className="flex items-center gap-3 p-3 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-50 transition-colors cursor-pointer">
+                            <input type="checkbox" className="w-4 h-4 rounded border-slate-300 bg-white text-indigo-500 focus:ring-indigo-500" checked={newShowDescription} onChange={(e) => setNewShowDescription(e.target.checked)} disabled={isCreating} />
+                            <span className="text-sm font-medium text-slate-600">{t('manageFarms.showDescription', { defaultValue: 'Show Description' })}</span>
                         </label>
-                        <label className="flex items-center gap-3 p-3 rounded-xl border border-slate-800 bg-slate-950/50 hover:bg-slate-800/50 transition-colors cursor-pointer">
-                            <input type="checkbox" className="w-4 h-4 rounded border-slate-700 bg-slate-950 text-indigo-500 focus:ring-indigo-500" checked={newShowLocation} onChange={(e) => setNewShowLocation(e.target.checked)} disabled={isCreating} />
-                            <span className="text-sm font-medium text-slate-300">{t('manageFarms.showLocation', { defaultValue: 'Show Location' })}</span>
+                        <label className="flex items-center gap-3 p-3 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-50 transition-colors cursor-pointer">
+                            <input type="checkbox" className="w-4 h-4 rounded border-slate-300 bg-white text-indigo-500 focus:ring-indigo-500" checked={newShowLocation} onChange={(e) => setNewShowLocation(e.target.checked)} disabled={isCreating} />
+                            <span className="text-sm font-medium text-slate-600">{t('manageFarms.showLocation', { defaultValue: 'Show Location' })}</span>
                         </label>
                     </div>
 

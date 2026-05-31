@@ -150,15 +150,15 @@ export default function ParcelsPage() {
 
     return (
         <ProtectedRoute>
-            <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 text-slate-50">
+            <div className="min-h-screen bg-slate-50 text-slate-900">
                 <div className="mx-auto max-w-7xl px-4 py-8">
                     <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <div>
-                            <p className="text-sm font-semibold uppercase tracking-wide text-indigo-300">
+                            <p className="text-sm font-semibold uppercase tracking-wide text-indigo-600">
                                 {t('parcels.title', { defaultValue: 'Parcels' })}
                             </p>
                             {selectedFarm && (
-                                <h1 className="text-2xl font-bold text-white">{selectedFarm.name}</h1>
+                                <h1 className="text-2xl font-bold text-slate-900">{selectedFarm.name}</h1>
                             )}
                         </div>
                         <input
@@ -166,30 +166,30 @@ export default function ParcelsPage() {
                             value={search}
                             onChange={e => setSearch(e.target.value)}
                             placeholder={t('parcels.searchPlaceholder', { defaultValue: 'Search by name, code, culture...' })}
-                            className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white outline-none focus:border-indigo-400 sm:w-72"
+                            className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm text-slate-900 outline-none focus:border-indigo-500 sm:w-72"
                         />
                     </div>
 
                     {!selectedFarm && (
-                        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-5 py-4 text-sm text-amber-200">
+                        <div className="rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-800">
                             {t('parcels.noFarmSelected', { defaultValue: 'Select a farm to view its parcels.' })}
                         </div>
                     )}
 
                     {error && (
-                        <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-5 py-4 text-sm text-rose-300">
+                        <div className="rounded-xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">
                             {error}
                         </div>
                     )}
 
                     {loading && (
-                        <div className="flex items-center justify-center py-20 text-slate-400">
+                        <div className="flex items-center justify-center py-20 text-slate-500">
                             {t('common.loading', { defaultValue: 'Loading...' })}
                         </div>
                     )}
 
                     {!loading && selectedFarm && parcels.length === 0 && !error && (
-                        <div className="flex items-center justify-center py-20 text-slate-400">
+                        <div className="flex items-center justify-center py-20 text-slate-500">
                             {debouncedSearch
                                 ? t('parcels.noResults', { defaultValue: 'No parcels match your search.' })
                                 : t('parcels.empty', { defaultValue: 'No parcels found for this farm.' })}
@@ -197,11 +197,11 @@ export default function ParcelsPage() {
                     )}
 
                     {!loading && parcels.length > 0 && (
-                        <div className="rounded-2xl border border-white/10 bg-white/5 shadow shadow-black/20">
+                        <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
                             <div ref={scrollRef} className="max-h-[calc(100vh-13rem)] overflow-auto rounded-2xl">
                             <table className="w-full min-w-[900px] text-sm">
                                 <thead className="sticky top-0 z-10">
-                                    <tr className="border-b border-white/10 bg-slate-800 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
+                                    <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                                         <th className="px-4 py-3">{t('parcels.col.name', { defaultValue: 'Name' })}</th>
                                         <th className="px-4 py-3">{t('parcels.col.code', { defaultValue: 'Code' })}</th>
                                         <th className="px-4 py-3">{t('parcels.col.block', { defaultValue: 'Block' })}</th>
@@ -217,24 +217,24 @@ export default function ParcelsPage() {
                                         <th className="px-4 py-3 text-right">{t('parcels.col.actions', { defaultValue: 'Actions' })}</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-white/5">
+                                <tbody className="divide-y divide-slate-100">
                                     {parcels.map(p => {
                                         const pp = activeParcelPeriod(p);
                                         const periodOpts: SelectOption[] = (p.parcelPeriods ?? [])
                                             .map(pp2 => ({ value: String(pp2.periodId), label: pp2.periodName ?? `#${pp2.periodId}` }));
                                         return (
-                                            <tr key={p.id} className="transition-colors hover:bg-white/[0.03]">
-                                                <td className="px-4 py-3 font-medium text-white">
+                                            <tr key={p.id} className="transition-colors hover:bg-slate-50">
+                                                <td className="px-4 py-3 font-medium text-slate-900">
                                                     <Link
                                                         to={buildLocalizedPath(locale, `/parcels/${p.id}`)}
-                                                        className="text-indigo-300 hover:text-indigo-200 hover:underline"
+                                                        className="text-indigo-600 hover:text-indigo-500 hover:underline"
                                                     >
                                                         {p.sourceName || p.name || `#${p.id}`}
                                                     </Link>
                                                 </td>
-                                                <td className="px-4 py-3 text-slate-300">{p.sourceCode ?? '—'}</td>
-                                                <td className="px-4 py-3 text-slate-300">{p.sourceBlockCode ?? '—'}</td>
-                                                <td className="px-4 py-3 text-slate-300">
+                                                <td className="px-4 py-3 text-slate-600">{p.sourceCode ?? '—'}</td>
+                                                <td className="px-4 py-3 text-slate-600">{p.sourceBlockCode ?? '—'}</td>
+                                                <td className="px-4 py-3 text-slate-600">
                                                     {periodOpts.length > 1 ? (
                                                         <SearchableSelect
                                                             options={periodOpts}
@@ -247,27 +247,27 @@ export default function ParcelsPage() {
                                                         <span>{pp?.periodName ?? '—'}</span>
                                                     )}
                                                 </td>
-                                                <td className="px-4 py-3 text-slate-300">
+                                                <td className="px-4 py-3 text-slate-600">
                                                     {pp?.cultureLabel
                                                         ? <span title={pp.cultureCode ?? ''}>{pp.cultureLabel}</span>
                                                         : (pp?.cultureCode ?? '—')}
                                                 </td>
-                                                <td className="px-4 py-3 text-slate-300">
+                                                <td className="px-4 py-3 text-slate-600">
                                                     {pp?.declaredAreaHa != null ? pp.declaredAreaHa.toFixed(2) : '—'}
                                                 </td>
-                                                <td className="px-4 py-3 text-slate-300">
+                                                <td className="px-4 py-3 text-slate-600">
                                                     {pp?.measuredAreaHa != null ? pp.measuredAreaHa.toFixed(2) : '—'}
                                                 </td>
-                                                <td className="px-4 py-3 text-slate-300">{pp?.sowingDate ?? '—'}</td>
-                                                <td className="px-4 py-3 text-slate-300">{pp?.harvestDate ?? '—'}</td>
-                                                <td className="px-4 py-3 text-slate-300">{p.municipality ?? '—'}</td>
+                                                <td className="px-4 py-3 text-slate-600">{pp?.sowingDate ?? '—'}</td>
+                                                <td className="px-4 py-3 text-slate-600">{pp?.harvestDate ?? '—'}</td>
+                                                <td className="px-4 py-3 text-slate-600">{p.municipality ?? '—'}</td>
                                                 <td className="px-4 py-3">
                                                     {pp?.eligibilityStatus
-                                                        ? <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-300">{pp.eligibilityStatus}</span>
-                                                        : <span className="text-slate-500">—</span>}
+                                                        ? <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">{pp.eligibilityStatus}</span>
+                                                        : <span className="text-slate-400">—</span>}
                                                 </td>
                                                 <td className="px-4 py-3">
-                                                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${pp?.active !== false ? 'bg-emerald-500/15 text-emerald-300' : 'bg-white/10 text-slate-400'}`}>
+                                                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${pp?.active !== false ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
                                                         {pp?.active !== false
                                                             ? t('parcels.active', { defaultValue: 'Active' })
                                                             : t('parcels.inactive', { defaultValue: 'Inactive' })}
@@ -277,7 +277,7 @@ export default function ParcelsPage() {
                                                     <button
                                                         type="button"
                                                         onClick={() => setManagingParcelId(p.id)}
-                                                        className="rounded-md border border-white/10 bg-white/5 px-2 py-1 text-xs font-medium text-slate-200 hover:bg-white/10"
+                                                        className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100"
                                                     >
                                                         {t('map.polygonList.managePeriods', { defaultValue: 'Manage periods' })}
                                                     </button>
@@ -287,7 +287,7 @@ export default function ParcelsPage() {
                                     })}
                                 </tbody>
                             </table>
-                            <div ref={sentinelRef} className="border-t border-white/5 px-4 py-2 text-center text-xs text-slate-500">
+                            <div ref={sentinelRef} className="border-t border-slate-100 px-4 py-2 text-center text-xs text-slate-500">
                                 {loadingMore ? (
                                     t('common.loading', { defaultValue: 'Loading...' })
                                 ) : hasMore ? (
@@ -300,7 +300,7 @@ export default function ParcelsPage() {
                                                 .catch(() => {})
                                                 .finally(() => setLoadingMore(false));
                                         }}
-                                        className="font-medium text-indigo-300 hover:text-indigo-200"
+                                        className="font-medium text-indigo-600 hover:text-indigo-500"
                                     >
                                         {t('parcels.loadMore', { defaultValue: 'Load more' })} ({parcels.length} / {total})
                                     </button>

@@ -246,16 +246,16 @@ export default function ProfilePage() {
 
   return (
     <ProtectedRoute>
-      <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 px-4 py-10 text-slate-50">
+      <div className="min-h-screen bg-slate-50 px-4 py-10 text-slate-900">
         <div className="mx-auto flex max-w-4xl flex-col gap-6">
           <header className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-wide text-indigo-300">{t("profile.title", { defaultValue: "Profile" })}</p>
-              <h1 className="text-3xl font-semibold text-white">{t("profile.subtitle", { defaultValue: "Manage your account" })}</h1>
+              <p className="text-sm font-semibold uppercase tracking-wide text-indigo-600">{t("profile.title", { defaultValue: "Profile" })}</p>
+              <h1 className="text-3xl font-semibold text-slate-900">{t("profile.subtitle", { defaultValue: "Manage your account" })}</h1>
             </div>
             <Link
               to={localizedMapPath}
-              className="rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10"
+              className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
             >
               {t("profile.backToMap", { defaultValue: "Back to map" })}
             </Link>
@@ -265,35 +265,35 @@ export default function ProfilePage() {
             <div
               className={`rounded-lg border px-4 py-3 text-sm ${
                 error
-                  ? "border-rose-400/40 bg-rose-500/10 text-rose-100"
-                  : "border-emerald-400/40 bg-emerald-500/10 text-emerald-100"
+                  ? "border-rose-200 bg-rose-50 text-rose-700"
+                  : "border-emerald-200 bg-emerald-50 text-emerald-700"
               }`}
             >
               {error || success}
             </div>
           )}
 
-          <section className="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-xl shadow-black/30">
+          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <div className="flex items-start justify-between gap-4">
               <div className="flex gap-4 items-center">
-                <div className="relative h-16 w-16 overflow-hidden rounded-full border border-white/20 bg-white/10">
+                <div className="relative h-16 w-16 overflow-hidden rounded-full border border-slate-200 bg-slate-100">
                   {avatarUrl ? (
                     <img src={resolveUploadUrl(avatarUrl) ?? avatarUrl} alt="avatar" className="h-full w-full object-cover" />
                   ) : (
-                    <div className="flex h-full w-full items-center justify-center text-lg font-semibold text-slate-200">
+                    <div className="flex h-full w-full items-center justify-center text-lg font-semibold text-slate-500">
                       {username ? username.charAt(0).toUpperCase() : "?"}
                     </div>
                   )}
                 </div>
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-indigo-200">{t("profile.account" , { defaultValue: "Account" })}</p>
-                  <h2 className="text-xl font-semibold text-white">{username || t("profile.unknown", { defaultValue: "Unknown user" })}</h2>
-                  <p className="text-xs text-slate-300">ID: {userId || "-"}</p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-indigo-600">{t("profile.account" , { defaultValue: "Account" })}</p>
+                  <h2 className="text-xl font-semibold text-slate-900">{username || t("profile.unknown", { defaultValue: "Unknown user" })}</h2>
+                  <p className="text-xs text-slate-500">ID: {userId || "-"}</p>
                   <div className="mt-2 flex gap-2">
                     <button
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
-                      className="rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/10"
+                      className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100"
                       disabled={avatarUploading}
                     >
                       {t('profile.changeAvatar', { defaultValue: 'Change avatar' })}
@@ -312,7 +312,7 @@ export default function ProfilePage() {
                 <button
                   type="button"
                   onClick={handleReset}
-                  className="rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm font-semibold text-white hover:bg-white/10"
+                  className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
                   disabled={saving}
                 >
                   {t("profile.reset", { defaultValue: "Reset" })}
@@ -320,7 +320,7 @@ export default function ProfilePage() {
                 <button
                   type="button"
                   onClick={handleReload}
-                  className="rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-60"
+                  className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-60"
                   disabled={loading || saving}
                 >
                   {loading ? t("common.loading", { defaultValue: "Loading..." }) : t("profile.reload", { defaultValue: "Reload" })}
@@ -329,49 +329,49 @@ export default function ProfilePage() {
             </div>
 
             <div className="mt-6 grid gap-4 sm:grid-cols-2">
-              <label className="flex flex-col gap-2 text-sm font-semibold text-slate-100">
+              <label className="flex flex-col gap-2 text-sm font-semibold text-slate-700">
                 {t("profile.username", { defaultValue: "Username" })}
                 <input
                   value={username}
                   disabled
-                  className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-200 shadow-inner shadow-black/10"
+                  className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500"
                 />
               </label>
-              <label className="flex flex-col gap-2 text-sm font-semibold text-slate-100">
+              <label className="flex flex-col gap-2 text-sm font-semibold text-slate-700">
                 {t("profile.email", { defaultValue: "Email" })}
                 <input
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@example.com"
-                  className="rounded-lg border border-white/10 bg-slate-900/60 px-3 py-2 text-sm text-white focus:border-indigo-400 focus:outline-none"
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none"
                 />
               </label>
             </div>
 
             <div className="mt-6 space-y-3">
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-indigo-200">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-indigo-600">
                 {t("profile.preferences", { defaultValue: "Preferences" })}
               </p>
 
-              <label className="flex items-start gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-100">
+              <label className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
                 <input
                   type="checkbox"
                   checked={preferTopRight}
                   onChange={(e) => setPreferTopRight(e.target.checked)}
-                  className="mt-1 h-4 w-4 rounded border-white/30 bg-white/10 text-indigo-500"
+                  className="mt-1 h-4 w-4 rounded border-slate-300 bg-white text-indigo-500"
                 />
                 <div>
                   <div className="font-semibold">{t("profile.pinTopRight", { defaultValue: "Open operations popup at top-right" })}</div>
-                  <p className="text-xs text-slate-300">{t("profile.pinTopRightHint", { defaultValue: "Also used on the map operations popup." })}</p>
+                  <p className="text-xs text-slate-500">{t("profile.pinTopRightHint", { defaultValue: "Also used on the map operations popup." })}</p>
                 </div>
               </label>
 
-              <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3">
-                <div className="text-sm font-semibold text-slate-100">{t("profile.timeFormat", { defaultValue: "Time format" })}</div>
-                <p className="text-xs text-slate-300">{t("profile.timeFormatHint", { defaultValue: "How clock times are shown across the app." })}</p>
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                <div className="text-sm font-semibold text-slate-700">{t("profile.timeFormat", { defaultValue: "Time format" })}</div>
+                <p className="text-xs text-slate-500">{t("profile.timeFormatHint", { defaultValue: "How clock times are shown across the app." })}</p>
                 <div className="mt-2 flex gap-2">
                   {(['24h', '12h'] as TimeFormat[]).map((opt) => (
-                    <label key={opt} className={`cursor-pointer rounded-lg border px-3 py-1.5 text-xs font-semibold ${timeFormat === opt ? 'border-indigo-400 bg-indigo-500/20 text-white' : 'border-white/10 bg-white/5 text-slate-200 hover:bg-white/10'}`}>
+                    <label key={opt} className={`cursor-pointer rounded-lg border px-3 py-1.5 text-xs font-semibold ${timeFormat === opt ? 'border-indigo-400 bg-indigo-50 text-indigo-700' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-100'}`}>
                       <input
                         type="radio"
                         name="timeFormat"
@@ -386,9 +386,9 @@ export default function ProfilePage() {
                 </div>
               </div>
 
-              <label className="flex flex-col gap-1 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-100">
+              <label className="flex flex-col gap-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
                 <span className="font-semibold">{t("profile.dateFormat", { defaultValue: "Date format" })}</span>
-                <span className="text-xs text-slate-300">{t("profile.dateFormatHint", { defaultValue: "Auto matches your language; pick a fixed format to override." })}</span>
+                <span className="text-xs text-slate-500">{t("profile.dateFormatHint", { defaultValue: "Auto matches your language; pick a fixed format to override." })}</span>
                 <SearchableSelect
                   className="mt-2"
                   value={dateFormat}
@@ -400,12 +400,13 @@ export default function ProfilePage() {
                     { value: "YYYY-MM-DD", label: "YYYY-MM-DD" },
                   ]}
                   placeholder={t("profile.dateFormat", { defaultValue: "Date format" })}
+                  variant="light"
                 />
               </label>
 
-              <label className="flex flex-col gap-1 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-100">
+              <label className="flex flex-col gap-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
                 <span className="font-semibold">{t("profile.preferredLanguage", { defaultValue: "Language" })}</span>
-                <span className="text-xs text-slate-300">{t("profile.preferredLanguageHint", { defaultValue: "Overrides your browser language." })}</span>
+                <span className="text-xs text-slate-500">{t("profile.preferredLanguageHint", { defaultValue: "Overrides your browser language." })}</span>
                 <SearchableSelect
                   className="mt-2"
                   value={preferredLanguage}
@@ -415,12 +416,13 @@ export default function ProfilePage() {
                     ...SUPPORTED_LOCALES.map((loc) => ({ value: loc, label: t(`profile.preferredLanguageOptions.${loc}`, { defaultValue: loc.toUpperCase() }) })),
                   ]}
                   placeholder={t("profile.preferredLanguage", { defaultValue: "Language" })}
+                  variant="light"
                 />
               </label>
 
-              <label className="flex flex-col gap-1 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-100">
+              <label className="flex flex-col gap-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
                 <span className="font-semibold">{t("profile.defaultFarm", { defaultValue: "Default farm" })}</span>
-                <span className="text-xs text-slate-300">{t("profile.defaultFarmHint", { defaultValue: "Auto-selected after fresh login. Refresh keeps whatever farm you last used." })}</span>
+                <span className="text-xs text-slate-500">{t("profile.defaultFarmHint", { defaultValue: "Auto-selected after fresh login. Refresh keeps whatever farm you last used." })}</span>
                 <SearchableSelect
                   className="mt-2"
                   value={defaultFarmId}
@@ -430,13 +432,14 @@ export default function ProfilePage() {
                     ...farms.map((farm) => ({ value: String(farm.id), label: farm.name })),
                   ]}
                   placeholder={t("profile.defaultFarmNone", { defaultValue: "No default (show picker)" })}
+                  variant="light"
                 />
               </label>
 
               {farms.length > 0 && (
-                <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-100">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
                   <div className="font-semibold">{t("profile.defaultPeriod", { defaultValue: "Default period per farm" })}</div>
-                  <div className="text-xs text-slate-300">{t("profile.defaultPeriodHint", { defaultValue: "The map opens with this period filtered by default. Leave blank to default to the most recent period." })}</div>
+                  <div className="text-xs text-slate-500">{t("profile.defaultPeriodHint", { defaultValue: "The map opens with this period filtered by default. Leave blank to default to the most recent period." })}</div>
                   <div className="mt-3 flex flex-col gap-2">
                     {farms.map((farm) => {
                       const farmKey = String(farm.id);
@@ -453,7 +456,7 @@ export default function ProfilePage() {
                       ];
                       return (
                         <div key={farm.id} className="flex items-center justify-between gap-3">
-                          <span className="text-slate-200">{farm.name}</span>
+                          <span className="text-slate-700">{farm.name}</span>
                           <SearchableSelect
                             className="w-44"
                             options={periodOpts}
@@ -461,6 +464,7 @@ export default function ProfilePage() {
                             onChange={(next) => handleFarmDefaultPeriodChange(farmKey, next)}
                             placeholder={t('map.periodPicker.showAll', { defaultValue: 'All periods' })}
                             disabled={periods.length === 0}
+                            variant="light"
                           />
                         </div>
                       );
@@ -469,16 +473,16 @@ export default function ProfilePage() {
                 </div>
               )}
 
-              <label className="flex items-start gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-100">
+              <label className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
                 <input
                   type="checkbox"
                   checked={emailNotificationsEnabled}
                   onChange={(e) => setEmailNotificationsEnabled(e.target.checked)}
-                  className="mt-1 h-4 w-4 rounded border-white/30 bg-white/10 text-indigo-500"
+                  className="mt-1 h-4 w-4 rounded border-slate-300 bg-white text-indigo-500"
                 />
                 <div>
                   <div className="font-semibold">{t("profile.emailNotifications", { defaultValue: "Email notifications" })}</div>
-                  <p className="text-xs text-slate-300">{t("profile.emailNotificationsHint", { defaultValue: "Master switch for shares, imports and parcel alerts." })}</p>
+                  <p className="text-xs text-slate-500">{t("profile.emailNotificationsHint", { defaultValue: "Master switch for shares, imports and parcel alerts." })}</p>
                 </div>
               </label>
             </div>
@@ -498,20 +502,20 @@ export default function ProfilePage() {
       </div>
 
       {avatarModalOpen && imageSrc && (
-        <div className="fixed inset-0 z-[200000] flex items-center justify-center bg-black/70 px-4">
-          <div className="w-full max-w-2xl rounded-2xl bg-slate-900 p-4 text-white shadow-2xl shadow-black/50">
+        <div className="fixed inset-0 z-[200000] flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-2xl rounded-2xl bg-white p-4 text-slate-900 shadow-2xl">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-lg font-semibold">{t('profile.cropTitle', { defaultValue: 'Crop avatar' })}</h3>
               <button
                 type="button"
                 onClick={() => { setAvatarModalOpen(false); setImageSrc(null); }}
-                className="rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-sm"
+                className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-sm text-slate-600 hover:bg-slate-100"
                 disabled={avatarUploading}
               >
                 ×
               </button>
             </div>
-            <div className="relative h-[320px] w-full overflow-hidden rounded-xl bg-slate-800">
+            <div className="relative h-[320px] w-full overflow-hidden rounded-xl bg-slate-100">
               <Cropper
                 image={imageSrc}
                 crop={crop}

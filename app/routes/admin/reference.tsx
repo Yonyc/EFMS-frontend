@@ -22,32 +22,32 @@ function SectionCard({ title, description, addForm, filterBar, footer, children 
   children: React.ReactNode;
 }) {
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl shadow-black/20">
-      <div className="flex items-center gap-3 mb-5 pb-4 border-b border-slate-800">
+    <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xl shadow-slate-900/10">
+      <div className="flex items-center gap-3 mb-5 pb-4 border-b border-slate-200">
         <div className="p-2.5 bg-indigo-500/10 rounded-xl">
           <CircleStackIcon className="w-5 h-5 text-indigo-400" />
         </div>
         <div>
-          <h3 className="text-base font-bold text-slate-100">{title}</h3>
-          {description && <p className="text-xs text-slate-400 mt-0.5">{description}</p>}
+          <h3 className="text-base font-bold text-slate-900">{title}</h3>
+          {description && <p className="text-xs text-slate-500 mt-0.5">{description}</p>}
         </div>
       </div>
-      <div className="mb-4 rounded-xl border border-slate-800 bg-slate-950/50 p-3">
+      <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
         {addForm}
       </div>
       {filterBar && <div className="mb-3">{filterBar}</div>}
-      <ul className="divide-y divide-slate-800">{children}</ul>
+      <ul className="divide-y divide-slate-200">{children}</ul>
       {footer}
     </div>
   );
 }
 
-const inputCls = "rounded-lg border border-slate-700 bg-slate-950 px-3 py-1.5 text-sm text-slate-100 placeholder:text-slate-500 focus:border-indigo-400 focus:outline-none disabled:opacity-50";
+const inputCls = "rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 placeholder:text-slate-500 focus:border-indigo-400 focus:outline-none disabled:opacity-50";
 const btnPrimary = "rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-50";
-const btnGhost = "text-xs font-semibold text-slate-400 hover:text-slate-200 disabled:opacity-50";
+const btnGhost = "text-xs font-semibold text-slate-500 hover:text-slate-700 disabled:opacity-50";
 const btnDanger = "text-xs font-semibold text-rose-400 hover:text-rose-300 disabled:opacity-50";
 const btnSave = "text-xs font-semibold text-indigo-400 hover:text-indigo-300 disabled:opacity-50";
-const searchCls = "w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-1.5 text-sm text-slate-100 placeholder:text-slate-500 focus:border-indigo-400 focus:outline-none";
+const searchCls = "w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 placeholder:text-slate-500 focus:border-indigo-400 focus:outline-none";
 
 export default function AdminReference() {
   const { t } = useTranslation();
@@ -193,7 +193,7 @@ export default function AdminReference() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-24 text-slate-400">
+      <div className="flex items-center justify-center py-24 text-slate-500">
         {t("common.loading", { defaultValue: "Loading..." })}
       </div>
     );
@@ -202,10 +202,10 @@ export default function AdminReference() {
   return (
     <div className="space-y-8">
       <div className="mb-8">
-        <h2 className="text-2xl font-extrabold text-slate-100">
+        <h2 className="text-2xl font-extrabold text-slate-900">
           {t("admin.reference.title", { defaultValue: "Global Reference Data" })}
         </h2>
-        <p className="mt-1 text-sm text-slate-400">
+        <p className="mt-1 text-sm text-slate-500">
           {t("admin.reference.subtitle", { defaultValue: "Manage the global catalog items available to all farms." })}
         </p>
       </div>
@@ -273,7 +273,7 @@ export default function AdminReference() {
                 </div>
               ) : (
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-sm font-medium text-slate-200">{u.value}</span>
+                  <span className="text-sm font-medium text-slate-700">{u.value}</span>
                   <div className="flex items-center gap-3 shrink-0">
                     <button type="button" onClick={() => setEditUnit({ id: u.id, value: u.value })} disabled={saving} className={btnGhost}>
                       {t("common.rename", { defaultValue: "Rename" })}
@@ -377,7 +377,7 @@ export default function AdminReference() {
               ) : (
                 <div className="flex items-center justify-between gap-2">
                   <div className="min-w-0">
-                    <span className="text-sm font-medium text-slate-200">{pt.name}</span>
+                    <span className="text-sm font-medium text-slate-700">{pt.name}</span>
                     {pt.unitId && (
                       <span className="ml-2 text-xs text-slate-500">({unitLookup.get(pt.unitId)?.value})</span>
                     )}
@@ -464,7 +464,7 @@ export default function AdminReference() {
                 </div>
               ) : (
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-sm font-medium text-slate-200">{ot.name}</span>
+                  <span className="text-sm font-medium text-slate-700">{ot.name}</span>
                   <div className="flex items-center gap-3 shrink-0">
                     <button type="button" onClick={() => setEditOpType({ id: ot.id, value: ot.name })} disabled={saving} className={btnGhost}>
                       {t("common.rename", { defaultValue: "Rename" })}
@@ -545,7 +545,7 @@ export default function AdminReference() {
                 </div>
               ) : (
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-sm font-medium text-slate-200">{c.name}</span>
+                  <span className="text-sm font-medium text-slate-700">{c.name}</span>
                   <div className="flex items-center gap-3 shrink-0">
                     <button type="button" onClick={() => setEditCategory({ id: c.id, value: c.name })} disabled={saving} className={btnGhost}>
                       {t("common.rename", { defaultValue: "Rename" })}

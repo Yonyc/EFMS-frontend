@@ -110,7 +110,7 @@ export default function AttachmentSection({ uploadUrl, deleteUrlPrefix, attachme
 
         <div className="space-y-2">
             {attachments.length === 0 && !canEdit && (
-                <p className="text-xs text-slate-500 italic">
+                <p className="text-xs text-slate-400 italic">
                     {t("attachments.none", { defaultValue: "No attachments" })}
                 </p>
             )}
@@ -119,19 +119,19 @@ export default function AttachmentSection({ uploadUrl, deleteUrlPrefix, attachme
                 const resolvedUrl = resolveUploadUrl(att.url) ?? att.url;
                 const isImage = isImageAttachment(att);
                 return (
-                    <div key={att.id} className="flex items-center gap-1.5 rounded border border-slate-700 bg-slate-800/60 px-2 py-1 text-xs">
+                    <div key={att.id} className="flex items-center gap-1.5 rounded border border-slate-200 bg-white px-2 py-1 text-xs">
                         {isImage
-                            ? <PhotoIcon className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-                            : <PaperClipIcon className="h-3.5 w-3.5 shrink-0 text-slate-400" />}
-                        <span className="flex-1 truncate text-slate-200">{att.originalFilename}</span>
+                            ? <PhotoIcon className="h-3.5 w-3.5 shrink-0 text-slate-500" />
+                            : <PaperClipIcon className="h-3.5 w-3.5 shrink-0 text-slate-500" />}
+                        <span className="flex-1 truncate text-slate-700">{att.originalFilename}</span>
                         {att.fileSize != null && (
-                            <span className="shrink-0 text-slate-500">{formatBytes(att.fileSize)}</span>
+                            <span className="shrink-0 text-slate-400">{formatBytes(att.fileSize)}</span>
                         )}
                         {isImage && (
                             <button
                                 type="button"
                                 onClick={() => setLightboxSrc(resolvedUrl)}
-                                className="shrink-0 rounded p-1 text-slate-400 hover:bg-slate-700 hover:text-indigo-300 transition-colors"
+                                className="shrink-0 rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-indigo-600 transition-colors"
                                 title={t("attachments.preview", { defaultValue: "Preview" })}
                             >
                                 <PhotoIcon className="h-3.5 w-3.5" />
@@ -142,7 +142,7 @@ export default function AttachmentSection({ uploadUrl, deleteUrlPrefix, attachme
                             target="_blank"
                             rel="noopener noreferrer"
                             download={att.originalFilename}
-                            className="shrink-0 rounded p-1 text-slate-400 hover:bg-slate-700 hover:text-indigo-300 transition-colors"
+                            className="shrink-0 rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-indigo-600 transition-colors"
                             title={t("attachments.download", { defaultValue: "Download" })}
                         >
                             <ArrowDownTrayIcon className="h-3.5 w-3.5" />
@@ -151,7 +151,7 @@ export default function AttachmentSection({ uploadUrl, deleteUrlPrefix, attachme
                             <button
                                 type="button"
                                 onClick={() => handleDelete(att.id)}
-                                className="shrink-0 rounded p-1 text-slate-400 hover:bg-slate-700 hover:text-rose-400 transition-colors"
+                                className="shrink-0 rounded p-1 text-slate-400 hover:bg-rose-50 hover:text-rose-500 transition-colors"
                                 title={t("attachments.delete", { defaultValue: "Delete" })}
                             >
                                 <TrashIcon className="h-3.5 w-3.5" />
@@ -161,7 +161,7 @@ export default function AttachmentSection({ uploadUrl, deleteUrlPrefix, attachme
                 );
             })}
 
-            {error && <p className="text-xs text-rose-400">{error}</p>}
+            {error && <p className="text-xs text-rose-500">{error}</p>}
 
             {canEdit && (
                 <>
@@ -169,7 +169,7 @@ export default function AttachmentSection({ uploadUrl, deleteUrlPrefix, attachme
                         type="button"
                         onClick={() => inputRef.current?.click()}
                         disabled={uploading}
-                        className="flex items-center gap-1 rounded border border-dashed border-slate-600 px-2 py-1 text-xs text-slate-400 hover:border-indigo-500 hover:text-indigo-300 disabled:opacity-50 transition-colors w-full justify-center"
+                        className="flex items-center gap-1 rounded border border-dashed border-slate-300 px-2 py-1 text-xs text-slate-500 hover:border-indigo-400 hover:text-indigo-600 disabled:opacity-50 transition-colors w-full justify-center"
                     >
                         <PaperClipIcon className="h-4 w-4" />
                         {uploading

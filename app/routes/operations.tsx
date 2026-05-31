@@ -217,22 +217,22 @@ function AddOperationModal({ farmId, parcels, onSaved, onClose, editOp }: AddMod
   const toolOpts: SelectOption[] = tools.map(t => ({ value: String(t.id), label: t.name }));
   const unitOpts: SelectOption[] = units.map(u => ({ value: String(u.id), label: u.value }));
 
-  const inputCls = "w-full rounded-lg border border-white/10 bg-slate-900/60 px-3 py-2 text-sm text-white focus:border-indigo-400 focus:outline-none disabled:opacity-50";
-  const labelCls = "block text-xs font-semibold uppercase tracking-wide text-slate-400";
+  const inputCls = "w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none disabled:opacity-50";
+  const labelCls = "block text-xs font-semibold uppercase tracking-wide text-slate-500";
 
   return (
     <div
-      className="fixed inset-0 z-[10060] flex items-center justify-center bg-black/60 p-4"
+      className="fixed inset-0 z-[10060] flex items-center justify-center bg-black/40 p-4"
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="relative flex max-h-[90vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-white/10 bg-slate-900 shadow-2xl">
-        <div className="flex items-center justify-between border-b border-white/10 px-6 py-4">
-          <h2 className="text-base font-semibold text-white">
+      <div className="relative flex max-h-[90vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+        <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+          <h2 className="text-base font-semibold text-slate-900">
             {isEdit
               ? t("operations.editModal.title", { defaultValue: "Edit operation" })
               : t("operations.addModal.title", { defaultValue: "New operation" })}
           </h2>
-          <button type="button" onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-white/10 hover:text-white">
+          <button type="button" onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -241,7 +241,7 @@ function AddOperationModal({ farmId, parcels, onSaved, onClose, editOp }: AddMod
 
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
           {error && (
-            <p className="rounded-lg border border-rose-500/30 bg-rose-500/15 px-3 py-2 text-xs text-rose-300">{error}</p>
+            <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">{error}</p>
           )}
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -252,12 +252,12 @@ function AddOperationModal({ farmId, parcels, onSaved, onClose, editOp }: AddMod
                   {parcelIds.map(id => {
                     const name = parcels.find(p => String(p.id) === id)?.name ?? id;
                     return (
-                      <span key={id} className="inline-flex items-center gap-1 rounded-full border border-indigo-400/30 bg-indigo-500/15 px-2.5 py-1 text-xs font-medium text-indigo-200">
+                      <span key={id} className="inline-flex items-center gap-1 rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-xs font-medium text-indigo-700">
                         {name}
                         <button
                           type="button"
                           onClick={() => setParcelIds(prev => prev.filter(x => x !== id))}
-                          className="text-indigo-300 hover:text-white"
+                          className="text-indigo-400 hover:text-indigo-700"
                           aria-label={t("common.remove", { defaultValue: "Remove" })}
                         >
                           ×
@@ -300,14 +300,14 @@ function AddOperationModal({ farmId, parcels, onSaved, onClose, editOp }: AddMod
               <button
                 type="button"
                 onClick={() => setLines(prev => [...prev, { productId: "", quantity: "", unitId: "", toolId: "" }])}
-                className="rounded border border-white/10 px-2 py-0.5 text-xs text-slate-400 hover:bg-white/5 hover:text-white"
+                className="rounded border border-slate-200 px-2 py-0.5 text-xs text-slate-500 hover:bg-slate-100 hover:text-slate-700"
               >
                 + {t("operations.addLine", { defaultValue: "Add line" })}
               </button>
             </div>
             <div className="space-y-2">
               {lines.map((line, idx) => (
-                <div key={idx} className="space-y-2 rounded-lg border border-white/10 bg-white/5 p-3">
+                <div key={idx} className="space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
                   <SearchableSelect
                     value={line.productId} onChange={v => updateLine(idx, "productId", v)}
                     options={productOpts} placeholder={t("operations.product", { defaultValue: "Product" })}
@@ -336,7 +336,7 @@ function AddOperationModal({ farmId, parcels, onSaved, onClose, editOp }: AddMod
                     <button
                       type="button"
                       onClick={() => setLines(prev => prev.filter((_, i) => i !== idx))}
-                      className="text-xs text-rose-400 hover:text-rose-300"
+                      className="text-xs text-rose-500 hover:text-rose-700"
                     >
                       {t("common.remove", { defaultValue: "Remove" })}
                     </button>
@@ -347,8 +347,8 @@ function AddOperationModal({ farmId, parcels, onSaved, onClose, editOp }: AddMod
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-3 border-t border-white/10 px-6 py-4">
-          <button type="button" onClick={onClose} disabled={saving} className="rounded-lg border border-white/10 px-4 py-2 text-sm text-slate-300 hover:bg-white/5 disabled:opacity-50">
+        <div className="flex items-center justify-end gap-3 border-t border-slate-200 px-6 py-4">
+          <button type="button" onClick={onClose} disabled={saving} className="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-50">
             {t("common.cancel", { defaultValue: "Cancel" })}
           </button>
           <button type="button" onClick={handleSave} disabled={saving} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-60">
@@ -370,43 +370,43 @@ function OperationCard({ op, farmId, onEdit, onDelete }: CardProps) {
   const canEdit = !!(op.parcelIds?.length || op.parcelId);
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/5 shadow shadow-black/20">
+    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
       <button
         type="button"
         onClick={() => setExpanded(v => !v)}
-        className="flex w-full items-start gap-4 px-5 py-4 text-left transition-colors hover:bg-white/[0.03]"
+        className="flex w-full items-start gap-4 px-5 py-4 text-left transition-colors hover:bg-slate-50"
       >
         <div className="min-w-0 flex-1 space-y-1.5">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm font-semibold text-white">
+            <span className="text-sm font-semibold text-slate-900">
               {op.typeName ?? t("operations.selectTypePlaceholder", { defaultValue: "No type" })}
             </span>
             {(op.parcelNames && op.parcelNames.length > 0 ? op.parcelNames : op.parcelName ? [op.parcelName] : []).map((name, i) => (
-              <span key={i} className="rounded-full bg-indigo-500/15 px-2 py-0.5 text-xs font-medium text-indigo-300">
+              <span key={i} className="rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700">
                 {name}
               </span>
             ))}
             {op.periodName && (
-              <span className="rounded-full bg-violet-500/15 px-2 py-0.5 text-xs font-medium text-violet-300">
+              <span className="rounded-full bg-violet-50 px-2 py-0.5 text-xs font-medium text-violet-700">
                 {op.periodName}
               </span>
             )}
           </div>
-          <p className="text-xs text-slate-400">{formatDateTime(op.date)}</p>
+          <p className="text-xs text-slate-500">{formatDateTime(op.date)}</p>
         </div>
         <div className="flex shrink-0 items-center gap-2.5">
           {op.durationSeconds != null && (
-            <span className="rounded-full bg-white/10 px-2.5 py-1 text-xs font-semibold text-slate-300">
+            <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
               {formatDuration(op.durationSeconds)}
             </span>
           )}
           {op.products && op.products.length > 0 && (
-            <span className="rounded-full bg-white/5 px-2.5 py-1 text-xs text-slate-500">
+            <span className="rounded-full bg-slate-50 px-2.5 py-1 text-xs text-slate-500">
               {op.products.length}×
             </span>
           )}
           <svg
-            className={`h-4 w-4 shrink-0 text-slate-500 transition-transform ${expanded ? "rotate-180" : ""}`}
+            className={`h-4 w-4 shrink-0 text-slate-400 transition-transform ${expanded ? "rotate-180" : ""}`}
             fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
           >
             <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
@@ -415,14 +415,14 @@ function OperationCard({ op, farmId, onEdit, onDelete }: CardProps) {
       </button>
 
       {expanded && (
-        <div className="space-y-4 border-t border-white/5 px-5 py-4">
+        <div className="space-y-4 border-t border-slate-100 px-5 py-4">
           {canEdit && (onEdit || onDelete) && (
             <div className="flex items-center justify-end gap-2">
               {onEdit && (
                 <button
                   type="button"
                   onClick={() => onEdit(op)}
-                  className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-slate-200 transition-colors hover:bg-white/10"
+                  className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-100"
                 >
                   {t("common.edit", { defaultValue: "Edit" })}
                 </button>
@@ -431,7 +431,7 @@ function OperationCard({ op, farmId, onEdit, onDelete }: CardProps) {
                 <button
                   type="button"
                   onClick={() => onDelete(op)}
-                  className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-1.5 text-xs font-semibold text-rose-300 transition-colors hover:bg-rose-500/20"
+                  className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 transition-colors hover:bg-rose-100"
                 >
                   {t("common.delete", { defaultValue: "Delete" })}
                 </button>
@@ -440,22 +440,22 @@ function OperationCard({ op, farmId, onEdit, onDelete }: CardProps) {
           )}
           {op.products && op.products.length > 0 && (
             <div>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
                 {t("operations.products", { defaultValue: "Products & Tools" })}
               </p>
               <ul className="space-y-1.5">
                 {op.products.map(p => (
-                  <li key={p.id} className="flex items-center justify-between gap-3 rounded-lg border border-white/5 bg-white/5 px-3 py-2 text-xs">
-                    <span className="text-slate-200">
+                  <li key={p.id} className="flex items-center justify-between gap-3 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 text-xs">
+                    <span className="text-slate-700">
                       {p.productName}
                       {p.quantity != null && (
-                        <span className="ml-2 text-slate-400">
+                        <span className="ml-2 text-slate-500">
                           {p.quantity}{p.unitValue ? ` ${p.unitValue}` : ""}
                         </span>
                       )}
                     </span>
                     {p.toolName && (
-                      <span className="shrink-0 rounded-full bg-white/10 px-2 py-0.5 text-slate-300">{p.toolName}</span>
+                      <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-slate-600">{p.toolName}</span>
                     )}
                   </li>
                 ))}
@@ -587,19 +587,19 @@ export default function OperationsPage() {
   ];
 
   const hasFilters = !!(filterParcelId || filterTypeId || filterDateFrom || filterDateTo);
-  const inputCls = "rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:border-indigo-400 focus:outline-none";
+  const inputCls = "rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none";
 
   return (
     <ProtectedRoute>
-      <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 px-4 py-10 text-slate-50">
+      <div className="min-h-screen bg-slate-50 px-4 py-10 text-slate-900">
         <div className="mx-auto flex max-w-5xl flex-col gap-6">
 
           <header className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-wide text-indigo-300">
+              <p className="text-sm font-semibold uppercase tracking-wide text-indigo-600">
                 {t("operations.title")}
               </p>
-              <h1 className="text-3xl font-semibold text-white">{t("operations.subtitle")}</h1>
+              <h1 className="text-3xl font-semibold text-slate-900">{t("operations.subtitle")}</h1>
             </div>
             {farmId && selectedFarm?.canEdit !== false && (
               <button
@@ -616,15 +616,15 @@ export default function OperationsPage() {
           </header>
 
           {!farmId ? (
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-6 text-sm text-slate-300">
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-600">
               {t("farmSelector.selectFarm")}
             </div>
           ) : (
             <>
               {/* Filter bar */}
-              <div className="flex flex-wrap items-end gap-3 rounded-2xl border border-white/10 bg-white/5 p-4">
+              <div className="flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200 bg-white p-4">
                 <div className="flex min-w-[150px] flex-col gap-1">
-                  <label className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                  <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                     {t("operations.filterParcel", { defaultValue: "Parcel" })}
                   </label>
                   <SearchableSelect
@@ -633,7 +633,7 @@ export default function OperationsPage() {
                   />
                 </div>
                 <div className="flex min-w-[150px] flex-col gap-1">
-                  <label className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                  <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                     {t("operations.filterType", { defaultValue: "Type" })}
                   </label>
                   <SearchableSelect
@@ -642,7 +642,7 @@ export default function OperationsPage() {
                   />
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                  <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                     {t("operations.filterFrom", { defaultValue: "From" })}
                   </label>
                   <input
@@ -652,7 +652,7 @@ export default function OperationsPage() {
                   />
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                  <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                     {t("operations.filterTo", { defaultValue: "To" })}
                   </label>
                   <input
@@ -665,7 +665,7 @@ export default function OperationsPage() {
                   <button
                     type="button"
                     onClick={() => { setFilterParcelId(""); setFilterTypeId(""); setFilterDateFrom(""); setFilterDateTo(""); }}
-                    className="self-end rounded-lg border border-white/10 px-3 py-2 text-xs text-slate-400 hover:bg-white/5 hover:text-white transition-colors"
+                    className="self-end rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-500 hover:bg-slate-50 hover:text-slate-700 transition-colors"
                   >
                     {t("common.clearFilters", { defaultValue: "Clear filters" })}
                   </button>
@@ -680,19 +680,19 @@ export default function OperationsPage() {
               >
               <div className="flex flex-col gap-3">
                 {loading && operations.length === 0 && [0, 1, 2].map(i => (
-                  <div key={i} className="animate-pulse rounded-2xl border border-white/10 bg-white/5 p-5">
+                  <div key={i} className="animate-pulse rounded-2xl border border-slate-200 bg-white p-5">
                     <div className="flex items-start justify-between gap-4">
                       <div className="space-y-2">
-                        <div className="h-3.5 w-36 rounded bg-white/10" />
-                        <div className="h-2.5 w-24 rounded bg-white/5" />
+                        <div className="h-3.5 w-36 rounded bg-slate-200" />
+                        <div className="h-2.5 w-24 rounded bg-slate-100" />
                       </div>
-                      <div className="h-6 w-14 rounded-full bg-white/10" />
+                      <div className="h-6 w-14 rounded-full bg-slate-200" />
                     </div>
                   </div>
                 ))}
 
                 {!loading && operations.length === 0 && (
-                  <div className="rounded-2xl border border-white/10 bg-white/5 p-10 text-center text-sm text-slate-400">
+                  <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center text-sm text-slate-500">
                     {t("operations.emptyHistory", { defaultValue: "No operations found." })}
                   </div>
                 )}
@@ -708,7 +708,7 @@ export default function OperationsPage() {
                 )}
 
                 {!hasMore && operations.length > 0 && (
-                  <p className="py-3 text-center text-xs text-slate-600">
+                  <p className="py-3 text-center text-xs text-slate-400">
                     {t("operations.allLoaded", { defaultValue: "All operations loaded" })}
                   </p>
                 )}

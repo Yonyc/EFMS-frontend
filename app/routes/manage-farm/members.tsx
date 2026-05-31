@@ -62,15 +62,15 @@ export default function ManageFarmMembers() {
 
     if (!selectedFarm) {
         return (
-            <div className="flex flex-col items-center justify-center p-12 bg-slate-900 border border-slate-800 rounded-2xl shadow-xl">
-                <p className="text-slate-400 text-center">{t('manageFarms.info.selectFarm', { defaultValue: 'Please select a farm first' })}</p>
+            <div className="flex flex-col items-center justify-center p-12 bg-white border border-slate-200 rounded-2xl shadow-xl">
+                <p className="text-slate-500 text-center">{t('manageFarms.info.selectFarm', { defaultValue: 'Please select a farm first' })}</p>
             </div>
         );
     }
 
     if (!selectedFarm.canManage) {
         return (
-            <div className="flex flex-col items-center justify-center p-12 bg-slate-900 border border-slate-800 rounded-2xl shadow-xl">
+            <div className="flex flex-col items-center justify-center p-12 bg-white border border-slate-200 rounded-2xl shadow-xl">
                 <p className="text-rose-400 text-center font-medium">{t('manageFarms.members.errors.noAccess', { defaultValue: 'You do not have permission to manage members' })}</p>
             </div>
         );
@@ -142,10 +142,10 @@ export default function ManageFarmMembers() {
 
     return (
         <div className="space-y-6">
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl shadow-black/20">
+            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xl shadow-slate-900/10">
                 <div>
-                    <h2 className="text-xl font-bold text-slate-100">{t('manageFarms.members.title', { defaultValue: 'Farm Members' })}</h2>
-                    <p className="text-sm text-slate-400 mt-1">{t('manageFarms.members.description', { defaultValue: 'Manage who has access to this farm.' })}</p>
+                    <h2 className="text-xl font-bold text-slate-900">{t('manageFarms.members.title', { defaultValue: 'Farm Members' })}</h2>
+                    <p className="text-sm text-slate-500 mt-1">{t('manageFarms.members.description', { defaultValue: 'Manage who has access to this farm.' })}</p>
                 </div>
 
                 {memberError && <div className="mt-4 rounded-xl bg-rose-500/10 p-4 text-sm font-medium text-rose-400 border border-rose-500/20">{memberError}</div>}
@@ -157,14 +157,14 @@ export default function ManageFarmMembers() {
                             onChange={setNewMemberUsername}
                             onSelectUser={(u) => setNewMemberId(u.id)}
                             placeholder={t('manageFarms.members.addPlaceholder', { defaultValue: 'Search username...' })}
-                            className="w-full rounded-xl border border-slate-800 bg-slate-950 px-4 py-2.5 text-sm text-slate-200 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-all"
+                            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-700 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-all"
                         />
                     </div>
                     <div className="flex gap-3">
                         <select
                             value={newMemberRole}
                             onChange={(e) => setNewMemberRole(e.target.value)}
-                            className="w-32 rounded-xl border border-slate-800 bg-slate-950 px-3 py-2.5 text-sm text-slate-200 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-all"
+                            className="w-32 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-all"
                         >
                             <option value="ADMIN">{t('manageFarms.members.roles.admin', { defaultValue: 'Admin' })}</option>
                             <option value="EDITOR">{t('manageFarms.members.roles.editor', { defaultValue: 'Editor' })}</option>
@@ -180,7 +180,7 @@ export default function ManageFarmMembers() {
                     </div>
                 </form>
 
-                <div className="mt-6 divide-y divide-slate-800 border-t border-slate-800 pt-2">
+                <div className="mt-6 divide-y divide-slate-200 border-t border-slate-200 pt-2">
                     {memberLoading ? (
                         <p className="py-8 text-center text-sm text-slate-500">{t('common.loading', { defaultValue: 'Loading...' })}</p>
                     ) : members.length === 0 ? (
@@ -189,7 +189,7 @@ export default function ManageFarmMembers() {
                         members.map((member) => (
                             <div key={member.userId} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-4">
                                 <div>
-                                    <p className="font-medium text-slate-200">{member.username}</p>
+                                    <p className="font-medium text-slate-700">{member.username}</p>
                                     {member.owner && <span className="mt-1 inline-block rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-400 border border-emerald-500/20">{t('manageFarms.members.roles.owner', { defaultValue: 'Owner' })}</span>}
                                 </div>
                                 <div className="flex items-center gap-3">
@@ -197,7 +197,7 @@ export default function ManageFarmMembers() {
                                         value={member.role}
                                         onChange={(e) => handleUpdateMember(member.userId, e.target.value)}
                                         disabled={member.owner}
-                                        className="w-28 rounded-lg border border-slate-800 bg-slate-950 px-2 py-1.5 text-xs font-medium text-slate-300 focus:border-indigo-500 focus:outline-none disabled:opacity-50 transition-all"
+                                        className="w-28 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-medium text-slate-600 focus:border-indigo-500 focus:outline-none disabled:opacity-50 transition-all"
                                     >
                                         <option value="ADMIN">{t('manageFarms.members.roles.admin', { defaultValue: 'Admin' })}</option>
                                         <option value="EDITOR">{t('manageFarms.members.roles.editor', { defaultValue: 'Editor' })}</option>

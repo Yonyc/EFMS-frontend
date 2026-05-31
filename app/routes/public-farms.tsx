@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { apiGet, getPageMeta } from '~/utils/api';
+import { PaginationBar } from '~/components/PaginationBar';
 
 interface PublicFarm {
   id: string;
@@ -76,34 +77,34 @@ export default function PublicFarmsPage() {
   };
 
   const SkeletonCard = () => (
-    <div className="rounded-2xl border border-white/10 bg-white/5 p-5 shadow-xl shadow-black/20 animate-pulse">
-      <div className="h-4 w-24 rounded bg-white/10" />
-      <div className="mt-3 h-6 w-3/4 rounded bg-white/10" />
-      <div className="mt-4 h-12 w-full rounded bg-white/5" />
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm animate-pulse">
+      <div className="h-4 w-24 rounded bg-slate-200" />
+      <div className="mt-3 h-6 w-3/4 rounded bg-slate-200" />
+      <div className="mt-4 h-12 w-full rounded bg-slate-100" />
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 py-12 px-4 sm:px-6 lg:px-8 text-slate-100">
+    <div className="min-h-screen bg-slate-50 py-12 px-4 sm:px-6 lg:px-8 text-slate-900">
       <div className="mx-auto max-w-5xl space-y-8">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="space-y-2">
-            <span className="inline-flex items-center rounded-full bg-indigo-500/20 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-indigo-100 border border-indigo-400/30">
+            <span className="inline-flex items-center rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-indigo-700 border border-indigo-200">
               {t('publicFarms.publicBadge')}
             </span>
-            <h1 className="text-3xl font-extrabold text-white">{t('publicFarms.title')}</h1>
-            <p className="text-sm text-slate-300 max-w-2xl">{t('publicFarms.subtitle')}</p>
+            <h1 className="text-3xl font-extrabold text-slate-900">{t('publicFarms.title')}</h1>
+            <p className="text-sm text-slate-500 max-w-2xl">{t('publicFarms.subtitle')}</p>
             <p className="text-xs text-slate-400">{t('publicFarms.note')}</p>
           </div>
           <div className="flex items-center gap-3">
-            <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-slate-200">
+            <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-600">
               {t('publicFarms.countLabel', { count: farms.length })}
             </span>
             <button
               type="button"
               onClick={loadFarms}
               disabled={isLoading}
-              className="rounded-lg border border-indigo-400/40 bg-indigo-500/20 px-4 py-2 text-sm font-semibold text-indigo-50 hover:bg-indigo-500/30 disabled:opacity-60"
+              className="rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-100 disabled:opacity-60"
             >
               {isLoading ? t('publicFarms.loading') : t('publicFarms.refresh')}
             </button>
@@ -111,7 +112,7 @@ export default function PublicFarmsPage() {
         </div>
 
         {error && (
-          <div className="rounded-lg border border-rose-500/40 bg-rose-500/10 p-4 text-sm text-rose-100">
+          <div className="rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
             {error}
           </div>
         )}
@@ -123,13 +124,13 @@ export default function PublicFarmsPage() {
             ))}
           </div>
         ) : farms.length === 0 ? (
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-8 text-center shadow-xl shadow-black/20">
-            <h2 className="text-lg font-semibold text-white">{t('publicFarms.empty')}</h2>
-            <p className="mt-2 text-sm text-slate-300">{t('publicFarms.emptyHint')}</p>
+          <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+            <h2 className="text-lg font-semibold text-slate-900">{t('publicFarms.empty')}</h2>
+            <p className="mt-2 text-sm text-slate-500">{t('publicFarms.emptyHint')}</p>
             <button
               type="button"
               onClick={loadFarms}
-              className="mt-4 rounded-lg border border-indigo-400/40 bg-indigo-500/20 px-4 py-2 text-sm font-semibold text-indigo-50 hover:bg-indigo-500/30"
+              className="mt-4 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-100"
             >
               {t('publicFarms.refresh')}
             </button>
@@ -137,83 +138,33 @@ export default function PublicFarmsPage() {
         ) : (
           <div className="grid gap-4 sm:grid-cols-2">
             {farms.map((farm) => (
-              <article key={farm.id} className="group rounded-2xl border border-white/10 bg-white/5 p-5 shadow-xl shadow-black/20 transition hover:border-indigo-400/40 hover:shadow-indigo-500/20">
+              <article key={farm.id} className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-indigo-200 hover:shadow-md">
                 <div className="flex items-start justify-between gap-3">
                   <div className="space-y-2">
-                    <h2 className="text-xl font-semibold text-white">{getName(farm)}</h2>
-                    <p className="text-sm text-slate-300 leading-relaxed">{getDescription(farm)}</p>
+                    <h2 className="text-xl font-semibold text-slate-900">{getName(farm)}</h2>
+                    <p className="text-sm text-slate-500 leading-relaxed">{getDescription(farm)}</p>
                   </div>
-                  <span className="rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-100 border border-emerald-400/30">
+                  <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 border border-emerald-200">
                     {t('publicFarms.publicBadge')}
                   </span>
                 </div>
 
-                <div className="mt-4 rounded-lg border border-white/5 bg-white/5 px-3 py-2 text-sm text-slate-200">
-                  <span className="font-semibold text-slate-100">{t('manageFarms.locationLabel')}:</span> {getLocation(farm)}
+                <div className="mt-4 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+                  <span className="font-semibold text-slate-700">{t('manageFarms.locationLabel')}:</span> {getLocation(farm)}
                 </div>
               </article>
             ))}
           </div>
         )}
 
-        {/* Pagination Controls */}
+        {/* Pagination */}
         {totalPages > 1 && (
-          <div className="flex items-center justify-between border-t border-white/10 px-4 py-3 sm:px-6 mt-6">
-            <div className="flex flex-1 justify-between sm:hidden">
-              <button
-                onClick={() => setCurrentPage(prev => Math.max(0, prev - 1))}
-                disabled={currentPage === 0}
-                className="relative inline-flex items-center rounded-xl border border-white/10 bg-slate-900 px-4 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-              >
-                Previous
-              </button>
-              <button
-                onClick={() => setCurrentPage(prev => Math.min(totalPages - 1, prev + 1))}
-                disabled={currentPage === totalPages - 1}
-                className="relative ml-3 inline-flex items-center rounded-xl border border-white/10 bg-slate-900 px-4 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-              >
-                Next
-              </button>
-            </div>
-            <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
-              <div>
-                <p className="text-sm text-slate-400">
-                  Showing page <span className="font-semibold text-slate-200">{currentPage + 1}</span> of <span className="font-semibold text-slate-200">{totalPages}</span> (<span className="font-semibold text-slate-200">{totalElements}</span> total elements)
-                </p>
-              </div>
-              <div>
-                <nav className="isolate inline-flex -space-x-px rounded-xl shadow-sm" aria-label="Pagination">
-                  <button
-                    onClick={() => setCurrentPage(prev => Math.max(0, prev - 1))}
-                    disabled={currentPage === 0}
-                    className="relative inline-flex items-center rounded-l-xl px-3 py-2 text-slate-400 bg-slate-900 border border-white/10 hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                  >
-                    Previous
-                  </button>
-                  {Array.from({ length: totalPages }, (_, i) => i).map((p) => (
-                    <button
-                      key={p}
-                      onClick={() => setCurrentPage(p)}
-                      className={`relative inline-flex items-center px-4 py-2 text-sm font-semibold border border-white/10 transition-all ${
-                        p === currentPage
-                          ? "bg-indigo-600 text-white border-indigo-600 z-10"
-                          : "text-slate-400 bg-slate-900 hover:bg-slate-800"
-                      }`}
-                    >
-                      {p + 1}
-                    </button>
-                  ))}
-                  <button
-                    onClick={() => setCurrentPage(prev => Math.min(totalPages - 1, prev + 1))}
-                    disabled={currentPage === totalPages - 1}
-                    className="relative inline-flex items-center rounded-r-xl px-3 py-2 text-slate-400 bg-slate-900 border border-white/10 hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                  >
-                    Next
-                  </button>
-                </nav>
-              </div>
-            </div>
-          </div>
+          <PaginationBar
+            page={currentPage}
+            totalPages={totalPages}
+            onPrev={() => setCurrentPage(p => Math.max(0, p - 1))}
+            onNext={() => setCurrentPage(p => Math.min(totalPages - 1, p + 1))}
+          />
         )}
       </div>
     </div>

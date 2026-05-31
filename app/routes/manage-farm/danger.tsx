@@ -18,15 +18,15 @@ export default function ManageFarmDanger() {
 
     if (!selectedFarm) {
         return (
-            <div className="flex flex-col items-center justify-center p-12 bg-slate-900 border border-slate-800 rounded-2xl shadow-xl">
-                <p className="text-slate-400 text-center">{t('manageFarms.info.selectFarm', { defaultValue: 'Please select a farm first' })}</p>
+            <div className="flex flex-col items-center justify-center p-12 bg-white border border-slate-200 rounded-2xl shadow-xl">
+                <p className="text-slate-500 text-center">{t('manageFarms.info.selectFarm', { defaultValue: 'Please select a farm first' })}</p>
             </div>
         );
     }
 
     if (!selectedFarm.canManage) {
         return (
-            <div className="flex flex-col items-center justify-center p-12 bg-slate-900 border border-slate-800 rounded-2xl shadow-xl">
+            <div className="flex flex-col items-center justify-center p-12 bg-white border border-slate-200 rounded-2xl shadow-xl">
                 <p className="text-rose-400 text-center font-medium">{t('manageFarms.errors.noAccess', { defaultValue: 'You do not have permission to manage this farm' })}</p>
             </div>
         );
@@ -64,7 +64,7 @@ export default function ManageFarmDanger() {
 
     return (
         <div className="space-y-6">
-            <div className="bg-rose-950/20 border border-rose-900/50 rounded-2xl p-6 shadow-xl shadow-black/20">
+            <div className="bg-rose-950/20 border border-rose-900/50 rounded-2xl p-6 shadow-xl shadow-slate-900/10">
                 <div className="flex items-start gap-4">
                     <div className="p-3 bg-rose-500/10 rounded-xl border border-rose-500/20 text-rose-400">
                         <ExclamationTriangleIcon className="w-6 h-6" />

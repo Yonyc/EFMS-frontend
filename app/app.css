@@ -2,6 +2,7 @@
 @import "leaflet/dist/leaflet.css";
 @import "leaflet-draw/dist/leaflet.draw.css";
 
+@custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif,
@@ -10,15 +11,12 @@
 
 html {
   min-height: 100%;
+  color-scheme: light;
 }
 body {
-  @apply bg-white dark:bg-gray-950;
+  @apply bg-white;
   display: flex;
   flex-direction: column;
   min-height: 100vh;
   overflow-x: hidden;
-
-  @media (prefers-color-scheme: dark) {
-    color-scheme: dark;
-  }
 }

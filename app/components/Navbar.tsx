@@ -59,13 +59,13 @@ export default function Navbar({ currentLocale }: NavbarProps) {
     return (
         <Disclosure
             as="nav"
-            className="relative z-[10050] bg-gray-800/50 after:pointer-events-none after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-white/10"
+            className="relative z-[10050] bg-white after:pointer-events-none after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-slate-200"
         >
             <div className="mx-auto max-w-7xl px-2 sm:px-6 lg:px-8">
                 <div className="relative flex h-16 items-center justify-between">
                     <div className="absolute inset-y-0 left-0 flex items-center sm:hidden">
                         {/* Mobile menu button*/}
-                        <DisclosureButton className="group relative inline-flex items-center justify-center rounded-md p-2 text-gray-400 hover:bg-white/5 hover:text-white focus:outline-2 focus:-outline-offset-1 focus:outline-indigo-500">
+                        <DisclosureButton className="group relative inline-flex items-center justify-center rounded-md p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900 focus:outline-2 focus:-outline-offset-1 focus:outline-indigo-500">
                             <span className="absolute -inset-0.5" />
                             <span className="sr-only">Open main menu</span>
                             <Bars3Icon aria-hidden="true" className="block size-6 group-data-open:hidden" />
@@ -89,7 +89,7 @@ export default function Navbar({ currentLocale }: NavbarProps) {
                                         end={Boolean(item.end)}
                                         className={({ isActive }) =>
                                             classNames(
-                                                isActive ? 'bg-gray-950/50 text-white' : 'text-gray-300 hover:bg-white/5 hover:text-white',
+                                                isActive ? 'bg-indigo-50 text-indigo-700' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900',
                                                 'rounded-md px-3 py-2 text-sm font-medium',
                                             )
                                         }
@@ -108,17 +108,17 @@ export default function Navbar({ currentLocale }: NavbarProps) {
                             <MenuButton className="relative flex rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500">
                                 <span className="absolute -inset-1.5" />
                                 <span className="sr-only">{t('nav.language_switcher')}</span>
-                                <CircleFlagLanguage languageCode={currentLocale} className="size-8 rounded-full bg-gray-800 outline -outline-offset-1 outline-white/10" />
+                                <CircleFlagLanguage languageCode={currentLocale} className="size-8 rounded-full bg-slate-100 outline -outline-offset-1 outline-slate-200" />
                             </MenuButton>
                             <MenuItems
                                 transition
-                                className="absolute right-0 z-50 mt-2 w-48 origin-top-right rounded-md bg-gray-800 py-1 outline -outline-offset-1 outline-white/10 transition data-closed:scale-95 data-closed:transform data-closed:opacity-0 data-enter:duration-100 data-enter:ease-out data-leave:duration-75 data-leave:ease-in"
+                                className="absolute right-0 z-50 mt-2 w-48 origin-top-right rounded-md bg-white py-1 shadow-lg shadow-slate-900/10 outline -outline-offset-1 outline-slate-200 transition data-closed:scale-95 data-closed:transform data-closed:opacity-0 data-enter:duration-100 data-enter:ease-out data-leave:duration-75 data-leave:ease-in"
                             >
                                 {SUPPORTED_LOCALES.filter((lang) => lang !== currentLocale).map((lang) => (
                                     <MenuItem key={lang}>
                                         <button
                                             type="button"
-                                            className="block w-full px-4 py-2 text-left text-sm text-gray-300 data-focus:bg-white/5 data-focus:outline-hidden"
+                                            className="block w-full px-4 py-2 text-left text-sm text-slate-700 data-focus:bg-slate-50 data-focus:outline-hidden"
                                             onClick={() => handleLanguageChange(lang)}
                                         >
                                             <CircleFlagLanguage languageCode={lang} className="size-6 inline-block mr-2" />
@@ -139,10 +139,10 @@ export default function Navbar({ currentLocale }: NavbarProps) {
                                         <img
                                             alt="user avatar"
                                             src={resolveUploadUrl(user.avatarUrl) ?? user.avatarUrl}
-                                            className="size-8 rounded-full bg-gray-800 outline -outline-offset-1 outline-white/10 object-cover"
+                                            className="size-8 rounded-full bg-slate-100 outline -outline-offset-1 outline-slate-200 object-cover"
                                         />
                                     ) : (
-                                        <div className="size-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center text-sm font-semibold outline -outline-offset-1 outline-white/10">
+                                        <div className="size-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center text-sm font-semibold outline -outline-offset-1 outline-slate-200">
                                             {(user?.username?.[0] || '?').toUpperCase()}
                                         </div>
                                     )}
@@ -150,26 +150,26 @@ export default function Navbar({ currentLocale }: NavbarProps) {
 
                                 <MenuItems
                                     transition
-                                    className="absolute right-0 z-50 mt-2 w-48 origin-top-right rounded-md bg-gray-800 py-1 outline -outline-offset-1 outline-white/10 transition data-closed:scale-95 data-closed:transform data-closed:opacity-0 data-enter:duration-100 data-enter:ease-out data-leave:duration-75 data-leave:ease-in"
+                                    className="absolute right-0 z-50 mt-2 w-48 origin-top-right rounded-md bg-white py-1 shadow-lg shadow-slate-900/10 outline -outline-offset-1 outline-slate-200 transition data-closed:scale-95 data-closed:transform data-closed:opacity-0 data-enter:duration-100 data-enter:ease-out data-leave:duration-75 data-leave:ease-in"
                                 >
-                                    <div className="px-4 py-2 text-xs text-gray-400 border-b border-white/10">
+                                    <div className="px-4 py-2 text-xs text-slate-500 border-b border-slate-200">
                                         {user?.username}
                                     </div>
                                     <MenuItem>
                                         <Link
                                             to={localizedPath('profile')}
-                                            className="block px-4 py-2 text-sm text-gray-300 data-focus:bg-white/5 data-focus:outline-hidden"
+                                            className="block px-4 py-2 text-sm text-slate-700 data-focus:bg-slate-50 data-focus:outline-hidden"
                                         >
                                             {t('nav.profile')}
                                         </Link>
                                     </MenuItem>
                                     {farms.length > 0 && (
                                         <>
-                                            <div className="my-1 h-px bg-white/10" />
+                                            <div className="my-1 h-px bg-slate-200" />
                                             <MenuItem>
                                                 <Link
                                                     to={localizedPath('operations')}
-                                                    className="block px-4 py-2 text-sm text-gray-300 data-focus:bg-white/5 data-focus:outline-hidden"
+                                                    className="block px-4 py-2 text-sm text-slate-700 data-focus:bg-slate-50 data-focus:outline-hidden"
                                                 >
                                                     {t('nav.operations')}
                                                 </Link>
@@ -179,7 +179,7 @@ export default function Navbar({ currentLocale }: NavbarProps) {
                                                     <MenuItem>
                                                         <Link
                                                             to={localizedPath('assets')}
-                                                            className="block px-4 py-2 text-sm text-gray-300 data-focus:bg-white/5 data-focus:outline-hidden"
+                                                            className="block px-4 py-2 text-sm text-slate-700 data-focus:bg-slate-50 data-focus:outline-hidden"
                                                         >
                                                             {t('nav.assets')}
                                                         </Link>
@@ -187,7 +187,7 @@ export default function Navbar({ currentLocale }: NavbarProps) {
                                                     <MenuItem>
                                                         <Link
                                                             to={localizedPath('parcels')}
-                                                            className="block px-4 py-2 text-sm text-gray-300 data-focus:bg-white/5 data-focus:outline-hidden"
+                                                            className="block px-4 py-2 text-sm text-slate-700 data-focus:bg-slate-50 data-focus:outline-hidden"
                                                         >
                                                             {t('nav.parcels', { defaultValue: 'Parcels' })}
                                                         </Link>
@@ -198,7 +198,7 @@ export default function Navbar({ currentLocale }: NavbarProps) {
                                                 <MenuItem>
                                                     <Link
                                                         to={localizedPath('farm-shares')}
-                                                        className="block px-4 py-2 text-sm text-gray-300 data-focus:bg-white/5 data-focus:outline-hidden"
+                                                        className="block px-4 py-2 text-sm text-slate-700 data-focus:bg-slate-50 data-focus:outline-hidden"
                                                     >
                                                         {t('nav.farm_shares', { defaultValue: 'Farm shares' })}
                                                     </Link>
@@ -208,22 +208,22 @@ export default function Navbar({ currentLocale }: NavbarProps) {
                                     )}
                                     {selectedFarm?.canManage && (
                                         <>
-                                            <div className="my-1 h-px bg-white/10" />
+                                            <div className="my-1 h-px bg-slate-200" />
                                             <MenuItem>
                                                 <Link
                                                     to={localizedPath('imports')}
-                                                    className="block px-4 py-2 text-sm text-gray-300 data-focus:bg-white/5 data-focus:outline-hidden"
+                                                    className="block px-4 py-2 text-sm text-slate-700 data-focus:bg-slate-50 data-focus:outline-hidden"
                                                 >
                                                     {t('nav.imports')}
                                                 </Link>
                                             </MenuItem>
                                         </>
                                     )}
-                                    <div className="my-1 h-px bg-white/10" />
+                                    <div className="my-1 h-px bg-slate-200" />
                                     <MenuItem>
                                         <Link
                                             to={localizedPath('manage-farm')}
-                                            className="block px-4 py-2 text-sm text-gray-300 data-focus:bg-white/5 data-focus:outline-hidden"
+                                            className="block px-4 py-2 text-sm text-slate-700 data-focus:bg-slate-50 data-focus:outline-hidden"
                                         >
                                             {t('nav.manage_farms', { defaultValue: 'Manage Farms' })}
                                         </Link>
@@ -232,7 +232,7 @@ export default function Navbar({ currentLocale }: NavbarProps) {
                                         <MenuItem>
                                             <Link
                                                 to={localizedPath('admin')}
-                                                className="block px-4 py-2 text-sm font-semibold text-indigo-400 data-focus:bg-white/5 data-focus:outline-hidden"
+                                                className="block px-4 py-2 text-sm font-semibold text-indigo-600 data-focus:bg-slate-50 data-focus:outline-hidden"
                                             >
                                                 {t('nav.admin', { defaultValue: 'Admin Dashboard' })}
                                             </Link>
@@ -241,7 +241,7 @@ export default function Navbar({ currentLocale }: NavbarProps) {
                                     <MenuItem>
                                         <button
                                             onClick={handleLogout}
-                                            className="block w-full text-left px-4 py-2 text-sm text-gray-300 data-focus:bg-white/5 data-focus:outline-hidden"
+                                            className="block w-full text-left px-4 py-2 text-sm text-slate-700 data-focus:bg-slate-50 data-focus:outline-hidden"
                                         >
                                             {t('nav.sign_out')}
                                         </button>
@@ -270,7 +270,7 @@ export default function Navbar({ currentLocale }: NavbarProps) {
                             end={Boolean(item.end)}
                             className={({ isActive }: { isActive: boolean }) =>
                                 classNames(
-                                    isActive ? 'bg-gray-950/50 text-white' : 'text-gray-300 hover:bg-white/5 hover:text-white',
+                                    isActive ? 'bg-indigo-50 text-indigo-700' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900',
                                     'block rounded-md px-3 py-2 text-base font-medium',
                                 )
                             }
@@ -282,8 +282,8 @@ export default function Navbar({ currentLocale }: NavbarProps) {
 
                 {/* Farm selector in mobile panel */}
                 {isAuthenticated && (
-                    <div className="border-t border-white/10 px-2 py-3">
-                        <p className="px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    <div className="border-t border-slate-200 px-2 py-3">
+                        <p className="px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
                             {t('farmSelector.selectFarm', { defaultValue: 'Farm' })}
                         </p>
                         <FarmSelector />
@@ -292,32 +292,32 @@ export default function Navbar({ currentLocale }: NavbarProps) {
 
                 {/* Quick links for authenticated users */}
                 {isAuthenticated && farms.length > 0 && (
-                    <div className="border-t border-white/10 px-2 py-3 space-y-1">
+                    <div className="border-t border-slate-200 px-2 py-3 space-y-1">
                         <DisclosureButton as={NavLink} to={localizedPath('operations')}
-                            className="block rounded-md px-3 py-2 text-base font-medium text-gray-300 hover:bg-white/5 hover:text-white">
+                            className="block rounded-md px-3 py-2 text-base font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900">
                             {t('nav.operations')}
                         </DisclosureButton>
                         {selectedFarm?.canViewFarm && (
                             <>
                                 <DisclosureButton as={NavLink} to={localizedPath('assets')}
-                                    className="block rounded-md px-3 py-2 text-base font-medium text-gray-300 hover:bg-white/5 hover:text-white">
+                                    className="block rounded-md px-3 py-2 text-base font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900">
                                     {t('nav.assets')}
                                 </DisclosureButton>
                                 <DisclosureButton as={NavLink} to={localizedPath('parcels')}
-                                    className="block rounded-md px-3 py-2 text-base font-medium text-gray-300 hover:bg-white/5 hover:text-white">
+                                    className="block rounded-md px-3 py-2 text-base font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900">
                                     {t('nav.parcels', { defaultValue: 'Parcels' })}
                                 </DisclosureButton>
                             </>
                         )}
                         {selectedFarm && (
                             <DisclosureButton as={NavLink} to={localizedPath('farm-shares')}
-                                className="block rounded-md px-3 py-2 text-base font-medium text-gray-300 hover:bg-white/5 hover:text-white">
+                                className="block rounded-md px-3 py-2 text-base font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900">
                                 {t('nav.farm_shares', { defaultValue: 'Farm shares' })}
                             </DisclosureButton>
                         )}
                         {selectedFarm?.canManage && (
                             <DisclosureButton as={NavLink} to={localizedPath('imports')}
-                                className="block rounded-md px-3 py-2 text-base font-medium text-gray-300 hover:bg-white/5 hover:text-white">
+                                className="block rounded-md px-3 py-2 text-base font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900">
                                 {t('nav.imports')}
                             </DisclosureButton>
                         )}

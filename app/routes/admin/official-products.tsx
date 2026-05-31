@@ -72,17 +72,17 @@ interface SyncStatus {
 
 const PAGE_SIZE = 25;
 
-const inputCls = "rounded-lg border border-slate-700 bg-slate-950 px-3 py-1.5 text-sm text-slate-100 placeholder:text-slate-500 focus:border-indigo-400 focus:outline-none disabled:opacity-50";
-const selectCls = "rounded-lg border border-slate-700 bg-slate-950 px-3 py-1.5 text-sm text-slate-100 focus:border-indigo-400 focus:outline-none";
+const inputCls = "rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 placeholder:text-slate-500 focus:border-indigo-400 focus:outline-none disabled:opacity-50";
+const selectCls = "rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 focus:border-indigo-400 focus:outline-none";
 const btnPrimary = "flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed";
-const btnGhost = "rounded-lg border border-slate-700 px-3 py-1.5 text-sm font-medium text-slate-300 hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed";
+const btnGhost = "rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed";
 
 function DetailRow({ label, value }: { label: string; value?: string | null }) {
     if (!value) return null;
     return (
         <div className="flex gap-3 py-1 text-sm">
-            <span className="w-44 shrink-0 text-slate-400">{label}</span>
-            <span className="text-slate-200 break-words">{value}</span>
+            <span className="w-44 shrink-0 text-slate-500">{label}</span>
+            <span className="text-slate-700 break-words">{value}</span>
         </div>
     );
 }
@@ -95,19 +95,19 @@ function ProductRow({ product }: { product: ProductDto }) {
     const isActive = product.officialDecisionCode === "AUT" || product.officialDecisionCode === "AUT_EXT";
 
     return (
-        <div className="border-b border-slate-800 last:border-0">
+        <div className="border-b border-slate-200 last:border-0">
             <button
                 onClick={() => setOpen(o => !o)}
-                className="w-full flex items-start gap-3 px-4 py-3 text-left hover:bg-slate-800/50 transition-colors"
+                className="w-full flex items-start gap-3 px-4 py-3 text-left hover:bg-slate-50 transition-colors"
             >
                 <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-sm font-semibold text-slate-100 truncate">{product.name}</span>
+                        <span className="text-sm font-semibold text-slate-900 truncate">{product.name}</span>
                         {decision && (
                             <span className={`shrink-0 text-xs px-1.5 py-0.5 rounded-full font-medium ${
                                 isActive
                                     ? "bg-emerald-900/50 text-emerald-400"
-                                    : "bg-slate-800 text-slate-400"
+                                    : "bg-slate-100 text-slate-500"
                             }`}>
                                 {decision}
                             </span>
@@ -118,7 +118,7 @@ function ProductRow({ product }: { product: ProductDto }) {
                             <span className="text-xs text-slate-500 font-mono">{product.officialAuthNumber}</span>
                         )}
                         {product.officialProductTypeFr && (
-                            <span className="text-xs text-slate-400">{product.officialProductTypeFr}</span>
+                            <span className="text-xs text-slate-500">{product.officialProductTypeFr}</span>
                         )}
                         {product.officialActiveSubstances && (
                             <span className="text-xs text-indigo-400 truncate max-w-xs">{product.officialActiveSubstances}</span>
@@ -131,8 +131,8 @@ function ProductRow({ product }: { product: ProductDto }) {
             </button>
 
             {open && (
-                <div className="px-4 pb-4 bg-slate-900/60">
-                    <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4 divide-y divide-slate-800/50">
+                <div className="px-4 pb-4 bg-slate-50">
+                    <div className="rounded-xl border border-slate-200 bg-white p-4 divide-y divide-slate-200">
                         <div className="pb-3">
                             <DetailRow label={t('admin.officialProducts.detail.authNumber')} value={product.officialAuthNumber} />
                             <DetailRow label={t('admin.officialProducts.detail.version')} value={product.officialVersionTag} />
@@ -254,20 +254,20 @@ export default function AdminOfficialProducts() {
         <div className="space-y-8">
             {/* Header */}
             <div>
-                <h1 className="text-2xl font-bold text-slate-100">
+                <h1 className="text-2xl font-bold text-slate-900">
                     {t('admin.officialProducts.title')}
                 </h1>
-                <p className="mt-1 text-sm text-slate-400">
+                <p className="mt-1 text-sm text-slate-500">
                     {t('admin.officialProducts.subtitle')}
                 </p>
             </div>
 
             {/* Sync panel */}
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl shadow-black/20">
+            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xl shadow-slate-900/10">
                 <div className="flex items-start justify-between gap-4 flex-wrap">
                     <div>
-                        <h2 className="text-base font-bold text-slate-100">{t('admin.officialProducts.sync.title')}</h2>
-                        <p className="text-xs text-slate-400 mt-0.5">{t('admin.officialProducts.sync.desc')}</p>
+                        <h2 className="text-base font-bold text-slate-900">{t('admin.officialProducts.sync.title')}</h2>
+                        <p className="text-xs text-slate-500 mt-0.5">{t('admin.officialProducts.sync.desc')}</p>
                     </div>
                     <button
                         className={btnPrimary}
@@ -291,7 +291,7 @@ export default function AdminOfficialProducts() {
                         <button
                             type="button"
                             onClick={() => setHistoryExpanded((v) => !v)}
-                            className="flex items-center gap-2 text-xs font-semibold text-slate-500 uppercase tracking-wider hover:text-slate-300"
+                            className="flex items-center gap-2 text-xs font-semibold text-slate-500 uppercase tracking-wider hover:text-slate-600"
                         >
                             {historyExpanded
                                 ? <ChevronUpIcon className="w-3.5 h-3.5" />
@@ -300,22 +300,22 @@ export default function AdminOfficialProducts() {
                             <span className="normal-case font-normal text-slate-600">({syncStatus.logs.length})</span>
                         </button>
                         {historyExpanded && (
-                            <div className="mt-2 rounded-xl border border-slate-800 overflow-hidden">
+                            <div className="mt-2 rounded-xl border border-slate-200 overflow-hidden">
                                 <table className="w-full text-xs">
-                                    <thead className="bg-slate-800/60">
+                                    <thead className="bg-slate-100">
                                         <tr>
-                                            <th className="text-left px-3 py-2 text-slate-400 font-medium">{t('admin.officialProducts.sync.file')}</th>
-                                            <th className="text-left px-3 py-2 text-slate-400 font-medium">{t('admin.officialProducts.sync.status')}</th>
-                                            <th className="text-right px-3 py-2 text-slate-400 font-medium">{t('admin.officialProducts.sync.created')}</th>
-                                            <th className="text-right px-3 py-2 text-slate-400 font-medium">{t('admin.officialProducts.sync.updated')}</th>
-                                            <th className="text-right px-3 py-2 text-slate-400 font-medium">{t('admin.officialProducts.sync.total')}</th>
-                                            <th className="text-left px-3 py-2 text-slate-400 font-medium">{t('admin.officialProducts.sync.processedAt')}</th>
+                                            <th className="text-left px-3 py-2 text-slate-500 font-medium">{t('admin.officialProducts.sync.file')}</th>
+                                            <th className="text-left px-3 py-2 text-slate-500 font-medium">{t('admin.officialProducts.sync.status')}</th>
+                                            <th className="text-right px-3 py-2 text-slate-500 font-medium">{t('admin.officialProducts.sync.created')}</th>
+                                            <th className="text-right px-3 py-2 text-slate-500 font-medium">{t('admin.officialProducts.sync.updated')}</th>
+                                            <th className="text-right px-3 py-2 text-slate-500 font-medium">{t('admin.officialProducts.sync.total')}</th>
+                                            <th className="text-left px-3 py-2 text-slate-500 font-medium">{t('admin.officialProducts.sync.processedAt')}</th>
                                         </tr>
                                     </thead>
-                                    <tbody className="divide-y divide-slate-800">
+                                    <tbody className="divide-y divide-slate-200">
                                         {syncStatus.logs.slice(0, 10).map(log => (
-                                            <tr key={log.id} className="hover:bg-slate-800/30">
-                                                <td className="px-3 py-2 font-mono text-slate-200">{log.fileName}</td>
+                                            <tr key={log.id} className="hover:bg-slate-50">
+                                                <td className="px-3 py-2 font-mono text-slate-700">{log.fileName}</td>
                                                 <td className="px-3 py-2">
                                                     {log.status === "SUCCESS" ? (
                                                         <span className="flex items-center gap-1 text-emerald-400">
@@ -329,10 +329,10 @@ export default function AdminOfficialProducts() {
                                                         </span>
                                                     )}
                                                 </td>
-                                                <td className="px-3 py-2 text-right text-slate-300">{log.created}</td>
-                                                <td className="px-3 py-2 text-right text-slate-300">{log.updated}</td>
-                                                <td className="px-3 py-2 text-right text-slate-400">{log.total}</td>
-                                                <td className="px-3 py-2 text-slate-400">
+                                                <td className="px-3 py-2 text-right text-slate-600">{log.created}</td>
+                                                <td className="px-3 py-2 text-right text-slate-600">{log.updated}</td>
+                                                <td className="px-3 py-2 text-right text-slate-500">{log.total}</td>
+                                                <td className="px-3 py-2 text-slate-500">
                                                     {log.processedAt ? new Date(log.processedAt).toLocaleString() : "—"}
                                                 </td>
                                             </tr>
@@ -346,14 +346,14 @@ export default function AdminOfficialProducts() {
             </div>
 
             {/* Products browser */}
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl shadow-black/20">
-                <div className="p-6 border-b border-slate-800 space-y-4">
+            <div className="bg-white border border-slate-200 rounded-2xl shadow-xl shadow-slate-900/10">
+                <div className="p-6 border-b border-slate-200 space-y-4">
                     {/* Title + count */}
                     <div className="flex items-center justify-between gap-4">
                         <div>
-                            <h2 className="text-base font-bold text-slate-100">{t('admin.officialProducts.catalog.title')}</h2>
+                            <h2 className="text-base font-bold text-slate-900">{t('admin.officialProducts.catalog.title')}</h2>
                             {result && (
-                                <p className="text-xs text-slate-400 mt-0.5">
+                                <p className="text-xs text-slate-500 mt-0.5">
                                     {t('admin.officialProducts.catalog.count', { count: result.totalElements })}
                                 </p>
                             )}

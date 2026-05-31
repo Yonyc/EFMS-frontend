@@ -79,13 +79,13 @@ export default function AdminFarmsList() {
     return (
         <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-                <h2 className="text-2xl font-extrabold text-slate-100">{t('admin.farms.title', { defaultValue: 'Farms Management' })}</h2>
+                <h2 className="text-2xl font-extrabold text-slate-900">{t('admin.farms.title', { defaultValue: 'Farms Management' })}</h2>
             </div>
 
             {/* Filters & Search */}
-            <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl shadow-xl shadow-black/20 space-y-4 sm:space-y-0 sm:flex sm:gap-4 sm:items-end">
+            <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-xl shadow-slate-900/10 space-y-4 sm:space-y-0 sm:flex sm:gap-4 sm:items-end">
                 <div className="flex-1 space-y-2">
-                    <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{t('admin.farms.searchLabel', { defaultValue: 'Search' })}</label>
+                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{t('admin.farms.searchLabel', { defaultValue: 'Search' })}</label>
                     <div className="relative">
                         <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500" />
                         <input 
@@ -93,16 +93,16 @@ export default function AdminFarmsList() {
                             placeholder={t('admin.farms.searchPlaceholder', { defaultValue: 'Search by name, description, location, or ID...' })}
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+                            className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
                         />
                     </div>
                 </div>
                 <div className="space-y-2">
-                    <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{t('admin.farms.approvalLabel', { defaultValue: 'Approval' })}</label>
+                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{t('admin.farms.approvalLabel', { defaultValue: 'Approval' })}</label>
                     <select 
                         value={filterApproved} 
                         onChange={(e) => setFilterApproved(e.target.value as any)}
-                        className="w-full sm:w-auto px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-200 focus:outline-none focus:border-indigo-500 transition-all"
+                        className="w-full sm:w-auto px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:border-indigo-500 transition-all"
                     >
                         <option value="ALL">{t('admin.farms.allStatus', { defaultValue: 'All Status' })}</option>
                         <option value="APPROVED">{t('admin.farms.approved', { defaultValue: 'Approved' })}</option>
@@ -110,11 +110,11 @@ export default function AdminFarmsList() {
                     </select>
                 </div>
                 <div className="space-y-2">
-                    <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{t('admin.farms.visibilityLabel', { defaultValue: 'Visibility' })}</label>
+                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{t('admin.farms.visibilityLabel', { defaultValue: 'Visibility' })}</label>
                     <select 
                         value={filterPublic} 
                         onChange={(e) => setFilterPublic(e.target.value as any)}
-                        className="w-full sm:w-auto px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-200 focus:outline-none focus:border-indigo-500 transition-all"
+                        className="w-full sm:w-auto px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:border-indigo-500 transition-all"
                     >
                         <option value="ALL">{t('admin.farms.allVisibility', { defaultValue: 'All Visibility' })}</option>
                         <option value="PUBLIC">{t('admin.farms.public', { defaultValue: 'Public' })}</option>
@@ -126,15 +126,15 @@ export default function AdminFarmsList() {
             {/* List */}
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {loading ? (
-                    <div className="col-span-full p-8 text-center text-slate-400">{t('admin.farms.loading', { defaultValue: 'Loading farms...' })}</div>
+                    <div className="col-span-full p-8 text-center text-slate-500">{t('admin.farms.loading', { defaultValue: 'Loading farms...' })}</div>
                 ) : filteredFarms.length === 0 ? (
-                    <div className="col-span-full p-8 text-center text-slate-400 bg-slate-900 border border-slate-800 rounded-2xl">{t('admin.farms.noFarms', { defaultValue: 'No farms found matching your filters.' })}</div>
+                    <div className="col-span-full p-8 text-center text-slate-500 bg-white border border-slate-200 rounded-2xl">{t('admin.farms.noFarms', { defaultValue: 'No farms found matching your filters.' })}</div>
                 ) : (
                     filteredFarms.map(f => (
-                        <div key={f.id} className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl shadow-black/20 flex flex-col transition-transform hover:-translate-y-1 hover:shadow-indigo-500/10 hover:border-indigo-500/30">
+                        <div key={f.id} className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xl shadow-slate-900/10 flex flex-col transition-transform hover:-translate-y-1 hover:shadow-indigo-500/10 hover:border-indigo-500/30">
                             <div className="flex items-start justify-between mb-4">
                                 <div>
-                                    <h3 className="font-bold text-lg text-slate-100">{f.name}</h3>
+                                    <h3 className="font-bold text-lg text-slate-900">{f.name}</h3>
                                     <p className="text-xs text-slate-500">ID: {f.id}</p>
                                 </div>
                                 <div className="flex flex-col gap-1.5 items-end">
@@ -143,7 +143,7 @@ export default function AdminFarmsList() {
                                         {f.approved ? <CheckCircleIcon className="w-3 h-3" /> : <XCircleIcon className="w-3 h-3" />}
                                         {f.approved ? t('admin.farms.approved', { defaultValue: 'Approved' }) : t('admin.farms.pending', { defaultValue: 'Pending' })}
                                     </button>
-                                    <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${f.isPublic ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20' : 'bg-slate-800 text-slate-400 border border-slate-700'}`}>
+                                    <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${f.isPublic ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20' : 'bg-slate-100 text-slate-500 border border-slate-300'}`}>
                                         {f.isPublic ? t('admin.farms.public', { defaultValue: 'Public' }) : t('admin.farms.private', { defaultValue: 'Private' })}
                                     </span>
                                     {f.deletedAt && (
@@ -154,16 +154,16 @@ export default function AdminFarmsList() {
                                 </div>
                             </div>
                             
-                            <div className="flex-1 space-y-2 mb-6 text-sm text-slate-400">
+                            <div className="flex-1 space-y-2 mb-6 text-sm text-slate-500">
                                 {f.location && <p><span className="text-slate-500">{t('admin.farms.locationLabel', { defaultValue: 'Location:' })}</span> {f.location}</p>}
                                 {f.description && <p className="line-clamp-2"><span className="text-slate-500">{t('admin.farms.aboutLabel', { defaultValue: 'About:' })}</span> {f.description}</p>}
                                 {f.owner && <p><span className="text-slate-500">{t('admin.farms.ownerLabel', { defaultValue: 'Owner:' })}</span> {f.owner.username}</p>}
                             </div>
 
-                            <div className="flex items-center justify-between pt-4 border-t border-slate-800">
+                            <div className="flex items-center justify-between pt-4 border-t border-slate-200">
                                 {!f.deletedAt ? (
                                     <button onClick={() => deleteFarm(f.id)}
-                                        className="p-2 rounded-xl text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+                                        className="p-2 rounded-xl text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
                                         title={t('admin.farms.deleteBtnTitle', { defaultValue: 'Delete Farm' })}>
                                         <TrashIcon className="w-5 h-5" />
                                     </button>

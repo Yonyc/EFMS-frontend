@@ -41,8 +41,8 @@ export default function ManageFarmSettings() {
 
     if (!selectedFarm) {
         return (
-            <div className="flex flex-col items-center justify-center p-12 bg-slate-900 border border-slate-800 rounded-2xl shadow-xl">
-                <p className="text-slate-400 text-center">{t('manageFarms.info.selectFarm', { defaultValue: 'Please select a farm first' })}</p>
+            <div className="flex flex-col items-center justify-center p-12 bg-white border border-slate-200 rounded-2xl shadow-xl">
+                <p className="text-slate-500 text-center">{t('manageFarms.info.selectFarm', { defaultValue: 'Please select a farm first' })}</p>
             </div>
         );
     }
@@ -90,10 +90,10 @@ export default function ManageFarmSettings() {
 
     return (
         <div className="space-y-6">
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl shadow-black/20">
+            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xl shadow-slate-900/10">
                 <div>
-                    <h2 className="text-xl font-bold text-slate-100">{t('manageFarms.currentTitle', { defaultValue: 'Farm Settings' })}</h2>
-                    <p className="text-sm text-slate-400 mt-1">{t('manageFarms.currentDescription', { defaultValue: 'Update your farm information and visibility.' })}</p>
+                    <h2 className="text-xl font-bold text-slate-900">{t('manageFarms.currentTitle', { defaultValue: 'Farm Settings' })}</h2>
+                    <p className="text-sm text-slate-500 mt-1">{t('manageFarms.currentDescription', { defaultValue: 'Update your farm information and visibility.' })}</p>
                 </div>
 
                 {error && <div className="mt-4 rounded-xl bg-rose-500/10 p-4 text-sm font-medium text-rose-400 border border-rose-500/20">{error}</div>}
@@ -101,13 +101,13 @@ export default function ManageFarmSettings() {
 
                 <form className="mt-6 space-y-5" onSubmit={handleUpdate}>
                     <div className="space-y-1.5">
-                        <label htmlFor="edit-name" className="block text-sm font-medium text-slate-300">
+                        <label htmlFor="edit-name" className="block text-sm font-medium text-slate-600">
                             {t('manageFarms.nameLabel', { defaultValue: 'Farm Name' })}
                         </label>
                         <input
                             id="edit-name"
                             type="text"
-                            className="w-full rounded-xl bg-slate-950 border border-slate-800 px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+                            className="w-full rounded-xl bg-white border border-slate-200 px-4 py-2.5 text-sm text-slate-700 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
                             value={editName}
                             onChange={(e) => setEditName(e.target.value)}
                             disabled={!selectedFarm || isUpdating || !selectedFarm.canManage}
@@ -116,10 +116,10 @@ export default function ManageFarmSettings() {
                     </div>
 
                     <div className="space-y-1.5">
-                        <label htmlFor="edit-description" className="block text-sm font-medium text-slate-300">{t('manageFarms.descriptionLabel', { defaultValue: 'Description' })}</label>
+                        <label htmlFor="edit-description" className="block text-sm font-medium text-slate-600">{t('manageFarms.descriptionLabel', { defaultValue: 'Description' })}</label>
                         <textarea
                             id="edit-description"
-                            className="w-full rounded-xl bg-slate-950 border border-slate-800 px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+                            className="w-full rounded-xl bg-white border border-slate-200 px-4 py-2.5 text-sm text-slate-700 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
                             rows={3}
                             value={editDescription}
                             onChange={(e) => setEditDescription(e.target.value)}
@@ -128,11 +128,11 @@ export default function ManageFarmSettings() {
                     </div>
 
                     <div className="space-y-1.5">
-                        <label htmlFor="edit-location" className="block text-sm font-medium text-slate-300">{t('manageFarms.locationLabel', { defaultValue: 'Location' })}</label>
+                        <label htmlFor="edit-location" className="block text-sm font-medium text-slate-600">{t('manageFarms.locationLabel', { defaultValue: 'Location' })}</label>
                         <input
                             id="edit-location"
                             type="text"
-                            className="w-full rounded-xl bg-slate-950 border border-slate-800 px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+                            className="w-full rounded-xl bg-white border border-slate-200 px-4 py-2.5 text-sm text-slate-700 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
                             value={editLocation}
                             onChange={(e) => setEditLocation(e.target.value)}
                             disabled={!selectedFarm || isUpdating || !selectedFarm.canManage}
@@ -141,44 +141,44 @@ export default function ManageFarmSettings() {
                     </div>
 
                     <div className="grid gap-4 sm:grid-cols-2 pt-4">
-                        <label className="flex items-center gap-3 p-3 rounded-xl border border-slate-800 bg-slate-950/50 hover:bg-slate-800/50 transition-colors cursor-pointer">
-                            <input type="checkbox" className="w-4 h-4 rounded border-slate-700 bg-slate-950 text-indigo-500 focus:ring-indigo-500" checked={editIsPublic} onChange={(e) => setEditIsPublic(e.target.checked)} disabled={!selectedFarm || isUpdating || !selectedFarm.canManage} />
-                            <span className="text-sm font-medium text-slate-300">{t('manageFarms.public', { defaultValue: 'Public Farm' })}</span>
+                        <label className="flex items-center gap-3 p-3 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-50 transition-colors cursor-pointer">
+                            <input type="checkbox" className="w-4 h-4 rounded border-slate-300 bg-white text-indigo-500 focus:ring-indigo-500" checked={editIsPublic} onChange={(e) => setEditIsPublic(e.target.checked)} disabled={!selectedFarm || isUpdating || !selectedFarm.canManage} />
+                            <span className="text-sm font-medium text-slate-600">{t('manageFarms.public', { defaultValue: 'Public Farm' })}</span>
                         </label>
-                        <label className="flex items-center gap-3 p-3 rounded-xl border border-slate-800 bg-slate-950/50 hover:bg-slate-800/50 transition-colors cursor-pointer">
-                            <input type="checkbox" className="w-4 h-4 rounded border-slate-700 bg-slate-950 text-indigo-500 focus:ring-indigo-500" checked={editShowName} onChange={(e) => setEditShowName(e.target.checked)} disabled={!selectedFarm || isUpdating || !selectedFarm.canManage} />
-                            <span className="text-sm font-medium text-slate-300">{t('manageFarms.showName', { defaultValue: 'Show Name' })}</span>
+                        <label className="flex items-center gap-3 p-3 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-50 transition-colors cursor-pointer">
+                            <input type="checkbox" className="w-4 h-4 rounded border-slate-300 bg-white text-indigo-500 focus:ring-indigo-500" checked={editShowName} onChange={(e) => setEditShowName(e.target.checked)} disabled={!selectedFarm || isUpdating || !selectedFarm.canManage} />
+                            <span className="text-sm font-medium text-slate-600">{t('manageFarms.showName', { defaultValue: 'Show Name' })}</span>
                         </label>
-                        <label className="flex items-center gap-3 p-3 rounded-xl border border-slate-800 bg-slate-950/50 hover:bg-slate-800/50 transition-colors cursor-pointer">
-                            <input type="checkbox" className="w-4 h-4 rounded border-slate-700 bg-slate-950 text-indigo-500 focus:ring-indigo-500" checked={editShowDescription} onChange={(e) => setEditShowDescription(e.target.checked)} disabled={!selectedFarm || isUpdating || !selectedFarm.canManage} />
-                            <span className="text-sm font-medium text-slate-300">{t('manageFarms.showDescription', { defaultValue: 'Show Description' })}</span>
+                        <label className="flex items-center gap-3 p-3 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-50 transition-colors cursor-pointer">
+                            <input type="checkbox" className="w-4 h-4 rounded border-slate-300 bg-white text-indigo-500 focus:ring-indigo-500" checked={editShowDescription} onChange={(e) => setEditShowDescription(e.target.checked)} disabled={!selectedFarm || isUpdating || !selectedFarm.canManage} />
+                            <span className="text-sm font-medium text-slate-600">{t('manageFarms.showDescription', { defaultValue: 'Show Description' })}</span>
                         </label>
-                        <label className="flex items-center gap-3 p-3 rounded-xl border border-slate-800 bg-slate-950/50 hover:bg-slate-800/50 transition-colors cursor-pointer">
-                            <input type="checkbox" className="w-4 h-4 rounded border-slate-700 bg-slate-950 text-indigo-500 focus:ring-indigo-500" checked={editShowLocation} onChange={(e) => setEditShowLocation(e.target.checked)} disabled={!selectedFarm || isUpdating || !selectedFarm.canManage} />
-                            <span className="text-sm font-medium text-slate-300">{t('manageFarms.showLocation', { defaultValue: 'Show Location' })}</span>
+                        <label className="flex items-center gap-3 p-3 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-50 transition-colors cursor-pointer">
+                            <input type="checkbox" className="w-4 h-4 rounded border-slate-300 bg-white text-indigo-500 focus:ring-indigo-500" checked={editShowLocation} onChange={(e) => setEditShowLocation(e.target.checked)} disabled={!selectedFarm || isUpdating || !selectedFarm.canManage} />
+                            <span className="text-sm font-medium text-slate-600">{t('manageFarms.showLocation', { defaultValue: 'Show Location' })}</span>
                         </label>
                     </div>
 
                     {/* Email Alerts Section */}
-                    <div className="border-t border-slate-800 pt-6 mt-6">
-                        <h3 className="text-lg font-semibold text-slate-200 mb-1">
+                    <div className="border-t border-slate-200 pt-6 mt-6">
+                        <h3 className="text-lg font-semibold text-slate-700 mb-1">
                             {t('manageFarms.emailAlertsTitle', { defaultValue: 'Email Alert Configurations' })}
                         </h3>
-                        <p className="text-xs text-slate-400 mb-4">
+                        <p className="text-xs text-slate-500 mb-4">
                             {t('manageFarms.emailAlertsDesc', { defaultValue: 'Enable or disable real-time email alerts for important actions on this farm.' })}
                         </p>
 
                         <div className="grid gap-4 sm:grid-cols-3 mb-4">
-                            <label className="flex items-center gap-3 p-3 rounded-xl border border-slate-800 bg-slate-950/50 hover:bg-slate-800/50 transition-colors cursor-pointer">
+                            <label className="flex items-center gap-3 p-3 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-50 transition-colors cursor-pointer">
                                 <input
                                     type="checkbox"
-                                    className="w-4 h-4 rounded border-slate-700 bg-slate-950 text-indigo-500 focus:ring-indigo-500"
+                                    className="w-4 h-4 rounded border-slate-300 bg-white text-indigo-500 focus:ring-indigo-500"
                                     checked={editEnableMemberAlerts}
                                     onChange={(e) => setEditEnableMemberAlerts(e.target.checked)}
                                     disabled={!selectedFarm || isUpdating || !selectedFarm.canManage}
                                 />
                                 <div className="flex flex-col">
-                                    <span className="text-sm font-medium text-slate-300">
+                                    <span className="text-sm font-medium text-slate-600">
                                         {t('manageFarms.memberAlerts', { defaultValue: 'Member Alerts' })}
                                     </span>
                                     <span className="text-[10px] text-slate-500">
@@ -187,16 +187,16 @@ export default function ManageFarmSettings() {
                                 </div>
                             </label>
 
-                            <label className="flex items-center gap-3 p-3 rounded-xl border border-slate-800 bg-slate-950/50 hover:bg-slate-800/50 transition-colors cursor-pointer">
+                            <label className="flex items-center gap-3 p-3 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-50 transition-colors cursor-pointer">
                                 <input
                                     type="checkbox"
-                                    className="w-4 h-4 rounded border-slate-700 bg-slate-950 text-indigo-500 focus:ring-indigo-500"
+                                    className="w-4 h-4 rounded border-slate-300 bg-white text-indigo-500 focus:ring-indigo-500"
                                     checked={editEnableParcelAlerts}
                                     onChange={(e) => setEditEnableParcelAlerts(e.target.checked)}
                                     disabled={!selectedFarm || isUpdating || !selectedFarm.canManage}
                                 />
                                 <div className="flex flex-col">
-                                    <span className="text-sm font-medium text-slate-300">
+                                    <span className="text-sm font-medium text-slate-600">
                                         {t('manageFarms.parcelAlerts', { defaultValue: 'Parcel Alerts' })}
                                     </span>
                                     <span className="text-[10px] text-slate-500">
@@ -205,16 +205,16 @@ export default function ManageFarmSettings() {
                                 </div>
                             </label>
 
-                            <label className="flex items-center gap-3 p-3 rounded-xl border border-slate-800 bg-slate-950/50 hover:bg-slate-800/50 transition-colors cursor-pointer">
+                            <label className="flex items-center gap-3 p-3 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-50 transition-colors cursor-pointer">
                                 <input
                                     type="checkbox"
-                                    className="w-4 h-4 rounded border-slate-700 bg-slate-950 text-indigo-500 focus:ring-indigo-500"
+                                    className="w-4 h-4 rounded border-slate-300 bg-white text-indigo-500 focus:ring-indigo-500"
                                     checked={editEnableOperationAlerts}
                                     onChange={(e) => setEditEnableOperationAlerts(e.target.checked)}
                                     disabled={!selectedFarm || isUpdating || !selectedFarm.canManage}
                                 />
                                 <div className="flex flex-col">
-                                    <span className="text-sm font-medium text-slate-300">
+                                    <span className="text-sm font-medium text-slate-600">
                                         {t('manageFarms.operationAlerts', { defaultValue: 'Operation Alerts' })}
                                     </span>
                                     <span className="text-[10px] text-slate-500">
@@ -225,13 +225,13 @@ export default function ManageFarmSettings() {
                         </div>
 
                         <div className="space-y-1.5 mt-4">
-                            <label htmlFor="edit-alert-email" className="block text-sm font-medium text-slate-300">
+                            <label htmlFor="edit-alert-email" className="block text-sm font-medium text-slate-600">
                                 {t('manageFarms.alertEmailLabel', { defaultValue: 'Custom Alert Recipient Email' })}
                             </label>
                             <input
                                 id="edit-alert-email"
                                 type="email"
-                                className="w-full rounded-xl bg-slate-950 border border-slate-800 px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+                                className="w-full rounded-xl bg-white border border-slate-200 px-4 py-2.5 text-sm text-slate-700 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
                                 value={editAlertRecipientEmail}
                                 onChange={(e) => setEditAlertRecipientEmail(e.target.value)}
                                 disabled={!selectedFarm || isUpdating || !selectedFarm.canManage}
